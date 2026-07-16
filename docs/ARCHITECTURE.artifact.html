@@ -1,0 +1,1602 @@
+<title>VoteRight — Architecture &amp; Domain Model</title>
+<style>
+  :root {
+    --ink: #14171c;
+    --paper: #eef1ee;
+    --paper-raised: #e4e9e3;
+    --line: #c7cfc8;
+    --accent: #1f5f6b;
+    --accent-soft: #1f5f6b1a;
+    --advisory: #96690f;
+    --advisory-soft: #b8862b22;
+    --kept: #2f6b3f;
+    --broken: #8a3232;
+    --pending: #a06a1a;
+    --disputed: #5d3f80;
+    --code-bg: #e2e7e0;
+    --shadow: 0 1px 2px rgba(20,23,28,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #eceeea;
+      --paper: #14171a;
+      --paper-raised: #1b1f1f;
+      --line: #333c37;
+      --accent: #62b3ae;
+      --accent-soft: #62b3ae22;
+      --advisory: #e0ac52;
+      --advisory-soft: #e0ac5222;
+      --kept: #6fbf82;
+      --broken: #d97a7a;
+      --pending: #e0ac52;
+      --disputed: #b79ee0;
+      --code-bg: #1f2422;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #eceeea; --paper: #14171a; --paper-raised: #1b1f1f; --line: #333c37;
+    --accent: #62b3ae; --accent-soft: #62b3ae22; --advisory: #e0ac52; --advisory-soft: #e0ac5222;
+    --kept: #6fbf82; --broken: #d97a7a; --pending: #e0ac52; --disputed: #b79ee0;
+    --code-bg: #1f2422; --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --ink: #14171c; --paper: #eef1ee; --paper-raised: #e4e9e3; --line: #c7cfc8;
+    --accent: #1f5f6b; --accent-soft: #1f5f6b1a; --advisory: #96690f; --advisory-soft: #b8862b22;
+    --kept: #2f6b3f; --broken: #8a3232; --pending: #a06a1a; --disputed: #5d3f80;
+    --code-bg: #e2e7e0; --shadow: 0 1px 2px rgba(20,23,28,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--accent-soft); }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif;
+    font-weight: 600;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .shell { display: flex; max-width: 1240px; margin: 0 auto; align-items: flex-start; }
+
+  nav.toc {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    flex: 0 0 250px; padding: 2.25rem 1.25rem 2rem 1.5rem;
+    border-right: 1px solid var(--line);
+    font-size: 0.82rem;
+  }
+  nav.toc .brand {
+    font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif;
+    font-size: 1.05rem; font-weight: 700; margin-bottom: 0.15rem;
+  }
+  nav.toc .brand small {
+    display: block; font-family: inherit; font-weight: 400; font-size: 0.72rem;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-top: 0.35rem;
+  }
+  nav.toc ol { list-style: none; margin: 1.5rem 0 0; padding: 0; counter-reset: toc; }
+  nav.toc li { counter-increment: toc; margin-bottom: 0.55rem; }
+  nav.toc a {
+    color: var(--ink); text-decoration: none; opacity: 0.75; display: flex; gap: 0.5rem;
+  }
+  nav.toc a:hover { opacity: 1; color: var(--accent); }
+  nav.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-variant-numeric: tabular-nums; color: var(--accent); opacity: 0.8; flex: 0 0 auto;
+    font-size: 0.72rem; padding-top: 0.1rem;
+  }
+
+  main { flex: 1 1 auto; min-width: 0; padding: 2.5rem 3rem 6rem; }
+
+  .masthead { max-width: 74ch; margin-bottom: 3rem; }
+  .masthead .eyebrow {
+    font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--advisory); font-weight: 600; margin-bottom: 0.6rem;
+  }
+  .masthead h1 { font-size: 2.15rem; margin: 0 0 0.6rem; line-height: 1.15; }
+  .masthead .dek { font-size: 1.05rem; opacity: 0.82; max-width: 62ch; }
+  .masthead .status {
+    display: inline-block; margin-top: 1rem; font-size: 0.75rem; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    padding: 0.25rem 0.6rem; border: 1px solid var(--line); border-radius: 3px; opacity: 0.8;
+  }
+
+  section { max-width: 74ch; margin-bottom: 3.25rem; scroll-margin-top: 1.5rem; }
+  section.wide { max-width: 100%; }
+  section.wide > .prosewrap { max-width: 74ch; }
+
+  h2 { font-size: 1.55rem; border-top: 1px solid var(--line); padding-top: 1.75rem; margin-top: 0; }
+  h3 { font-size: 1.18rem; margin-top: 2rem; }
+  h4 { font-size: 1rem; margin-top: 1.5rem; }
+  p { margin: 0.9rem 0; }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: 0.4rem 0; }
+  strong { font-weight: 650; }
+  code {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.88em;
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1rem 1.25rem;
+    border-radius: 0 4px 4px 0;
+    margin: 1.25rem 0;
+  }
+  .callout.warn { border-left-color: var(--advisory); background: var(--advisory-soft); }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label {
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 700; color: var(--accent); display: block; margin-bottom: 0.4rem;
+  }
+  .callout.warn .label { color: var(--advisory); }
+
+  .stamp {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
+    border: 1.5px solid var(--advisory); color: var(--advisory);
+    padding: 0.3rem 0.6rem; border-radius: 3px; transform: rotate(-1.5deg);
+    margin: 0.25rem 0.4rem 0.25rem 0;
+  }
+  .stamp.record { border-color: var(--accent); color: var(--accent); transform: rotate(1deg); }
+
+  table {
+    border-collapse: collapse; width: 100%; font-size: 0.88rem; margin: 0;
+  }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; margin: 1.25rem 0; }
+  th, td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--paper-raised); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  td code { white-space: nowrap; }
+
+  .glossary dt { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 700; color: var(--accent); font-size: 0.9rem; }
+  .glossary dd { margin: 0.2rem 0 1rem; opacity: 0.9; }
+
+  pre.mermaid {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 1.25rem; overflow-x: auto; margin: 1.25rem 0;
+  }
+
+  .codeblock {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 1rem 1.25rem; overflow-x: auto; margin: 1.25rem 0;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.82rem; line-height: 1.55; white-space: pre; font-variant-numeric: tabular-nums;
+  }
+  .codeblock .c { opacity: 0.55; }
+
+  footer.doc {
+    max-width: 74ch; padding-top: 2rem; border-top: 1px solid var(--line);
+    font-size: 0.8rem; opacity: 0.7;
+  }
+
+  @media (max-width: 900px) {
+    .shell { flex-direction: column; }
+    nav.toc { position: static; height: auto; width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 2rem 1.25rem 4rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="Table of contents">
+    <div class="brand">VoteRight<small>Architecture &amp; Domain Model</small></div>
+    <ol>
+      <li><a href="#s1">What this document is</a></li>
+      <li><a href="#s2">Legal &amp; constitutional guardrails</a></li>
+      <li><a href="#s3">Domain model glossary</a></li>
+      <li><a href="#s4">Entity-relationship diagram</a></li>
+      <li><a href="#s5">Relational schema</a></li>
+      <li><a href="#s6">System architecture</a></li>
+      <li><a href="#s7">Key workflows</a></li>
+      <li><a href="#s8">External data partners</a></li>
+      <li><a href="#s9">Trust &amp; anti-manipulation</a></li>
+      <li><a href="#s10">Privacy &amp; governance</a></li>
+      <li><a href="#s11">Accessibility &amp; localization</a></li>
+      <li><a href="#s12">MVP phasing</a></li>
+      <li><a href="#s13">Open questions for counsel</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="masthead">
+      <div class="eyebrow">Draft v0.2 &middot; pre-legal-review</div>
+      <h1>VoteRight — Architecture &amp; Domain Model</h1>
+      <p class="dek">A civic platform that matches voters to candidates on their own stated priorities, tracks campaign promises to completion with evidence, and runs an advisory direct-democracy layer — issue proposals, seconding, debate, unofficial referenda whose published mandates are put to every candidate, on the record — on top of representative government. Pilot scope: Montgomery County, MD.</p>
+      <span class="status">SCOPE — county pilot, nationally generalizable schema &middot; SCHEMA.sql validated on PostgreSQL 16</span>
+    </div>
+
+    <section id="s1">
+      <h2>1. What this document is</h2>
+      <p>VoteRight does four things: captures what voters want on the issues that matter to them; scores politicians and candidates against those wants using sourced, citable positions and real voting records; tracks specific promises through to kept, broken, in-progress, or compromised; and layers a direct-democracy mechanism on top — voters raise issues, second them, debate them in text and audio, and vote on them in unofficial referenda whose results are published as a public mandate attached to the relevant officeholder's record.</p>
+      <p>The premise behind all four: elections are too often won on name recognition rather than fit. A candidate can know in advance they won't vote for what their voters actually want, or conceal a thin record until safely in office — and nothing in the voter's information environment surfaces that before the vote or holds it against them after. VoteRight's answer is a loop, not a scoreboard: voters state what they want → candidates are measured against it before the election → published mandates are put to every candidate for the office, on the record (<code>mandate_commitments</code>, Section 7.9) → a winner's commitments become tracked promises → and when promises are ignored or broken, the voter is routed to the real, jurisdiction-verified corrective levers that actually exist (Section 2, <code>accountability_pathways</code>) rather than to imaginary ones.</p>
+      <p>This document defines the domain model, the schema, the system architecture, the core workflows, and — because this product sits directly on election law, defamation exposure, and constitutional limits on removing elected officials — the guardrails that must hold before any of it ships.</p>
+      <div class="callout warn">
+        <span class="label">Read Section 2 first</span>
+        <p>Two things in the original brief — a voter-triggered "recall," and a mechanism that "prohibits" a politician from being elected — describe powers that do not exist under Maryland or federal law. Section 2 verifies this against current sources and reframes both into something real and still useful. Building the literal ask would mean shipping civic misinformation.</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <h2>2. Legal &amp; constitutional guardrails</h2>
+      <p>These are verified facts, not design opinions, and they constrain the schema directly — see <code>accountability_pathways</code> in Section 5.</p>
+
+      <h3>2.1 There is no petition-based recall in Maryland at any level this app touches</h3>
+      <span class="stamp">Verified, not assumed</span>
+      <p>Maryland does not provide for recall of state officials — removal happens only through impeachment (Governor, Lt. Governor, judges) or automatic removal on criminal conviction; the constitution is silent on legislators. <strong>Montgomery County has no recall provision</strong> for County Executive or Council — the County's own 2022 Charter Review Commission considered adding one and voted it down, and the same is true across every Maryland charter county (Anne Arundel, Frederick, Prince George's, Baltimore). The only pre-term removal of a sitting Councilmember is a <strong>7-of-11 supermajority Council vote</strong> (Charter §118) — after a public hearing, only for physical or mental disability, appealable de novo to the Circuit Court — not policy disagreement or broken promises. (The Council has been 11 members — 4 at-large, 7 district — since December 2022; the older 9-member / 6-vote figures still circulate and are wrong.) <strong>No recall mechanism exists for federal officials</strong> anywhere in the U.S.</p>
+      <div class="callout">
+        <span class="label">Consequence for the product</span>
+        <p>A feature called "recall" that a voter can trigger isn't just unbuilt — it describes a power that doesn't exist. Section 5's <code>accountability_pathways</code> table is jurisdiction-and-office aware and tells a voter the truth for their specific seat: next-election defeat, primary-challenger support, the narrow disability-removal vote, criminal referral, or plainly "no removal mechanism exists before the next election." The word "recall" appears in the UI only where an office genuinely has one — checked per office, never assumed.</p>
+      </div>
+
+      <h3>2.1.1 Debating the absence of recall isn't the same problem — and there's a real, binding lever underneath it</h3>
+      <p>Everything in 2.1 is about not misrepresenting a power that doesn't exist. It says nothing about whether voters can <em>advocate for creating one</em> — they plainly can. "Should Montgomery County adopt recall?" is a law-reform question, not a factual claim about a named person, so it carries none of the defamation exposure in 2.3. It belongs in <code>issue_proposals</code> like any other topic.</p>
+      <p>It's better than that: Montgomery County has a real, binding, <strong>voter-initiated charter amendment petition</strong> process (Md. Constitution Art. XI-A, §5). The rule is 20% of registered voters, "provided that in any case 10,000 signatures shall be sufficient" — meaning 10,000 is a <em>ceiling</em> that satisfies the requirement in a county this size, not an additional floor on top of 20% (20% of Montgomery County's ~680,000+ registered voters would be well over 100,000; the proviso is what actually governs). This isn't theoretical — it's been used repeatedly: a unanimous-override requirement for property tax increases (2008), County Executive/Council term limits (2016), and a further term-limit reduction that qualified in 2024 with 15,956 certified signatures — comfortably above the 10,000-signature bar and nowhere near 20%, which confirms which figure actually governs. Adding a recall provision is exactly what this mechanism is for.</p>
+      <div class="callout">
+        <span class="label">Two hard limits on the feature</span>
+        <p><strong>In-app support is not a legal signature.</strong> <code>accountability_campaigns.support_count</code> measures in-app backing only; <code>external_petition_status</code> separately tracks the real petition's progress through the Board of Elections. The app can organize toward a real signature drive — it cannot substitute for one. And spending money to organize that drive can itself trigger campaign-finance registration questions (Section 13).</p>
+      </div>
+
+      <h3>2.2 The app cannot gate ballot access or vote counting</h3>
+      <p>Elections are state-administered; no app has a technical gate on who gets elected. What the product can legitimately do is publish a sourced alignment score and promise-fidelity record early and prominently enough to influence the vote — the same lane BallotReady and VOTE411 already occupy — and keep scoring officeholders afterward, routing mismatches toward the real levers in 2.1.</p>
+
+      <h3>2.3 Integrity scoring is a defamation and misinformation risk if done carelessly</h3>
+      <p>Calling a named politician a "liar" is a factual claim that can be actionable if wrong. Mitigations built into the schema: every <code>integrity_flag</code> and promise status change carries dated, archived <code>citations</code>; scoring methodology is published and versioned (<code>algorithm_version</code>); a mandatory dispute / right-of-reply workflow runs before a flag is marked "upheld" and shown at full visibility — and the publish gate is now a database <code>CHECK</code>, not an editorial convention; and sourced fact is never given the same visual weight as community opinion.</p>
+
+      <h3>2.4 The unofficial referendum must never read as an official one</h3>
+      <p>Every referendum-facing surface carries a non-removable disclosure that the result is advisory and has no legal force — treated as a product requirement, not a footnote.</p>
+      <p><span class="stamp">Unofficial &middot; advisory</span><span class="stamp record">Sourced &middot; evidence-linked</span> — these two visual registers run through the whole product: gold for anything expressive/non-binding, teal for anything backed by a citation or a recorded vote. They should never be visually interchangeable.</p>
+
+      <h3>2.5 Sybil resistance is existential, not optional</h3>
+      <p>A tool built to aggregate "the people's" position and apply organized pressure on a named official is an obvious target for coordinated manipulation, plausibly including influence operations. <code>referendum_ballot_tokens</code> and <code>seconds</code> are one-per-verified-person, weighted by <code>verification_tier</code>, with anomaly detection at ingestion — present from day one, not hardening added later.</p>
+
+      <h3>2.6 Never ingest Maryland's purchased voter file</h3>
+      <p>Maryland sells its voter list, but only under a signed statement that it's used solely for activities meeting the legal definition of "electoral process" — misuse is a criminal misdemeanor. <code>users.residence_jurisdiction_id</code> is self-attested and address-format-verified, never matched against an imported state file. A registration-status check, if ever needed, calls the state's own public lookup per request and discards the result rather than warehousing it.</p>
+
+      <h3>2.7 Campaign-finance classification is open, not defaulted</h3>
+      <p>Scoring candidates and organizing pressure toward an outcome may register as issue or express advocacy under FEC/state law depending on funding, timing, and nonprofit structure. This must be decided with counsel before outside money or pre-election promotion — revisited in Section 13.</p>
+    </section>
+
+    <section id="s3">
+      <h2>3. Domain model glossary</h2>
+      <dl class="glossary">
+        <dt>Jurisdiction</dt><dd>A governed geography (country → state → county → municipal → school district), keyed by <a href="https://github.com/opencivicdata/ocd-division-ids" target="_blank" rel="noopener">OCD-ID</a> so it interoperates with BallotReady/Ballotpedia/OpenStates rather than inventing new geography IDs.</dd>
+        <dt>Office</dt><dd>A specific elected seat — or multi-seat pool — within a jurisdiction, e.g. "Montgomery County Council, District 1"; the Council's four at-large seats are one office row with <code>seat_count = 4</code>.</dd>
+        <dt>Office term</dt><dd>One politician's tenure in one office — start, end, elected vs. appointed. The standing officeholding record behind incumbency and the your-ballot view: <code>race_incumbents</code> is per-contest, <code>office_terms</code> is per-seat.</dd>
+        <dt>Election cycle / Race</dt><dd>A dated election event; a race binds an office to a cycle and declares how many seats it fills (<code>seats_elected</code>).</dd>
+        <dt>Politician</dt><dd>A person who has held or run for office — persists across candidacies and terms.</dd>
+        <dt>Candidacy</dt><dd>One politician's run for one race.</dd>
+        <dt>Topic</dt><dd>A node in a hierarchical issue taxonomy, e.g. Housing → Zoning Reform.</dd>
+        <dt>Voter priority</dt><dd>A voter's own stated wish or objective on a topic, weighted by importance to them — the input side of matching.</dd>
+        <dt>Politician position</dt><dd>A sourced, citable platform plank on a topic.</dd>
+        <dt>Promise</dt><dd>A specific, checkable commitment tied to a topic, with a status that evolves as evidence arrives.</dd>
+        <dt>Voting record</dt><dd>An actual recorded legislative vote, ingested from an authoritative feed — never self-reported.</dd>
+        <dt>Alignment score</dt><dd>Computed fit between one voter's priorities and one candidacy, topic-by-topic and overall.</dd>
+        <dt>Integrity flag</dt><dd>A sourced allegation that a politician's record contradicts a stated position or promise — disputable and appealable, with its own append-only status history.</dd>
+        <dt>Accountability pathway</dt><dd>The jurisdiction-real mechanisms available to respond to a mismatch — replaces "recall." Jurisdiction-scoped with an optional office: officeholder mechanisms attach to a seat, while the binding charter-amendment petition (2.1.1) belongs to the county itself.</dd>
+        <dt>Accountability campaign</dt><dd>An instance of a voter organizing around a pathway — targeting either a specific politician, or a law/charter change (e.g. petitioning to add a recall provision that doesn't currently exist).</dd>
+        <dt>Issue proposal</dt><dd>A voter-raised issue awaiting seconds.</dd>
+        <dt>Second</dt><dd>One voter's co-sponsorship of a proposal — a deliberately public act, like signing a public petition (Section 10.2).</dd>
+        <dt>Forum thread / Argument</dt><dd>The structured, sourced, for/against debate space a proposal graduates into once seconded. Arguments may be text, audio, locally recorded/uploaded video, or a linked YouTube video.</dd>
+        <dt>Referendum</dt><dd>The unofficial, advisory ballot question a debated proposal can graduate into.</dd>
+        <dt>Ballot token / ballot</dt><dd>The two halves of a referendum vote, deliberately kept in separate tables: a token proves one verified person voted once; a ballot records the choice against the token, never against the person (Section 10.1).</dd>
+        <dt>Voter mandate</dt><dd>The published, public artifact summarizing a referendum's result — gated on a minimum-turnout threshold, not published automatically just because a referendum closed (Section 5, Section 10.1).</dd>
+        <dt>Mandate commitment</dt><dd>A candidate's public, sourced position (commit / decline / no response) on each standing voter mandate for the office they seek, recorded before the election; a committed winner's mandate becomes a tracked promise (Section 7.9).</dd>
+        <dt>Argument cluster</dt><dd>A group of near-duplicate arguments on the same side of a thread, reduced to one representative point — how a popular thread stays readable instead of a flat, repetitive feed.</dd>
+        <dt>Opinion cluster</dt><dd>A "camp" of users who tend to agree/disagree on the same statements within a thread, computed from agreement votes rather than from who posted what — surfaces real fault lines and bridging points beyond a binary for/against split.</dd>
+        <dt>Amendment</dt><dd>A revision to a proposal, itself requiring its own seconds before adoption — borrowed from Robert's Rules; the original proposal text is never overwritten (Section 7.6).</dd>
+        <dt>Call the question</dt><dd>A supermajority vote by a thread's active participants to close debate early rather than wait out the scheduled window — borrowed from Robert's Rules' "previous question" (Section 7.6).</dd>
+        <dt>Independent expenditure</dt><dd>A sourced record of outside/Super PAC spending for or against a candidacy or ballot measure, drawn from official campaign-finance filings (Section 8.1).</dd>
+        <dt>Campaign communication</dt><dd>A specific mailer, flyer, robocall, or ad that a user can check against a sourced finding of whether it's an actual official ballot — a documents check, not a character judgment (Section 8.1).</dd>
+        <dt>Endorsement</dt><dd>A sourced record of an organization backing a candidacy — always citation-required, never a bare claim (Section 8.1).</dd>
+        <dt>Claim flag</dt><dd>A prompt, at argument submission time, that a specific sentence reads as an unsourced factual assertion and could use a citation — deliberately not a judgment that the argument is "too opinionated" (Section 7.7).</dd>
+        <dt>AI debate run</dt><dd>A one-shot, evidence-grounded argument generated for whichever side of a debate is thin, triggered only by imbalance, always disclosed as machine-authored — never a running AI-vs-AI debate loop (Section 7.8).</dd>
+        <dt>Commentator</dt><dd>A local journalist or analyst whose commentary is surfaced by objective, disclosed rule (sustained beat coverage, real byline, disclosed affiliations) — never a staff editorial pick (Section 8.2).</dd>
+        <dt>Commentary link</dt><dd>A specific piece of expert commentary linked to a topic, politician, race, or issue proposal — attributed opinion, kept structurally separate from the <code>citations</code> evidence ledger (Section 8.2).</dd>
+      </dl>
+    </section>
+
+    <section id="s4" class="wide">
+      <div class="prosewrap">
+        <h2>4. Entity-relationship diagram</h2>
+        <p>Every user-facing claim in the product traces back to one of these tables — geography and people on one side, evidence and voter intent on the other, meeting in scoring and in the direct-democracy layer.</p>
+      </div>
+      <pre class="mermaid">
+erDiagram
+    JURISDICTIONS ||--o{ OFFICES : contains
+    JURISDICTIONS ||--o{ JURISDICTIONS : "parent of"
+    OFFICES ||--o{ RACES : "contested in"
+    OFFICES ||--o{ OFFICE_TERMS : "held as"
+    POLITICIANS ||--o{ OFFICE_TERMS : serves
+    CITATIONS ||--o{ OFFICE_TERMS : evidences
+    ELECTION_CYCLES ||--o{ RACES : schedules
+    RACES ||--o{ CANDIDACIES : has
+    RACES ||--o{ RACE_INCUMBENTS : "has sitting"
+    POLITICIANS ||--o{ RACE_INCUMBENTS : "is incumbent in"
+    POLITICIANS ||--o{ CANDIDACIES : runs
+    POLITICIANS ||--o{ POLITICIAN_POSITIONS : states
+    POLITICIANS ||--o{ PROMISES : makes
+    POLITICIANS ||--o{ VOTING_RECORDS : casts
+    POLITICIANS ||--o{ INTEGRITY_FLAGS : "flagged on"
+    TOPICS ||--o{ TOPICS : "parent of"
+    TOPICS ||--o{ VOTER_PRIORITIES : categorizes
+    TOPICS ||--o{ POLITICIAN_POSITIONS : categorizes
+    TOPICS ||--o{ PROMISES : categorizes
+    USERS ||--o{ VOTER_PRIORITIES : states
+    USERS ||--o{ ALIGNMENT_SCORES : receives
+    CANDIDACIES ||--o{ ALIGNMENT_SCORES : scored
+    CITATIONS ||--o{ PROMISES : evidences
+    CITATIONS ||--o{ INTEGRITY_FLAGS : evidences
+    CITATIONS ||--o{ ARGUMENTS : evidences
+    PROMISES ||--o{ PROMISE_STATUS_EVENTS : has
+    INTEGRITY_FLAGS ||--o{ INTEGRITY_FLAG_STATUS_EVENTS : has
+    JURISDICTIONS ||--o{ ACCOUNTABILITY_PATHWAYS : "defined for"
+    OFFICES ||--o{ ACCOUNTABILITY_PATHWAYS : "scoped to (optional)"
+    ACCOUNTABILITY_PATHWAYS ||--o{ ACCOUNTABILITY_CAMPAIGNS : instantiated_as
+    POLITICIANS ||--o{ ACCOUNTABILITY_CAMPAIGNS : "targets (if politician)"
+    REFERENDA ||--o{ ACCOUNTABILITY_CAMPAIGNS : "may originate"
+    USERS ||--o{ ISSUE_PROPOSALS : raises
+    JURISDICTIONS ||--o{ ISSUE_PROPOSALS : scoped_to
+    ISSUE_PROPOSALS ||--o{ SECONDS : receives
+    USERS ||--o{ SECONDS : gives
+    ISSUE_PROPOSALS ||--o{ PROPOSAL_AMENDMENTS : "may be amended by"
+    PROPOSAL_AMENDMENTS ||--o{ AMENDMENT_SECONDS : receives
+    USERS ||--o{ AMENDMENT_SECONDS : gives
+    ISSUE_PROPOSALS ||--o| FORUM_THREADS : graduates_to
+    FORUM_THREADS ||--o{ CALL_THE_QUESTION_VOTES : receives
+    USERS ||--o{ CALL_THE_QUESTION_VOTES : casts
+    FORUM_THREADS ||--o{ ARGUMENTS : contains
+    USERS ||--o{ ARGUMENTS : posts
+    ARGUMENTS ||--o{ ARGUMENTS : rebuts
+    ARGUMENTS ||--o{ ARGUMENT_RATINGS : rated
+    FORUM_THREADS ||--o{ ARGUMENT_CLUSTERS : groups
+    ARGUMENT_CLUSTERS ||--o{ ARGUMENTS : "contains (near-duplicates)"
+    ARGUMENTS ||--o{ ARGUMENT_AGREEMENT_VOTES : rated
+    USERS ||--o{ ARGUMENT_AGREEMENT_VOTES : casts
+    FORUM_THREADS ||--o{ OPINION_CLUSTERS : reveals
+    ARGUMENTS ||--o{ ARGUMENT_CLAIM_FLAGS : prompts
+    CITATIONS ||--o{ ARGUMENT_CLAIM_FLAGS : resolves
+    FORUM_THREADS ||--o{ AI_DEBATE_RUNS : triggers
+    AI_DEBATE_RUNS ||--o| ARGUMENTS : produces
+    ISSUE_PROPOSALS ||--o| REFERENDA : graduates_to
+    REFERENDA ||--o{ REFERENDUM_BALLOT_TOKENS : issues
+    USERS ||--o{ REFERENDUM_BALLOT_TOKENS : "issued to (until redacted)"
+    REFERENDUM_BALLOT_TOKENS ||--o| REFERENDUM_BALLOTS : redeems
+    REFERENDA ||--o| VOTER_MANDATES : publishes_as
+    OFFICES ||--o{ VOTER_MANDATES : "overlaid on"
+    VOTER_MANDATES ||--o{ MANDATE_COMMITMENTS : "put to candidates as"
+    CANDIDACIES ||--o{ MANDATE_COMMITMENTS : "answers with"
+    CITATIONS ||--o{ MANDATE_COMMITMENTS : evidences
+    MANDATE_COMMITMENTS ||--o| PROMISES : "becomes (commit + win)"
+    USERS ||--o{ VERIFICATION_RECORDS : has
+    INDEPENDENT_EXPENDITURE_COMMITTEES ||--o{ INDEPENDENT_EXPENDITURES : spends
+    RACES ||--o{ INDEPENDENT_EXPENDITURES : "spent in"
+    POLITICIANS ||--o{ INDEPENDENT_EXPENDITURES : "may benefit"
+    CITATIONS ||--o{ INDEPENDENT_EXPENDITURES : evidences
+    JURISDICTIONS ||--o{ CAMPAIGN_COMMUNICATIONS : scoped_to
+    USERS ||--o{ CAMPAIGN_COMMUNICATIONS : submits
+    CITATIONS ||--o{ CAMPAIGN_COMMUNICATIONS : evidences
+    ENDORSING_ORGANIZATIONS ||--o{ ENDORSEMENTS : gives
+    CANDIDACIES ||--o{ ENDORSEMENTS : receives
+    CITATIONS ||--o{ ENDORSEMENTS : evidences
+    JURISDICTIONS ||--o{ COMMENTATOR_INCLUSION_RULES : defines
+    COMMENTATOR_INCLUSION_RULES ||--o{ COMMENTATOR_QUALIFICATIONS : evaluates
+    COMMENTATORS ||--o{ COMMENTATOR_QUALIFICATIONS : "qualifies via"
+    COMMENTATORS ||--o{ COMMENTARY_LINKS : writes
+    COMMENTATORS ||--o{ COMMENTATOR_PIECES : "coverage counted from"
+    COMMENTATORS ||--o{ COMMENTATOR_STATUS_EVENTS : has
+    CITATIONS ||--o{ COMMENTATOR_STATUS_EVENTS : evidences
+    POLITICIANS ||--o{ COMMENTARY_LINKS : "commentary about"
+    ISSUE_PROPOSALS ||--o{ COMMENTARY_LINKS : "commentary about"
+      </pre>
+    </section>
+
+    <section id="s5" class="wide">
+      <div class="prosewrap">
+        <h2>5. Relational schema (PostgreSQL)</h2>
+        <p>Full runnable DDL ships alongside this document as <code>SCHEMA.sql</code> — validated end-to-end against PostgreSQL 16, including the constraint gates and the ballot-choice trigger. Design decisions worth flagging:</p>
+        <ul>
+          <li><strong>OCD-IDs for geography, Bioguide IDs for Congress</strong> — matches the CivicEngine/Ballotpedia/OpenStates ecosystem so VoteRight ingests identifiers instead of re-deriving them.</li>
+          <li><strong>One <code>citations</code> table</strong> is the evidence ledger for the whole app — positions, promises, and integrity flags all point into it rather than each carrying its own free-text source field.</li>
+          <li><strong><code>verification_tier</code> is stamped onto every vote-weight-bearing row</strong> at the moment of action (<code>referendum_ballot_tokens.verification_tier_at_issuance</code>, <code>seconds.verification_tier_at_second</code>), so a later change to a user's status can't retroactively reinterpret a past vote.</li>
+          <li><strong>Status history, not status columns</strong> — <code>promise_status_events</code> and <code>integrity_flag_status_events</code> are append-only, so an accountability record always shows its work rather than silently overwriting the last state. The integrity-flag history exists precisely because an earlier draft applied this principle inconsistently, and the most defamation-exposed object in the schema is the wrong place for that gap.</li>
+          <li><strong>Multi-seat contests are modeled, not assumed away</strong> — <code>offices.seat_count</code>, <code>races.seats_elected</code>, and a <code>race_incumbents</code> join table replace a singular incumbent column, because the pilot county itself elects 4 at-large Councilmembers from one countywide pool; a one-race-one-winner model breaks on 4 of the 11 seats it launches with.</li>
+          <li><strong><code>office_terms</code> is the standing officeholding record</strong> — who holds each seat, from when to when, elected or appointed at entry (<code>offices.is_elected</code> marks office types that are appointed in some jurisdictions). <code>race_incumbents</code> answers "who is sitting in this specific contest"; <code>office_terms</code> answers "who represents this address right now," which is what the your-ballot view reads (Section 7.1).</li>
+          <li><strong><code>mandate_commitments</code> closes the mandate → candidacy → promise loop</strong> — a published mandate is put to every candidate in the next race for that office, on the record and citation-backed, before the election; a committed winner's mandate becomes a tracked <code>promises</code> row. This is the schema's direct answer to name-recognition politics: "will you carry out what the voters asked for?" gets asked, in public, while dodging it can still cost votes (Section 7.9).</li>
+          <li><strong><code>accountability_campaigns</code> is polymorphic over its target</strong> — a campaign targets either a <code>politician_id</code> or a <code>reform_title</code> (a law/charter change, like petitioning to add recall). A <code>CHECK</code> enforces exactly one of the two is populated.</li>
+          <li><strong><code>accountability_pathways</code> is jurisdiction-scoped with an optional office</strong> — the charter-amendment petition belongs to the county, not to any single office; forcing every pathway onto an office row would either duplicate it across every county office or pin it somewhere arbitrary.</li>
+          <li><strong>Publish gates are constraints, not comments</strong> — <code>integrity_flags</code> can never be published while still open, <code>campaign_communications</code> can carry no verified finding without a citation and no <code>is_official_ballot</code> verdict while unverified, <code>voter_mandates</code> cannot reach <code>published</code> below the turnout threshold, and a trigger validates <code>referendum_ballots.choice</code> against the referendum's declared options.</li>
+          <li><strong><code>arguments.format</code> extends to <code>video</code> and <code>youtube</code></strong>, each with its own required field enforced by <code>CHECK</code> — a debate post with no content in any format is a moderation gap, not a UI bug.</li>
+          <li><strong>Argument clustering and opinion mapping are separate mechanisms</strong> — <code>argument_clusters</code> groups near-duplicate <em>statements</em> (a similarity problem), while <code>opinion_clusters</code> groups <em>users</em> by agreement pattern (a voting-matrix problem, Pol.is-style). Conflating them would lose the more useful signal.</li>
+          <li><strong>Per-user agreement votes are held, used, then deleted</strong> — they exist to compute <code>opinion_clusters</code> and the denormalized per-argument tallies (<code>agree_count</code> / <code>disagree_count</code> / <code>pass_count</code>), not to accumulate a permanent per-person political-opinion ledger (Section 10.2).</li>
+          <li><strong>Amendments preserve the original proposal text rather than overwriting it</strong> (<code>issue_proposals.current_amendment_id</code> points at whichever amendment is adopted) — the same append-only instinct as the status-event tables.</li>
+          <li><strong><code>close_early_threshold_pct</code> and <code>call_the_question_min_agreement_votes</code> are real columns, not hardcoded constants</strong> — thresholds that affect a real outcome need to be disclosed and auditable, and a one-click agreement vote is too cheap a bar to qualify as an "active participant" who can help force early closure.</li>
+          <li><strong>Referendum ballot secrecy is a real table split, not a disclaimer</strong> — <code>referendum_ballot_tokens</code> (identity, for one-vote enforcement) and <code>referendum_ballots</code> (choice, with no <code>user_id</code> column at all). See Section 10.1 for the retention rule and the honest limits of this design.</li>
+          <li><strong>Outside money, ballot-authenticity checks, and endorsements are generalized capabilities, not seeded opinion</strong> — <code>independent_expenditures</code>, <code>campaign_communications</code>, and <code>endorsements</code> all require a <code>citation_id</code> from an official filing or verifiable source (Section 8.1).</li>
+          <li><strong><code>argument_claim_flags</code> prompts for a citation on a specific unsourced claim, not a "more objective" rewrite</strong> — a debate needs opinions; that scope limit keeps this from becoming editorial tone-policing (Section 7.7).</li>
+          <li><strong>Commentator inclusion is a computed fact, not a stored opinion</strong> — <code>commentator_qualifications</code> re-evaluates against <code>commentator_inclusion_rules</code> the same way <code>alignment_scores</code> and <code>opinion_clusters</code> are recomputed, so nobody has to manually curate (or manually remove) a commentator as their publishing record changes. <code>commentary_links</code> never carries a <code>citation_id</code> role anywhere else in the schema — it is deliberately not part of the evidence ledger (Section 8.2). Qualification counts trace to the <code>commentator_pieces</code> ledger, and commentator status changes go through append-only, evidence-gated <code>commentator_status_events</code> — disqualifying a named journalist gets the same due process as flagging a politician.</li>
+          <li><strong>AI-authored arguments share the <code>arguments</code> table with human ones</strong> (via <code>author_type</code> and a nullable <code>user_id</code>) — same citations, ratings, moderation, and rebuttal chain. What differs is upstream: <code>ai_debate_runs.fully_sourced</code> is a hard, machine-checked gate before publish, a bar humans are deliberately never held to (7.7 vs. 7.8).</li>
+        </ul>
+      </div>
+<div class="codeblock">-- Requires: PostgreSQL 15+ (UNIQUE NULLS NOT DISTINCT); pgcrypto for gen_random_uuid()
+
+-- GEOGRAPHY &amp; OFFICES
+CREATE TABLE jurisdictions (
+    ocd_id          TEXT PRIMARY KEY,               -- 'ocd-division/country:us/state:md/county:montgomery'
+    name            TEXT NOT NULL,
+    level           TEXT NOT NULL CHECK (level IN ('country','state','county','municipal','school_district','special_district')),
+    parent_ocd_id   TEXT REFERENCES jurisdictions(ocd_id),
+    registered_voter_count INTEGER,                 -- refreshed periodically from official SBE stats
+    registered_voter_count_as_of DATE               -- denominator for voter_mandates.turnout_pct_of_registered
+);
+
+CREATE TABLE politicians (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name       TEXT NOT NULL,
+    bioguide_id     TEXT,                           -- Congress members only
+    external_ids    JSONB NOT NULL DEFAULT '{}',     -- { "ballotready_id", "ocd_person_id" }
+    current_office_id UUID REFERENCES offices(id),  -- several politicians may share one office row (multi-seat at-large offices)
+    party           TEXT,
+    photo_url       TEXT,
+    bio             TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE offices (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    title           TEXT NOT NULL,                  -- 'County Executive', 'Council District 1'
+    seat_type       TEXT NOT NULL CHECK (seat_type IN ('single','at_large','district')),
+    seat_count      SMALLINT NOT NULL DEFAULT 1,    -- &gt;1 for multi-seat pools: Montgomery County Council elects 4 at-large members from one countywide contest
+    term_length_years SMALLINT NOT NULL,
+    is_partisan     BOOLEAN NOT NULL DEFAULT TRUE,
+    is_elected      BOOLEAN NOT NULL DEFAULT TRUE,      -- some office types flip elected/appointed across jurisdictions (e.g. clerks); only elected seats get races
+    level           TEXT NOT NULL CHECK (level IN ('federal','state','county','municipal','school_board','judicial'))
+);
+
+CREATE TABLE election_cycles (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,                  -- '2026 Maryland Primary'
+    election_date   DATE NOT NULL,
+    election_type   TEXT NOT NULL CHECK (election_type IN ('primary','general','special','municipal')),
+    commentary_promotion_blackout_days INTEGER NOT NULL DEFAULT 0,   -- see Section 8.2: commentary stays viewable, never pushed/featured, inside this window
+    CHECK (commentary_promotion_blackout_days &gt;= 0)
+);
+
+CREATE TABLE races (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    election_cycle_id   UUID NOT NULL REFERENCES election_cycles(id),
+    office_id           UUID NOT NULL REFERENCES offices(id),
+    seats_elected       SMALLINT NOT NULL DEFAULT 1,    -- how many candidacies can end 'won': 4 for the at-large Council contest
+    UNIQUE (election_cycle_id, office_id)
+);
+
+-- incumbency is a join table, not a singular column on races — a multi-seat at-large
+-- contest (the pilot county's own Council) has several sitting incumbents at once
+CREATE TABLE race_incumbents (
+    race_id         UUID NOT NULL REFERENCES races(id),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    PRIMARY KEY (race_id, politician_id)
+);
+
+CREATE TABLE candidacies (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    race_id         UUID NOT NULL REFERENCES races(id),
+    party           TEXT,
+    status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','withdrawn','won','lost')),
+    website         TEXT,
+    social_links    JSONB NOT NULL DEFAULT '{}',
+    UNIQUE (politician_id, race_id)
+);
+
+-- ISSUES &amp; VOTER INTENT
+CREATE TABLE topics (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    parent_id       UUID REFERENCES topics(id),
+    description     TEXT,
+    UNIQUE NULLS NOT DISTINCT (parent_id, name)     -- no duplicate topics at the same level, including top level (PostgreSQL 15+)
+);
+
+CREATE TABLE users (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_id                 TEXT NOT NULL UNIQUE,
+    display_name            TEXT,
+    email_hash              TEXT,                     -- hashed, not raw, if collected at all — pseudonymous, NOT anonymous: emails are dictionary-attackable (Section 10)
+    residence_jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),  -- self-attested + address-format verified
+    verification_tier      TEXT NOT NULL DEFAULT 'unverified'
+                              CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
+    locale                  TEXT NOT NULL DEFAULT 'en',
+    deleted_at              TIMESTAMPTZ,              -- MODPA deletion request: row is pseudonymized, not physically removed — see Section 10
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE voter_priorities (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    statement       TEXT NOT NULL,                    -- the voter's own words
+    importance_weight SMALLINT NOT NULL CHECK (importance_weight BETWEEN 1 AND 5),
+    stance          JSONB,
+    visibility      TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private','anonymous_aggregate','public')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- EVIDENCE LEDGER — shared by positions, promises, integrity flags.
+-- One url may back several rows (different excerpts for different claims), so no UNIQUE(url);
+-- archive_url is nullable at ingest, but publish workflows require an archived copy (Section 2.3).
+CREATE TABLE citations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url             TEXT NOT NULL,
+    archive_url     TEXT,                             -- Wayback snapshot at ingestion time
+    title           TEXT,
+    publisher       TEXT,
+    published_at    DATE,
+    retrieved_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    excerpt         TEXT
+);
+
+-- OFFICEHOLDING — who holds a seat, from when to when. race_incumbents covers "sitting
+-- incumbents in a specific contest"; this is the standing record behind it, and what the
+-- "your ballot / your representatives" view reads. politicians.current_office_id is a
+-- denormalized convenience over the row here with term_end IS NULL.
+CREATE TABLE office_terms (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    office_id       UUID NOT NULL REFERENCES offices(id),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    term_start      DATE NOT NULL,
+    term_end        DATE,                                 -- NULL = currently serving
+    how_obtained    TEXT NOT NULL DEFAULT 'elected' CHECK (how_obtained IN ('elected','appointed','succeeded')),
+    source_citation_id UUID REFERENCES citations(id),     -- swearing-in record / official roster
+    UNIQUE (office_id, politician_id, term_start)
+);
+
+CREATE TABLE politician_positions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    statement       TEXT NOT NULL,
+    source_type     TEXT NOT NULL CHECK (source_type IN ('campaign_site','questionnaire','debate_transcript','voting_record_inferred','interview')),
+    citation_id     UUID REFERENCES citations(id),
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE promises (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    statement       TEXT NOT NULL,
+    made_at         DATE,
+    origin_citation_id UUID REFERENCES citations(id),
+    current_status  TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (current_status IN ('pending','in_progress','kept','broken','compromised','stalled')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- append-only — a status is always explainable, never just overwritten
+CREATE TABLE promise_status_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    promise_id      UUID NOT NULL REFERENCES promises(id),
+    status          TEXT NOT NULL CHECK (status IN ('pending','in_progress','kept','broken','compromised','stalled')),
+    citation_id     UUID REFERENCES citations(id),
+    note            TEXT,
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE voting_records (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    bill_external_id TEXT NOT NULL,                   -- id in source system
+    bill_title      TEXT NOT NULL,
+    vote            TEXT NOT NULL CHECK (vote IN ('yea','nay','abstain','absent')),
+    voted_at        DATE NOT NULL,
+    source_url      TEXT NOT NULL,
+    ingested_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (politician_id, bill_external_id)
+);
+</div>
+<div class="codeblock">-- TRANSPARENCY: OUTSIDE MONEY, BALLOT-AUTHENTICITY CHECKS &amp; ENDORSEMENTS — Section 8.1
+CREATE TABLE independent_expenditure_committees (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    committee_type  TEXT NOT NULL CHECK (committee_type IN
+                      ('super_pac','slate_mailer_committee','ballot_issue_committee','party_committee','other')),
+    registration_id TEXT,                        -- filer ID with the state/county board of elections
+    external_ids    JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE independent_expenditures (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    committee_id    UUID NOT NULL REFERENCES independent_expenditure_committees(id),
+    race_id         UUID REFERENCES races(id),
+    benefits_politician_id UUID REFERENCES politicians(id),   -- nullable: may target a ballot measure
+    direction       TEXT NOT NULL CHECK (direction IN ('supporting','opposing')),
+    amount_usd      NUMERIC(12,2) NOT NULL,
+    expenditure_date DATE NOT NULL,
+    purpose         TEXT,                         -- e.g. 'digital ads', 'mailers'
+    citation_id     UUID NOT NULL REFERENCES citations(id),   -- the filing itself, never bare assertion
+    ingested_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- generalizes the "styled like an official sample ballot" problem into a standing check
+CREATE TABLE campaign_communications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submitted_by_user_id UUID REFERENCES users(id),     -- null if staff/system-ingested
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    communication_type TEXT NOT NULL CHECK (communication_type IN
+                      ('mailer','flyer','robocall','text_message','digital_ad','other')),
+    title           TEXT NOT NULL,
+    image_or_media_url TEXT,                       -- photo/scan, our object storage
+    claimed_authority TEXT,                        -- what the item itself claims to be
+    actual_sponsor  TEXT,                          -- who actually paid, per campaign-finance disclosure
+    is_official_ballot BOOLEAN,                    -- verified fact, not the submitter's opinion — NULL until verification resolves it
+    verification_status TEXT NOT NULL DEFAULT 'unverified'
+                      CHECK (verification_status IN ('unverified','verified_unofficial','verified_official','disputed')),
+    citation_id     UUID REFERENCES citations(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- both gates are constraints, not comments: no verified finding without a source,
+    -- and no is_official_ballot verdict while the row is still unverified
+    CHECK (verification_status = 'unverified' OR citation_id IS NOT NULL),
+    CHECK (verification_status &lt;&gt; 'unverified' OR is_official_ballot IS NULL)
+);
+
+CREATE TABLE endorsing_organizations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    org_type        TEXT NOT NULL CHECK (org_type IN
+                      ('union','trade_association','advocacy_group','editorial_board','party_organization','elected_official','other')),
+    external_ids    JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE endorsements (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES endorsing_organizations(id),
+    candidacy_id    UUID NOT NULL REFERENCES candidacies(id),
+    endorsed_at     DATE,
+    citation_id     UUID NOT NULL REFERENCES citations(id),   -- an endorsement claim always needs a source
+    rescinded       BOOLEAN NOT NULL DEFAULT FALSE,
+    rescinded_at    DATE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- EXPERT COMMENTARY — see Section 8.2. Inclusion is by objective, disclosed rule, never
+-- a staff pick: a commentator qualifies automatically by meeting a tunable coverage
+-- threshold, not because someone decided they count as an expert. Kept structurally
+-- separate from citations — a commentary piece is someone's analysis, not evidentiary
+-- backing for a platform-asserted fact. That wall is table-level, not URL-level:
+-- ingestion flags any new citations row whose domain matches a qualified commentator's
+-- outlet for human review before it may back a published flag or status change.
+CREATE TABLE commentator_inclusion_rules (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    min_pieces_count INTEGER NOT NULL DEFAULT 12,       -- tunable: sustained beat coverage, not a one-off op-ed
+    lookback_months INTEGER NOT NULL DEFAULT 12,        -- tunable window the count is measured over
+    requires_disclosed_affiliations BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_real_byline BOOLEAN NOT NULL DEFAULT TRUE, -- no anonymous accounts
+    effective_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE commentators (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    outlet          TEXT,
+    bio             TEXT,
+    disclosed_affiliations TEXT,                        -- mandatory self-disclosure (paid newsletter, unpaid blog, campaign ties, etc.)
+    byline_verified BOOLEAN NOT NULL DEFAULT FALSE,      -- confirmed real, accountable identity — not anonymous
+    outreach_status TEXT NOT NULL DEFAULT 'not_contacted'
+                      CHECK (outreach_status IN ('not_contacted','invited','responded','declined','no_response')),
+    -- 'declined' has defined behavior: delisted from rail placement ('delisted_by_request');
+    -- users citing their public articles in debate arguments is unaffected
+    outreach_initiated_at TIMESTAMPTZ,
+    current_status  TEXT NOT NULL DEFAULT 'eligible'
+                      CHECK (current_status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),  -- see commentator_status_events for the append-only trail
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A status change about a NAMED commentator — above all a disqualification — is a claim
+-- about a real person, and gets the same discipline Section 2.3 imposes everywhere else:
+-- sourced, disputable, append-only, with right of reply.
+CREATE TABLE commentator_status_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    status          TEXT NOT NULL CHECK (status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),
+    reason          TEXT,
+    citation_id     UUID REFERENCES citations(id),       -- evidence for the change
+    reply_text      TEXT,                                -- the commentator's response (right of reply)
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- a disqualification without evidence is exactly the category of claim Section 2.3 forbids
+    CHECK (status &lt;&gt; 'disqualified' OR citation_id IS NOT NULL)
+);
+
+-- a computed, re-evaluated fact (same pattern as alignment_scores/opinion_clusters),
+-- not a permanent flag — a commentator's qualification can change as they publish more or less
+CREATE TABLE commentator_qualifications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    rule_id         UUID NOT NULL REFERENCES commentator_inclusion_rules(id),
+    pieces_counted  INTEGER NOT NULL,                   -- derived from commentator_pieces rows inside the rule window, never a bare hand-entered number
+    qualifies       BOOLEAN NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- The auditable ledger behind pieces_counted. The counting procedure is where selector
+-- power could sneak back in ("what counts as a piece about this jurisdiction?"), so every
+-- counted piece is a checkable row with its relevance basis, and the definition of a
+-- "piece" lives on the public methodology page. A qualification decision shows its work.
+CREATE TABLE commentator_pieces (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    url             TEXT NOT NULL,
+    title           TEXT,
+    published_at    DATE NOT NULL,
+    relevance_basis TEXT,                                -- why this piece counts as coverage of this jurisdiction
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (commentator_id, url)
+);
+
+CREATE TABLE commentary_links (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    url             TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    published_at    DATE,
+    excerpt         TEXT,
+    jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),
+    topic_id        UUID REFERENCES topics(id),
+    politician_id   UUID REFERENCES politicians(id),
+    race_id         UUID REFERENCES races(id),
+    issue_proposal_id UUID,                              -- FK to issue_proposals(id) added after that table exists
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ALIGNMENT SCORING
+CREATE TABLE alignment_scores (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    candidacy_id    UUID NOT NULL REFERENCES candidacies(id),
+    overall_score   NUMERIC(5,2) NOT NULL,             -- 0.00–100.00
+    topic_breakdown JSONB NOT NULL,                     -- [{ topic_id, score, weight_used }]
+    algorithm_version TEXT NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, candidacy_id, algorithm_version)
+);
+
+-- INTEGRITY &amp; ACCOUNTABILITY (see Section 2.1–2.3 before touching this)
+CREATE TABLE integrity_flags (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    promise_id      UUID REFERENCES promises(id),
+    raised_by_user_id UUID REFERENCES users(id),        -- null = system-generated from voting-record contradiction
+    description     TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','upheld','dismissed','disputed')),
+    published       BOOLEAN NOT NULL DEFAULT FALSE,      -- only TRUE once dispute workflow clears it
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at     TIMESTAMPTZ,
+    -- the publish gate is a constraint, not a comment: a flag still in dispute can never be public
+    CHECK (NOT published OR status &lt;&gt; 'open')
+);
+
+-- append-only history for the single most defamation-exposed object in the schema
+CREATE TABLE integrity_flag_status_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    integrity_flag_id UUID NOT NULL REFERENCES integrity_flags(id),
+    status          TEXT NOT NULL CHECK (status IN ('open','upheld','dismissed','disputed')),
+    citation_id     UUID REFERENCES citations(id),
+    note            TEXT,
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE integrity_flag_citations (
+    integrity_flag_id UUID NOT NULL REFERENCES integrity_flags(id),
+    citation_id       UUID NOT NULL REFERENCES citations(id),
+    PRIMARY KEY (integrity_flag_id, citation_id)
+);
+
+-- jurisdiction-real accountability options — see Section 2.1. Populated by hand, from actual charter/statute text.
+CREATE TABLE accountability_pathways (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    office_id       UUID REFERENCES offices(id),        -- NULL for jurisdiction-wide mechanisms: the charter-amendment petition belongs to the county, not to any one office
+    mechanism_type  TEXT NOT NULL CHECK (mechanism_type IN
+                      ('next_election_defeat','primary_challenge_support','supermajority_council_removal',
+                       'impeachment','criminal_referral','municipal_recall','charter_amendment_petition',
+                       'no_removal_mechanism_exists')),
+    is_binding      BOOLEAN NOT NULL,
+    legal_citation  TEXT NOT NULL,                      -- e.g. 'Montgomery County Charter §118', 'Md. Const. Art. XI-A'
+    signature_requirement_note TEXT,                    -- e.g. '20% of registered voters, or 10,000 signatures, whichever is fewer'
+    description     TEXT NOT NULL,
+    -- every officeholder mechanism needs its office; only the jurisdiction-wide
+    -- charter-amendment petition may float free of one
+    CHECK (office_id IS NOT NULL OR mechanism_type = 'charter_amendment_petition')
+);
+
+-- A campaign targets either a politician or a law/charter change — the CHECK
+-- enforces that exactly one target is populated.
+CREATE TABLE accountability_campaigns (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pathway_id      UUID NOT NULL REFERENCES accountability_pathways(id),
+    target_type     TEXT NOT NULL CHECK (target_type IN ('politician','charter_or_law_change')),
+    politician_id   UUID REFERENCES politicians(id),         -- required when target_type = 'politician'
+    reform_title    TEXT,                                    -- required when target_type = 'charter_or_law_change'
+    originating_referendum_id UUID,                          -- FK to referenda(id) added after that table exists
+    initiated_by_user_id UUID NOT NULL REFERENCES users(id),
+    description     TEXT NOT NULL,
+    support_count   INTEGER NOT NULL DEFAULT 0,               -- in-app support only — NOT a legal petition signature count
+    status          TEXT NOT NULL DEFAULT 'gathering_support'
+                      CHECK (status IN ('gathering_support','threshold_met','submitted_to_authority','closed')),
+    external_petition_status TEXT DEFAULT 'not_applicable'
+                      CHECK (external_petition_status IN
+                        ('not_applicable','not_started','gathering_signatures',
+                         'submitted_to_board_of_elections','certified','on_ballot','failed_certification')),
+    disclosure_text TEXT NOT NULL,                       -- auto-populated, non-editable
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (
+      (target_type = 'politician' AND politician_id IS NOT NULL AND reform_title IS NULL)
+      OR
+      (target_type = 'charter_or_law_change' AND reform_title IS NOT NULL AND politician_id IS NULL)
+    )
+);
+</div>
+<div class="codeblock">-- DIRECT DEMOCRACY LAYER
+CREATE TABLE issue_proposals (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_by_user_id UUID NOT NULL REFERENCES users(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    title           TEXT NOT NULL,
+    body            TEXT NOT NULL,
+    second_threshold INTEGER NOT NULL,                   -- scaled to jurisdiction population
+    status          TEXT NOT NULL DEFAULT 'seconding'
+                      CHECK (status IN ('seconding','debating','referendum','closed','rejected')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE commentary_links
+    ADD CONSTRAINT fk_commentary_links_issue_proposal
+    FOREIGN KEY (issue_proposal_id) REFERENCES issue_proposals(id);
+
+CREATE TABLE seconds (
+    proposal_id     UUID NOT NULL REFERENCES issue_proposals(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    verification_tier_at_second TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (proposal_id, user_id)
+);
+
+-- ROBERT'S RULES OVERLAY, PART 1: AMENDMENTS — Section 7.6.
+-- App-layer rule: an amendment may only be proposed while
+-- issue_proposals.status IN ('seconding','debating').
+CREATE TABLE proposal_amendments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    proposal_id     UUID NOT NULL REFERENCES issue_proposals(id),
+    proposed_by_user_id UUID NOT NULL REFERENCES users(id),
+    amended_title   TEXT,
+    amended_body    TEXT NOT NULL,
+    rationale       TEXT,
+    second_threshold INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'proposed'
+                      CHECK (status IN ('proposed','adopted','rejected','withdrawn')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at     TIMESTAMPTZ
+);
+
+CREATE TABLE amendment_seconds (
+    amendment_id    UUID NOT NULL REFERENCES proposal_amendments(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    verification_tier_at_second TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (amendment_id, user_id)
+);
+
+-- original title/body stay untouched — points to whichever amendment is currently adopted
+ALTER TABLE issue_proposals ADD COLUMN current_amendment_id UUID REFERENCES proposal_amendments(id);
+
+CREATE TABLE forum_threads (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    proposal_id     UUID NOT NULL UNIQUE REFERENCES issue_proposals(id),
+    opened_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    closes_at       TIMESTAMPTZ NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+    -- ROBERT'S RULES OVERLAY, PART 2: CALLING THE QUESTION — Section 7.6
+    close_early_threshold_pct NUMERIC(4,1) NOT NULL DEFAULT 66.7,   -- RONR default: 2/3
+    closed_early    BOOLEAN NOT NULL DEFAULT FALSE,
+    closed_early_at TIMESTAMPTZ,
+    -- a single one-click agreement vote is too cheap a bar to help force early closure
+    call_the_question_min_agreement_votes INTEGER NOT NULL DEFAULT 3
+);
+
+-- one vote per active participant toward closing debate early
+CREATE TABLE call_the_question_votes (
+    thread_id       UUID NOT NULL REFERENCES forum_threads(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (thread_id, user_id)
+);
+
+-- format is a real discriminator: exactly one media field must be populated per format
+CREATE TABLE arguments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES forum_threads(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    side            TEXT NOT NULL CHECK (side IN ('for','against','neutral_info')),
+    format          TEXT NOT NULL CHECK (format IN ('text','audio','video','youtube')),
+    body_text       TEXT,
+    audio_url       TEXT,
+    video_url       TEXT,                                -- locally recorded/uploaded video, our object storage
+    video_duration_seconds INTEGER,
+    video_size_bytes BIGINT,                              -- enforced against platform max_video_size_bytes at upload (Section 9.1)
+    youtube_video_id TEXT,                                -- embedded via YouTube's own player, never downloaded/re-hosted
+    youtube_metadata JSONB,                               -- cached via YouTube Data API, refreshed for link-rot detection
+    transcript_text TEXT,                                 -- required for 'audio'/'video' (our STT); NOT auto-generated for 'youtube' — 9.1
+    parent_argument_id UUID REFERENCES arguments(id),     -- rebuttal chain
+    moderation_status TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (moderation_status IN ('pending','approved','removed')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (
+      (format = 'text' AND body_text IS NOT NULL)
+      OR (format = 'audio' AND audio_url IS NOT NULL)
+      OR (format = 'video' AND video_url IS NOT NULL)
+      OR (format = 'youtube' AND youtube_video_id IS NOT NULL)
+    )
+);
+
+CREATE TABLE argument_citations (
+    argument_id     UUID NOT NULL REFERENCES arguments(id),
+    citation_id     UUID NOT NULL REFERENCES citations(id),
+    PRIMARY KEY (argument_id, citation_id)
+);
+
+CREATE TABLE argument_ratings (
+    argument_id     UUID NOT NULL REFERENCES arguments(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    rating          TEXT NOT NULL CHECK (rating IN ('helpful','not_helpful','needs_sources')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (argument_id, user_id)
+);
+
+-- DEBATE SCALING: NEAR-DUPLICATE CLUSTERING &amp; OPINION MAPPING — Section 7.5
+CREATE TABLE argument_clusters (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES forum_threads(id),
+    side            TEXT NOT NULL CHECK (side IN ('for','against','neutral_info')),
+    representative_argument_id UUID REFERENCES arguments(id),  -- best-sourced/highest-rated member
+    summary         TEXT NOT NULL,
+    member_count    INTEGER NOT NULL DEFAULT 0,
+    algorithm_version TEXT NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE arguments ADD COLUMN cluster_id UUID REFERENCES argument_clusters(id);
+
+-- per-statement agree/disagree signal, distinct from posting a rebuttal
+CREATE TABLE argument_agreement_votes (
+    argument_id     UUID NOT NULL REFERENCES arguments(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    response        TEXT NOT NULL CHECK (response IN ('agree','disagree','pass')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (argument_id, user_id)
+);
+
+-- PARTICIPATION PRIVACY (Section 10.2): per-user agreement votes are a political-opinion
+-- ledger, held only while the thread needs them, then DELETED. What survives: the
+-- denormalized tallies below and the final opinion_clusters snapshots — neither contains
+-- a user identity. call_the_question_votes rows are likewise deleted once a thread closes.
+ALTER TABLE arguments ADD COLUMN agree_count    INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE arguments ADD COLUMN disagree_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE arguments ADD COLUMN pass_count     INTEGER NOT NULL DEFAULT 0;
+
+-- "camps" of opinion, recomputed periodically from the agreement-vote matrix (Pol.is-style)
+CREATE TABLE opinion_clusters (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES forum_threads(id),
+    computation_run_id UUID NOT NULL,                -- groups every cluster produced by one batch
+    label           TEXT,                            -- human-assigned once a camp stabilizes
+    member_user_count INTEGER NOT NULL,
+    representative_argument_ids JSONB NOT NULL,       -- statements that most distinguish this camp
+    bridging_argument_ids JSONB,                      -- statements most camps agree on despite an overall split
+    algorithm_version TEXT NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- prompts for a citation on a specific unsourced factual claim — Section 7.7.
+-- Always dismissible; never blocks submission.
+CREATE TABLE argument_claim_flags (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    argument_id     UUID NOT NULL REFERENCES arguments(id),
+    claim_text      TEXT NOT NULL,
+    detection_method TEXT NOT NULL DEFAULT 'model' CHECK (detection_method IN ('model','human_review')),
+    algorithm_version TEXT,
+    prompted_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    author_response TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (author_response IN ('pending','added_citation','marked_as_opinion','dismissed')),
+    resulting_citation_id UUID REFERENCES citations(id)
+);
+
+-- AI DEBATE AGENTS: one-shot, evidence-grounded, imbalance-triggered — Section 7.8
+CREATE TABLE ai_debate_runs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES forum_threads(id),
+    side_generated  TEXT NOT NULL CHECK (side_generated IN ('for','against')),
+    trigger_reason  TEXT NOT NULL CHECK (trigger_reason IN ('side_imbalance','staff_requested')),
+    triggered_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    model_version   TEXT NOT NULL,
+    prompt_version  TEXT NOT NULL,
+    grounding_citation_ids JSONB NOT NULL DEFAULT '[]',
+    fully_sourced   BOOLEAN NOT NULL,                     -- machine-checked: every factual sentence maps to a citation
+    status          TEXT NOT NULL DEFAULT 'completed'
+                      CHECK (status IN ('completed','failed_sourcing_check','withdrawn')),
+    disclosure_text TEXT NOT NULL DEFAULT
+      'Generated by an AI system from sourced material, not submitted by a person. Not a substitute for a human voice in this debate.',
+    resulting_argument_id UUID REFERENCES arguments(id)
+);
+
+-- an argument is authored by a human OR by an AI debate run — never both
+ALTER TABLE arguments ADD COLUMN author_type TEXT NOT NULL DEFAULT 'human' CHECK (author_type IN ('human','ai_agent'));
+ALTER TABLE arguments ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE arguments ADD COLUMN ai_debate_run_id UUID REFERENCES ai_debate_runs(id);
+ALTER TABLE arguments ADD CONSTRAINT chk_arguments_author_type CHECK (
+  (author_type = 'human' AND user_id IS NOT NULL AND ai_debate_run_id IS NULL)
+  OR
+  (author_type = 'ai_agent' AND ai_debate_run_id IS NOT NULL AND user_id IS NULL)
+);
+
+CREATE TABLE referenda (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    proposal_id     UUID NOT NULL UNIQUE REFERENCES issue_proposals(id),
+    question_text   TEXT NOT NULL,
+    options         JSONB NOT NULL DEFAULT '["yes","no"]',
+    opens_at        TIMESTAMPTZ NOT NULL,
+    closes_at       TIMESTAMPTZ NOT NULL,
+    eligibility_jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    status          TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','open','closed','published')),
+    disclosure_text TEXT NOT NULL DEFAULT
+      'This is an unofficial, advisory poll. It has no legal effect and is not an official ballot.'
+);
+
+ALTER TABLE accountability_campaigns
+    ADD CONSTRAINT fk_accountability_campaigns_referendum
+    FOREIGN KEY (originating_referendum_id) REFERENCES referenda(id);
+
+-- BALLOT SECRECY: identity and choice split across two tables. The join key
+-- (ballot_token_id → token → user_id) is real and queryable until the
+-- post-certification retention window nulls the token's user_id — a link
+-- deliberately SEVERED by redaction, not absent from day one. See Section 10.1.
+CREATE TABLE referendum_ballot_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referendum_id   UUID NOT NULL REFERENCES referenda(id),
+    user_id         UUID REFERENCES users(id),            -- nulled out after the post-certification retention window
+    verification_tier_at_issuance TEXT NOT NULL,
+    issued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    redeemed_at     TIMESTAMPTZ,                           -- a token can only be redeemed once
+    UNIQUE (referendum_id, user_id)
+);
+
+-- deliberately has NO user_id column
+CREATE TABLE referendum_ballots (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referendum_id   UUID NOT NULL REFERENCES referenda(id),
+    ballot_token_id UUID NOT NULL UNIQUE REFERENCES referendum_ballot_tokens(id),
+    choice          TEXT NOT NULL,
+    cast_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- choice must be one of the referendum's declared options — a cross-table rule,
+-- so it's a trigger rather than a CHECK
+CREATE FUNCTION enforce_ballot_choice() RETURNS trigger AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM referenda r
+        WHERE r.id = NEW.referendum_id
+          AND NEW.choice IN (SELECT jsonb_array_elements_text(r.options))
+    ) THEN
+        RAISE EXCEPTION 'ballot choice "%" is not among the options of referendum %', NEW.choice, NEW.referendum_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_referendum_ballots_valid_choice
+    BEFORE INSERT OR UPDATE OF choice, referendum_id ON referendum_ballots
+    FOR EACH ROW EXECUTE FUNCTION enforce_ballot_choice();
+
+CREATE TABLE voter_mandates (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referendum_id   UUID NOT NULL UNIQUE REFERENCES referenda(id),
+    office_id       UUID REFERENCES offices(id),           -- which officeholder's scorecard this overlays
+    mandate_summary TEXT NOT NULL,
+    turnout_count   INTEGER NOT NULL,
+    margin_pct      NUMERIC(5,2) NOT NULL,
+    -- PUBLISH LEGITIMACY GATE — a real gate, not just a disclaimer
+    turnout_pct_of_registered NUMERIC(6,3),                -- turnout_count / jurisdictions.registered_voter_count
+    publish_threshold_pct NUMERIC(5,2) NOT NULL DEFAULT 1.0,  -- minimum turnout %, tunable per jurisdiction size
+    meets_publish_threshold BOOLEAN NOT NULL DEFAULT FALSE,
+    overlay_status  TEXT NOT NULL DEFAULT 'below_threshold_unpublished'
+                      CHECK (overlay_status IN ('below_threshold_unpublished','published','acknowledged_by_office','addressed','ignored')),
+    published_at    TIMESTAMPTZ,
+    CHECK (overlay_status = 'below_threshold_unpublished' OR meets_publish_threshold = TRUE)
+);
+
+-- MANDATE → CANDIDACY → PROMISE loop — Section 7.9. Every candidacy in the next race
+-- for the mandate's office is asked to take a public, sourced position on each standing
+-- mandate BEFORE the election; a 'commit' from the eventual winner becomes a promises row.
+CREATE TABLE mandate_commitments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    voter_mandate_id UUID NOT NULL REFERENCES voter_mandates(id),
+    candidacy_id    UUID NOT NULL REFERENCES candidacies(id),
+    stance          TEXT NOT NULL DEFAULT 'no_response'
+                      CHECK (stance IN ('commit','decline','no_response')),
+    statement       TEXT,                                 -- the candidate's own words, if any
+    citation_id     UUID REFERENCES citations(id),        -- the candidate's public statement, on the record
+    resulting_promise_id UUID REFERENCES promises(id),    -- populated when a committed candidate wins
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (voter_mandate_id, candidacy_id),
+    -- an attributed stance is a factual claim about a named candidate — it needs a source;
+    -- 'no_response' is the only stance the platform may assert without one
+    CHECK (stance = 'no_response' OR citation_id IS NOT NULL)
+);
+
+-- TRUST &amp; IDENTITY
+CREATE TABLE verification_records (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    method          TEXT NOT NULL CHECK (method IN ('address_attestation','third_party_id_check')),
+    provider_reference TEXT,                              -- opaque token from vendor, never raw ID/doc
+    verified_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at      TIMESTAMPTZ
+);
+</div>
+
+      <div class="prosewrap">
+        <h3>5.1 The alignment-scoring methodology is the biggest open design gap in this document</h3>
+        <p>Everything else in this schema is either a data-storage decision or a policy decision. Alignment scoring is different: matching a voter's free-text <code>voter_priorities.statement</code> and optional <code>stance</code> JSONB against a candidacy's <code>politician_positions</code> and <code>voting_records</code> to produce <code>alignment_scores.overall_score</code> is where the actual product value lives — "matched to <em>your</em> stated wishes," not a generic issue checklist — and it's also where all of the bias risk lives. It gets one sequence diagram (7.1) and an <code>algorithm_version</code> column; it does not yet have a methodology. Section 2.3 already promises this will be "published and versioned" — that promise isn't satisfied by a version string with nothing behind it.</p>
+        <p>Open questions this needs before Phase 1 ships, not after:</p>
+        <ul>
+          <li><strong>Matching approach.</strong> Free-text semantic similarity (embeddings, the same <code>pgvector</code> infrastructure as Section 7.5) versus structured taxonomy tagging versus a hybrid — each has a different bias profile and a different explainability story to the voter.</li>
+          <li><strong>Handling silence.</strong> What happens when a candidacy has no recorded positions or votes on a topic the voter cares about — scored as neutral, penalized for not taking a position, or excluded from that voter's breakdown entirely? Each choice is a substantive editorial stance dressed up as a scoring default.</li>
+          <li><strong>Weighting conflicts.</strong> The aggregation function (weighted average, worst-topic-dominates, something else) determines whether a single strongly-felt disagreement can sink an otherwise well-matched candidacy — exactly the kind of design choice that needs to be disclosed alongside the score, not buried in code.</li>
+          <li><strong>Bias auditing.</strong> Once a matching approach is chosen, it needs a standing audit process (does it systematically favor incumbents, particular parties, or particular phrasing styles?) before the score is trusted as a "nonpartisan" product feature.</li>
+        </ul>
+        <p>This deserves its own design document before Phase 1 implementation starts, not a paragraph here — flagged accordingly in Section 13.</p>
+      </div>
+    </section>
+
+    <section id="s6" class="wide">
+      <div class="prosewrap">
+        <h2>6. System architecture</h2>
+        <p>The diagram and stack below describe the architecture at the scale where its separation actually pays for itself — a fully built-out Phase 4/5 system. It is deliberately <strong>not</strong> the recommended starting shape; see 6.2 for what to actually build first.</p>
+      </div>
+      <pre class="mermaid">
+flowchart TB
+    subgraph Clients
+        Mobile["Mobile app&lt;br/&gt;(Expo / React Native)"]
+        Web["Web app&lt;br/&gt;(Next.js)"]
+    end
+
+    subgraph Edge
+        GW["API Gateway&lt;br/&gt;GraphQL + REST webhooks"]
+        WS["Realtime service&lt;br/&gt;(debate threads, WebSocket)"]
+    end
+
+    subgraph Core["Core services"]
+        Scoring["Alignment scoring engine"]
+        Democracy["Direct-democracy service&lt;br/&gt;(proposals / seconds / referenda)"]
+        Integrity["Promise &amp; integrity service"]
+        TrustSafety["Trust &amp; safety&lt;br/&gt;(moderation, anomaly detection)"]
+        Identity["Identity &amp; verification service&lt;br/&gt;(isolated, minimal PII)"]
+    end
+
+    subgraph Data
+        PG[("PostgreSQL&lt;br/&gt;system of record")]
+        Search[("OpenSearch&lt;br/&gt;full-text: politicians, arguments")]
+        Cache[("Redis&lt;br/&gt;cache, rate limits, sessions")]
+        Objects[("S3-compatible object store&lt;br/&gt;audio, transcripts")]
+    end
+
+    subgraph Ingestion["Ingestion workers (scheduled)"]
+        CivicEngine["CivicEngine / BallotReady&lt;br/&gt;candidates, ballot measures"]
+        OpenStates["OpenStates / LegiScan&lt;br/&gt;state legislature votes"]
+        Congress["Congress.gov API&lt;br/&gt;federal votes"]
+        Legistar["County Legistar/Granicus&lt;br/&gt;council votes, hearings"]
+        MDVoter["MD SBE voter lookup&lt;br/&gt;(status check only — no bulk import)"]
+    end
+
+    Mobile --&gt; GW
+    Web --&gt; GW
+    Mobile &lt;-.-&gt; WS
+    Web &lt;-.-&gt; WS
+
+    GW --&gt; Scoring
+    GW --&gt; Democracy
+    GW --&gt; Integrity
+    GW --&gt; Identity
+    WS --&gt; Democracy
+
+    Scoring --&gt; PG
+    Democracy --&gt; PG
+    Integrity --&gt; PG
+    Identity --&gt; PG
+    Democracy --&gt; TrustSafety
+    TrustSafety --&gt; PG
+
+    Scoring --&gt; Cache
+    GW --&gt; Search
+    Democracy --&gt; Objects
+
+    CivicEngine --&gt; PG
+    OpenStates --&gt; PG
+    Congress --&gt; PG
+    Legistar --&gt; PG
+    MDVoter -.-&gt;|"per-request only, not stored"| Identity
+      </pre>
+
+      <div class="prosewrap">
+        <h3>6.1 Tech stack</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+          <tr><td>Mobile</td><td>Expo / React Native</td><td>Matches existing team tooling; one codebase for iOS/Android.</td></tr>
+          <tr><td>Web</td><td>Next.js</td><td>Server-rendered for share-ability (a referendum or scorecard needs to be linkable and crawlable).</td></tr>
+          <tr><td>API</td><td>GraphQL gateway + REST for webhooks/ingestion</td><td>Nested queries (politician → positions → citations → promises → status events) are what GraphQL is for; ingestion webhooks are simpler as REST.</td></tr>
+          <tr><td>Primary DB</td><td>PostgreSQL</td><td>Relational integrity is not optional here — evidence chains, vote uniqueness, and status history depend on real foreign keys and transactions.</td></tr>
+          <tr><td>Search</td><td>OpenSearch</td><td>Full-text over politician bios, arguments, promise text.</td></tr>
+          <tr><td>Cache/queue</td><td>Redis</td><td>Session, rate limiting, and job queue backing.</td></tr>
+          <tr><td>Object storage</td><td>S3-compatible</td><td>Audio/video arguments + generated transcripts.</td></tr>
+          <tr><td>Background jobs</td><td>Queue-backed workers (e.g., BullMQ)</td><td>Nightly ingestion syncs, alignment recomputation, STT transcription, moderation scans, notification fanout.</td></tr>
+          <tr><td>Realtime</td><td>WebSocket service</td><td>Live debate thread updates.</td></tr>
+          <tr><td>Embedding / similarity</td><td>PostgreSQL + <code>pgvector</code></td><td>Near-duplicate argument detection and opinion clustering (7.5) without a separate vector DB.</td></tr>
+          <tr><td>Identity/verification</td><td>Isolated microservice, separate datastore</td><td>Least-privilege: minimizes blast radius of the most sensitive PII.</td></tr>
+        </table></div>
+
+        <h3>6.2 Build order: monolith first</h3>
+        <p>A GraphQL gateway, OpenSearch, Redis, a WebSocket service, and five separated services is a lot of moving infrastructure for a single-county pilot — and it's inconsistent with the "earn your complexity" discipline this document uses everywhere else. The service diagram above is where the architecture ends up, not where it should start.</p>
+        <p>For Phases 1–2 (Section 12) — candidate profiles, alignment scoring, positions, promise tracking, integrity flags, transparency data — a <strong>single PostgreSQL-backed modular monolith</strong> carries the load fine: one application process organized into the same logical modules shown above, talking to one Postgres database, with a plain REST or GraphQL API and no separate search engine, cache layer, or realtime service yet. Full-text search over a few hundred candidates doesn't need OpenSearch; session state for a pilot-scale user base doesn't need Redis; nothing needs live WebSocket updates until the debate forum (Phase 3) has concurrent users in the same thread.</p>
+        <p>The one exception worth keeping isolated from day one is <strong>identity/verification</strong> — the least-privilege argument for splitting it out doesn't depend on scale, since the risk it manages (verification PII) is present at any user count. Everything else is a Phase 3+ migration, done when clustering, live debate updates, or real search volume actually demand it.</p>
+      </div>
+    </section>
+
+    <section id="s7" class="wide">
+      <div class="prosewrap">
+        <h2>7. Key workflows</h2>
+        <h3>7.1 Voter onboarding → alignment scoring</h3>
+      </div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant U as Voter
+    participant App
+    participant Scoring as Scoring engine
+    participant DB as PostgreSQL
+
+    U-&gt;&gt;App: Set residence jurisdiction (self-attested + address-validated)
+    U-&gt;&gt;App: Add voter_priorities per topic (statement + importance 1-5)
+    App-&gt;&gt;DB: Store priorities (visibility default: private)
+    App-&gt;&gt;Scoring: Request scores for all candidacies in user's races
+    Scoring-&gt;&gt;DB: Read politician_positions + voting_records + promises for each candidacy
+    Scoring-&gt;&gt;Scoring: Compute topic_breakdown + overall_score (versioned algorithm)
+    Scoring-&gt;&gt;DB: Upsert alignment_scores
+    Scoring--&gt;&gt;App: Return ranked candidacies with sourced rationale per topic
+    App--&gt;&gt;U: "Here's who matches what you told us, and why — with sources"
+      </pre>
+      <div class="prosewrap">
+        <p>Before any scoring, the same address resolution powers a <strong>your-ballot view</strong>: the address maps to its full jurisdiction stack (county → council district → municipality, if any → school district), and every <code>offices</code> row hanging off that stack is listed — grouped by level, with current holders from <code>office_terms</code> and the next race date. Two display rules keep the list honest: levels VoteRight doesn't score yet appear as "not yet tracked" rather than being silently omitted (an incomplete list must never look complete), and judicial seats get background-and-evaluations treatment instead of an alignment match, since judicial ethics rules limit issue campaigning.</p>
+      </div>
+
+      <div class="prosewrap"><h3>7.2 Promise lifecycle</h3></div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant Ingestion as Ingestion worker
+    participant DB as PostgreSQL
+    participant Integrity as Integrity service
+    participant Mod as Human moderator
+
+    Ingestion-&gt;&gt;DB: New voting_record or news citation ingested
+    Integrity-&gt;&gt;DB: Match record against open promises for this politician/topic
+    alt Evidence supports "kept" or "broken"
+        Integrity-&gt;&gt;DB: Insert promise_status_events (status, citation_id)
+        Integrity-&gt;&gt;Mod: Queue for review before status becomes public
+        Mod-&gt;&gt;DB: Approve → promises.current_status updated, published
+    else Evidence is ambiguous
+        Integrity-&gt;&gt;DB: Insert integrity_flags (status: open)
+        Integrity-&gt;&gt;Mod: Route to dispute/right-of-reply workflow
+        Mod-&gt;&gt;DB: Resolve (upheld / dismissed / disputed) with citations required
+    end
+      </pre>
+
+      <div class="prosewrap"><h3>7.3 Issue proposal → referendum → published mandate</h3></div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant U as Voter
+    participant App
+    participant Others as Other verified voters
+    participant DB as PostgreSQL
+
+    U-&gt;&gt;App: Submit issue_proposal (title, body, topic, jurisdiction)
+    App-&gt;&gt;DB: Insert proposal (status: seconding, second_threshold set by jurisdiction size)
+    Others-&gt;&gt;App: Add seconds
+    App-&gt;&gt;DB: Insert seconds (one per verified user)
+    DB--&gt;&gt;App: second_count reaches second_threshold
+    App-&gt;&gt;DB: proposal.status = 'debating'; create forum_thread
+    Others-&gt;&gt;App: Post arguments (text/audio, for/against, cited)
+    Note over App,DB: Debate window runs for fixed period (closes_at)
+    App-&gt;&gt;DB: proposal.status = 'referendum'; create referendum with disclosure_text
+    Others-&gt;&gt;App: Request a ballot (identity checked once)
+    App-&gt;&gt;DB: Issue referendum_ballot_tokens row (user_id + tier, unredeemed)
+    Others-&gt;&gt;App: Cast choice using the token, not the user session
+    App-&gt;&gt;DB: Insert referendum_ballots (token_id + choice — no user_id)
+    App-&gt;&gt;DB: Tally referendum_ballots at closes_at
+    App-&gt;&gt;DB: Compute turnout_pct_of_registered vs. jurisdictions.registered_voter_count
+    alt turnout meets publish_threshold_pct
+        App-&gt;&gt;DB: Insert voter_mandates (meets_publish_threshold = true, overlay_status = 'published')
+        App--&gt;&gt;U: Published mandate appears on the relevant officeholder's public scorecard
+    else turnout below threshold
+        App-&gt;&gt;DB: Insert voter_mandates (meets_publish_threshold = false, overlay_status = 'below_threshold_unpublished')
+        App--&gt;&gt;U: Result recorded but not published to the officeholder's public scorecard
+    end
+      </pre>
+      <div class="prosewrap">
+        <p>A published mandate doesn't stop at the scorecard: when the next race for that office opens, it is put to every candidate in it as a <code>mandate_commitments</code> question — see Section 7.9.</p>
+        <h3>7.4 Accountability pathway (replaces "recall")</h3>
+      </div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant U as Voter
+    participant App
+    participant DB as PostgreSQL
+
+    U-&gt;&gt;App: Views politician with open/upheld integrity_flags
+    App-&gt;&gt;DB: Look up accountability_pathways for the office AND its jurisdiction
+    alt A binding removal mechanism exists (e.g. disability removal vote, criminal referral)
+        App--&gt;&gt;U: Show real mechanism, real citation, real process — not a one-tap action
+    else A binding charter-amendment petition exists but no removal mechanism does (Section 2.1.1)
+        App--&gt;&gt;U: Disclose: no recall exists yet, but a real petition path could create one
+        App--&gt;&gt;U: Offer to start a charter_or_law_change accountability_campaign
+    else No removal or reform mechanism applies
+        App--&gt;&gt;U: Show disclosure: "No removal mechanism exists for this office before the next election."
+        App--&gt;&gt;U: Offer accountability_campaign options: organize primary challenger support, publicize record, calendar reminder for next race
+    end
+    U-&gt;&gt;App: Optionally start accountability_campaign (politician- or reform-targeted)
+    App-&gt;&gt;DB: Insert accountability_campaign with auto-generated, non-editable disclosure_text
+    Note over App,DB: support_count tracks in-app backing only;&lt;br/&gt;external_petition_status tracks the real signature drive, if any
+      </pre>
+
+      <div class="prosewrap">
+        <h3>7.5 Debate scaling: clustering &amp; opinion mapping</h3>
+        <p>There is no cap on how many verified voters can debate an issue — capping participation would defeat the point of the direct-democracy layer. But an uncapped, unclustered feed stops being readable well before it stops growing, and it stops being moderatable even sooner. So volume is handled in two independent ways rather than one:</p>
+        <ul>
+          <li><strong>Near-duplicate clustering</strong> (<code>argument_clusters</code>) reduces repetition. At submission time, the new argument's text or transcript is embedded and compared against existing arguments on the same side; above a similarity threshold, the author is prompted to add their name to the existing point rather than post a duplicate. Once a thread passes a size threshold, the default view switches from a chronological feed to clusters ranked by size and by the "helpful" signal. A cluster's representative gets full moderation review; near-duplicates joining an already-cleared cluster only need a lightweight check.</li>
+          <li><strong>Opinion mapping</strong> (<code>argument_agreement_votes</code> → <code>opinion_clusters</code>) reveals structure, not just volume — a lightweight agree/disagree/pass vote on individual statements, with users then clustered by the similarity of their agreement pattern (the Pol.is method, used in Taiwan's vTaiwan process). This surfaces actual camps and <em>bridging statements</em> — points every camp agrees on despite an overall split — a richer signal for a <code>voter_mandate</code> than a flat percentage.</li>
+          <li><strong>A soft per-user rate limit</strong> on top-level arguments (a tunable config value — a reasonable start is 3 per user per side per thread) keeps volume coming from many voices rather than one person flooding it; agreement votes and rebuttals stay unlimited.</li>
+        </ul>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+    A["New argument submitted"] --&gt; B{"Embedding similarity vs.&lt;br/&gt;existing arguments on this side"}
+    B -- "above threshold" --&gt; C["Prompt: add your name to&lt;br/&gt;existing point, or post anyway"]
+    B -- "below threshold" --&gt; D["Post as new argument"]
+    C --&gt; E[("argument_clusters")]
+    D --&gt; F["Moderation pass&lt;br/&gt;(full review)"]
+    F --&gt; E
+    E -- "member joins cleared cluster" --&gt; G["Lightweight check only"]
+    H["Agreement votes accumulate"] --&gt; I["Periodic batch: cluster users&lt;br/&gt;by agreement-pattern similarity"]
+    I --&gt; J[("opinion_clusters")]
+    J --&gt; K["Surfaced in thread view +&lt;br/&gt;referendum / voter_mandate"]
+      </pre>
+
+      <div class="prosewrap">
+        <h3>7.6 Robert's Rules overlay: amendments &amp; calling the question</h3>
+        <p>Robert's Rules of Order (RONR) is built for a chair-moderated, synchronous, small-body meeting. Most of that machinery doesn't transfer to an async debate with a few hundred to a few thousand participants. Two RONR concepts do map cleanly, and the platform already borrowed a third (seconding, with <code>second_threshold</code> acting as a quorum-like gate):</p>
+        <ul>
+          <li><strong>Amendments.</strong> While an <code>issue_proposal</code> is in <code>seconding</code> or <code>debating</code> status, any participant can propose a revision; it needs its own <code>amendment_seconds</code> to reach its threshold before adoption. The original proposal's text is never overwritten — <code>current_amendment_id</code> points at whichever amendment is adopted, so the record shows both the original ask and what it became. An amendment can no longer be proposed once the proposal reaches <code>referendum</code>. One inherited RONR quirk is made explicit rather than hidden: seconds gathered on the original text carry over to the amended proposal (as in RONR, where an amended motion is not re-seconded) — the standard parliamentary trade-off, but the UI should show which version was current when each second was given, which the append-only amendment history makes possible.</li>
+          <li><strong>Calling the question.</strong> Any active participant in a thread can vote to close debate early; once <code>close_early_threshold_pct</code> of active participants (default 66.7%, matching RONR's 2/3) have done so, the proposal advances to <code>referendum</code> ahead of schedule. The threshold lives in a real column so it's disclosed and auditable — and qualifying as "active" now requires <code>call_the_question_min_agreement_votes</code> distinct agreement votes (or one posted argument), because a single one-click vote was too cheap a bar for an action that affects a real outcome.</li>
+        </ul>
+        <p>Deliberately <strong>not</strong> adopted: points of order, motions to table/postpone, the full precedence-of-motions stack, and anything that assumes a single chair recognizing speakers in sequence. None of them solve a problem the current model actually has.</p>
+
+        <h3>7.7 Claim detection: prompting for citations, not rewrites</h3>
+        <p>At argument submission — the same moment the near-duplicate check runs — the text or transcript is screened for sentences that read as unsourced, checkable factual assertions (a dollar figure, a specific vote, a date, a "will cause X" causal claim). When one is found, the author sees a soft prompt: <em>"This reads like a factual claim — want to attach a source?"</em> with three responses recorded in <code>argument_claim_flags.author_response</code>: add a citation, mark it as their own opinion, or dismiss and post as-is. None of the three blocks submission.</p>
+        <p>This is deliberately <strong>not</strong> a "detect opinion and prompt for objectivity" feature, and that scope limit is the point, not a compromise:</p>
+        <ul>
+          <li>A debate forum's entire purpose is airing opinions. A platform that told users their <em>opinions</em> weren't objective enough would be exercising editorial judgment over legitimate political speech — a much bigger claim than "this specific sentence looks like an unsourced fact."</li>
+          <li>Fact/opinion classifiers are unreliable in practice — they misfire constantly on rhetorical or figurative phrasing. A narrow "does this sentence assert a checkable fact" screen is a smaller, more tractable problem, and fails safer when wrong.</li>
+          <li>The upside is specific: it nudges exactly the kind of claim that later becomes load-bearing for the platform toward being sourced at the moment it's written, rather than fact-checked after the fact.</li>
+        </ul>
+
+        <h3>7.8 AI debate agents: one-shot, evidence-grounded, imbalance-triggered</h3>
+        <p>The premise for this feature is asymmetric speed, not asymmetric authority: an AI system can retrieve and synthesize far more source material, far faster, than any one voter can before a debate window closes — worth putting to use for voters, as long as it never substitutes for a real constituent's voice or gets mistaken for one:</p>
+        <ul>
+          <li><strong>One-shot, not a running debate.</strong> A triggered <code>ai_debate_run</code> produces exactly one steel-manned argument for one side — never a continuing AI-vs-AI exchange, which would generate moderation load while contributing nothing a single well-formed argument doesn't, and would risk turning a civic debate space into bot theater.</li>
+          <li><strong>Imbalance-triggered, not default.</strong> A run fires only when one side of a thread is empty or clearly thin as <code>closes_at</code> approaches — the point is to guarantee voters see a substantive case on both sides before an unofficial referendum closes.</li>
+          <li><strong>Evidence-grounded, with a hard sourcing gate.</strong> Every factual sentence in the output must map to a <code>citation_id</code>; <code>fully_sourced</code> is machine-checked, and a run that fails is never published. This is deliberately a <strong>harder</strong> bar than the human claim-detection nudge in 7.7 — a human's unsourced opinion is still legitimate political speech; an AI tool pitched as evidence-grounded analysis has no such claim to protection.</li>
+          <li><strong>Always disclosed, structurally distinct.</strong> <code>author_type = 'ai_agent'</code> and a non-removable disclosure accompany every AI-authored argument. Humans can cite, rebut, and rate it exactly like any other argument — but it can never second a proposal, vote to call the question, or take any action reserved for verified human users.</li>
+        </ul>
+        <div class="callout warn">
+          <span class="label">Regulatory note — enacted law, not pending bills</span>
+          <p>Maryland's SB 141 was signed and took effect <strong>June 1, 2026</strong> — it prohibits the knowing or reckless use of AI-generated fabrications intended to deceive voters about a candidate, misrepresent election procedures, or manipulate ballot processes, with carve-outs for clear satire, parody, and bona fide news that carry an AI-content disclosure. VoteRight's AI debate agents don't impersonate anyone and are disclosed and evidence-gated by design, which appears to sit comfortably inside the enacted framework — but "appears to" is a counsel judgment, not an engineering one. Stricter prohibition-style proposals also remain live: the SB 361 approach passed the Senate in 2025 without becoming law and may return. Counsel review before this ships, against the statute as it stands at launch (Section 13).</p>
+        </div>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+    A["Thread nears closes_at&lt;br/&gt;with one side thin/empty"] --&gt; B["Trigger ai_debate_run&lt;br/&gt;for the underrepresented side"]
+    B --&gt; C["Agent retrieves grounding material:&lt;br/&gt;existing citations + fresh research"]
+    C --&gt; D{"fully_sourced check:&lt;br/&gt;every claim maps to a citation?"}
+    D -- "no" --&gt; E["status = failed_sourcing_check&lt;br/&gt;— never published"]
+    D -- "yes" --&gt; F["Post as arguments row,&lt;br/&gt;author_type = 'ai_agent', disclosed"]
+    F --&gt; G["Same moderation pipeline as human content"]
+    G --&gt; H["Citable, rebuttable, rateable by humans —&lt;br/&gt;cannot second, call the question, or propose"]
+      </pre>
+
+      <div class="prosewrap">
+        <h3>7.9 Mandate commitments: putting the mandate to the candidates</h3>
+        <p>A published <code>voter_mandate</code> that just sits on an officeholder's scorecard is easy to wait out — and does nothing about the failure mode this product exists for: candidates who win on name recognition while intending to ignore, or being unable to deliver, what their voters actually asked for. <code>mandate_commitments</code> makes the mandate portable across the election boundary:</p>
+        <ol>
+          <li><strong>When a race opens for an office with published mandates</strong>, every candidacy in that race gets a <code>mandate_commitments</code> row per standing mandate, starting at <code>stance = 'no_response'</code>.</li>
+          <li><strong>Candidates answer on the record</strong> — <code>commit</code> or <code>decline</code>, each requiring a <code>citation_id</code> pointing at the candidate's own public statement (their campaign site, a questionnaire, a debate transcript — the same evidence ledger as everything else). The platform never infers a stance; it records stated ones, and displays <code>no_response</code> as exactly that.</li>
+          <li><strong>The race view shows each candidate's answer next to the mandate's turnout and margin</strong> — before the vote, when dodging a popular mandate still has a visible price. Name recognition stops being a substitute for an answer.</li>
+          <li><strong>If a candidate who committed wins</strong>, the commitment spawns a <code>promises</code> row, and the existing promise-tracking machinery (7.2) takes over — kept, broken, compromised, stalled — with the mandate's public backing attached as context. A broken mandate-commitment then routes, like any broken promise, to the accountability pathways in 7.4.</li>
+        </ol>
+        <p>Two deliberate limits. <code>no_response</code> is the only stance the platform asserts without a citation (a <code>CHECK</code> enforces this) — attributing "declined" to a candidate who simply never answered would be a manufactured fact about a real person, exactly what Section 2.3 exists to prevent. And a mandate commitment is a <em>voluntary public answer to a published question</em>, not a pledge with any legal force — the advisory-disclosure rules of 2.4 carry through to every surface it appears on.</p>
+      </div>
+    </section>
+
+    <section id="s8" class="wide">
+      <div class="prosewrap">
+        <h2>8. External data partners &amp; integration map</h2>
+      </div>
+      <div class="tablewrap"><table>
+        <tr><th>Source</th><th>Provides</th><th>Access model</th><th>Notes</th></tr>
+        <tr><td>BallotReady / CivicEngine API</td><td>Candidates, ballot measures, elections, positions</td><td>Commercial API license</td><td>Closest schema match (OCD-IDs, GraphQL); primary vendor for candidate/election data.</td></tr>
+        <tr><td>Ballotpedia</td><td>Cross-reference / secondary verification</td><td>Public site + some licensed data</td><td>Used to corroborate, not as sole source.</td></tr>
+        <tr><td>OpenStates / LegiScan</td><td>State legislature bills &amp; roll-call votes</td><td>Free/API-key public data</td><td>Feeds <code>voting_records</code> for state-level politicians.</td></tr>
+        <tr><td>Congress.gov API</td><td>Federal bills &amp; roll-call votes</td><td>Free/API-key public data</td><td>Feeds <code>voting_records</code> for federal politicians; <code>bioguide_id</code> join key. (The ProPublica Congress API, an earlier draft's co-source, was retired — its documentation repository was archived in February 2025 — so Congress.gov is the sole federal feed.)</td></tr>
+        <tr><td>Montgomery County Council Legistar/Granicus</td><td>County council votes, agendas, hearing video/audio</td><td>Public site, structured feed</td><td>Feeds <code>voting_records</code> at the county level; hearing audio is a candidate source for <code>citations</code>.</td></tr>
+        <tr><td>VOTE411 (League of Women Voters)</td><td>Candidate guides, registration, polling info</td><td>Cross-link, not scrape</td><td>Complementary — respect their content ownership.</td></tr>
+        <tr><td>Maryland SBE voter lookup</td><td>Individual registration status</td><td>Per-request public lookup only</td><td><strong>Never</strong> bulk-import; see Section 2.6.</td></tr>
+        <tr><td>U.S. Census / ACS</td><td>Jurisdiction demographics</td><td>Public API</td><td>Drives locale defaults and outreach prioritization, not user-level data.</td></tr>
+        <tr><td>Maryland campaign finance filings (SBE)</td><td>Independent-expenditure and slate-mailer-committee disclosures</td><td>Public filings</td><td>Feeds <code>independent_expenditures</code>; the source of record, not any commentator's summary of it.</td></tr>
+      </table></div>
+
+      <div class="prosewrap">
+        <h3>8.1 Transparency features: outside money, ballot authenticity, endorsements</h3>
+        <p>Local political reporting in Montgomery County — and coverage of comparable counties elsewhere — consistently returns to three recurring problems: outside spending groups that most voters never see disclosed in one place, campaign mail designed to look more official than it is, and endorsements whose influence is hard to track over time. Rather than encode any specific reporter's account of these as platform content, all three become sourced, general-purpose capabilities:</p>
+        <ul>
+          <li><strong><code>independent_expenditures</code></strong> records outside spending by Super PACs, slate-mailer committees, and similar entities, sourced directly to the underlying campaign-finance filing (<code>citation_id</code> is <code>NOT NULL</code> — there is no un-sourced entry in this table).</li>
+          <li><strong><code>campaign_communications</code></strong> lets any user submit a specific mailer, flyer, robocall, or ad and have it checked against a sourced finding of <code>is_official_ballot</code> and <code>actual_sponsor</code> versus <code>claimed_authority</code> — a factual, documents-based check, not a character judgment, which keeps it in the same low-risk lane as <code>voting_records</code>.</li>
+          <li><strong><code>endorsements</code></strong> ties a third-party organization to a candidacy with a required citation, so influence can be tracked over time across many races rather than reconstructed from memory each cycle.</li>
+        </ul>
+        <p>All three feed the same evidence ledger (<code>citations</code>) and the same alignment-scoring and integrity-flag machinery — new <em>inputs</em>, not a new trust model.</p>
+
+        <h3>8.2 Expert commentary: objective inclusion, not editorial picks</h3>
+        <p>Local journalists and analysts who've covered a jurisdiction for years — a Montgomery Perspective, an established statehouse reporter — carry real informational value that a strict "sourced fact vs. community opinion" model (Section 2.3) doesn't have room for: their work is neither a platform-verified fact nor an anonymous forum post, it's informed, attributed analysis. Surfacing it serves voters. But <em>how</em> it gets surfaced carries its own risk, distinct from anything else in this document: featuring specific named commentators, even ones who read as scrupulously non-partisan, makes an implicit editorial statement about whose analysis counts — unless inclusion is governed by a rule instead of a pick.</p>
+        <ul>
+          <li><strong>Inclusion is computed, not curated.</strong> <code>commentator_inclusion_rules</code> sets a tunable, disclosed bar per jurisdiction — sustained coverage (<code>min_pieces_count</code> over <code>lookback_months</code>, defaulting to 12 pieces in 12 months: enough to distinguish a beat reporter from a one-off op-ed writer), a real accountable byline, and mandatory disclosure of any financial or campaign ties. <code>commentator_qualifications</code> re-evaluates every commentator against that rule on a schedule, the same way <code>alignment_scores</code> and <code>opinion_clusters</code> are recomputed rather than hand-set — nobody at VoteRight decides Adam Pagnucco or anyone else "counts"; the rule decides, and it decides the same way for everyone. The counting procedure is itself auditable: <code>commentator_pieces</code> is the per-piece ledger behind every <code>pieces_counted</code> figure — URL, date, and the relevance basis for why it counts — because "what counts as a piece about this jurisdiction" is where selector power would otherwise sneak back in, and the definition of a piece lives on the public methodology page.</li>
+          <li><strong>A neutral rule doesn't guarantee a balanced roster by itself.</strong> If outreach is purely passive — wait for commentators to self-submit — the roster can still end up lopsided simply because of who happens to apply. The rule has to be paired with <strong>active, even-handed outreach</strong> to known local voices across the spectrum who'd likely qualify, tracked via <code>commentators.outreach_status</code>. A public "how commentators are included" methodology page matters here too: the platform isn't vouching for balance, it's showing the rule and letting users judge the roster themselves. Declining has defined behavior: a commentator who asks not to be featured is delisted from rail placement (recorded as <code>delisted_by_request</code>), while users citing their public articles in debate arguments is unaffected.</li>
+          <li><strong>Never part of the evidence ledger.</strong> <code>commentary_links</code> has no relationship to <code>citations</code> and must never be used as the <code>citation_id</code> behind a <code>promise_status_events</code> row or an <code>integrity_flag</code> — a commentator's characterization of a fact isn't the same evidentiary weight as the primary source they're citing. If a commentary piece surfaces something worth citing on the platform, the platform cites the primary source underneath it, not the write-up. The wall is table-level, not URL-level — nothing structurally stops an ordinary <code>citations</code> row whose URL <em>is</em> a commentary piece — so ingestion flags any new citation whose domain matches a qualified commentator's outlet for human review before it can back a published flag or status change.</li>
+          <li><strong>Cutting a commentator gets the same due process as flagging a politician.</strong> <code>commentator_status_events</code> is append-only: a disqualification requires a <code>citation_id</code> (enforced by <code>CHECK</code>), carries the commentator's right-of-reply text, and is never a silently edited free-text field. A platform that publicly disqualifies a named journalist for "undisclosed campaign ties" is making exactly the category of claim Section 2.3 governs — it cannot hold candidates to a higher evidentiary standard than it holds itself.</li>
+          <li><strong>An election-proximity blackout on promotion, not on access.</strong> <code>election_cycles.commentary_promotion_blackout_days</code> (tunable, default 0) suppresses push notifications and featured placement of commentary inside a window before an election, without removing it — the same "electioneering communication" concern already flagged for the platform's own content in Section 2.7 applies just as much to content VoteRight chooses to actively surface.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="s9">
+      <h2>9. Trust, safety &amp; anti-manipulation</h2>
+      <ul>
+        <li><strong>Verification-tiered vote weight.</strong> <code>unverified</code> users can read everything and draft priorities privately, but cannot second, argue, or vote until <code>address_verified</code> at minimum. <code>govt_id_verified</code> may be required for referenda above a jurisdiction-size threshold, where manipulation payoff is highest.</li>
+        <li><strong>Anomaly detection on the ingestion side of <code>seconds</code>, ballot-token issuance, and <code>call_the_question_votes</code></strong>: velocity checks, device fingerprint correlation, and geographic plausibility against <code>residence_jurisdiction_id</code>. Calling the question is a smaller-N target than a full referendum, which makes it the cheaper of the two to brigade — the minimum-activity bar raises the cost of qualifying, but the anomaly pipeline watches this action specifically.</li>
+        <li><strong>Moderation pipeline for <code>arguments</code></strong>: automated toxicity/spam screen pre-publish, human review queue for anything flagged, and a dedicated deepfake detection step for both audio and video.</li>
+        <li><strong>Argument clustering (7.5) is also a moderation-capacity control</strong>: a representative argument gets full review; near-duplicates joining a cleared cluster need only a lightweight check — so moderation cost scales with distinct claims, not raw post volume.</li>
+        <li><strong>AI-authored arguments (7.8) go through the same moderation pipeline as human ones</strong>, plus the <code>fully_sourced</code> gate unique to them — defense-in-depth against prompt injection or degenerate model output.</li>
+        <li><strong>Community Notes-style rating, not popularity voting</strong> — "helpful" / "needs sources" rather than up/down, so a well-sourced minority argument isn't buried by volume alone.</li>
+        <li><strong>Immutable, append-only history</strong> on anything that feeds a public accountability claim — corrections happen by adding a new event, never by silently editing the old one.</li>
+      </ul>
+
+      <h3>9.1 Media limits &amp; cost control (local video + YouTube arguments)</h3>
+      <ul>
+        <li><strong><code>max_video_size_bytes</code> is a platform-configured limit</strong>, enforced at the upload service. A duration cap (2–3 minutes) plus a resolution cap (720p) does most of the work of bounding size before a byte limit even matters.</li>
+        <li><strong>Transcode on ingest, discard the original.</strong> One standard codec/bitrate; the original upload is discarded once the transcode succeeds — this is where most of the storage saving actually comes from.</li>
+        <li><strong><code>transcript_text</code> is required for locally recorded audio and video</strong> (our own STT pipeline) — it feeds search, moderation review, and accessibility in one pass.</li>
+        <li><strong>YouTube-linked arguments are never downloaded or re-hosted</strong> — only <code>youtube_video_id</code> and cached metadata are stored, rendered through YouTube's own embedded player. No auto-generated transcripts for YouTube video (scraping caption tracks is a ToS gray area); a periodic job re-checks availability the way <code>archive_url</code> guards against link rot; moderation can only ever delist our citation of a video, never touch the video itself.</li>
+      </ul>
+    </section>
+
+    <section id="s10">
+      <h2>10. Privacy &amp; data governance</h2>
+      <ul>
+        <li>Minimum viable PII: <code>users.email_hash</code> (not raw email if avoidable), no storage of government ID numbers — verification vendors return opaque tokens only.</li>
+        <li><code>voter_priorities.visibility</code> defaults to <code>private</code>; aggregate/public views are opt-in and reported in aggregate rather than attributed to individuals.</li>
+        <li>Data retention and deletion: verification tokens expire and are revalidated, not held indefinitely.</li>
+        <li>No ingestion of the state's purchased voter file (Section 2.6).</li>
+        <li><strong>Maryland's own privacy statute applies to this product.</strong> The Maryland Online Data Privacy Act (MODPA) took effect October 1, 2025 and reaches processing from April 1, 2026 onward — its 35,000-consumer threshold is low enough that a county-scale app should assume coverage, and its data-minimization standard is the strictest in the country. Every retention rule in this section and in 10.1–10.2 should be reviewed as a MODPA compliance exercise, not just as good hygiene (Section 13).</li>
+        <li><strong>Account deletion is designed, not improvised.</strong> <code>users.deleted_at</code> marks a deletion request; the row is pseudonymized (auth_id tombstoned, display name and email hash cleared, verification records purged) rather than physically removed, because public debate contributions are part of a civic record other people have built on. Private signals (voter priorities, any not-yet-deleted agreement votes, unredeemed ballot tokens) are hard-deleted. Whether pseudonymize-and-keep satisfies MODPA's deletion right for the public-record remainder is a counsel question (Section 13).</li>
+        <li><strong><code>email_hash</code> is pseudonymous, not anonymous</strong> — email addresses are low-entropy and dictionary-attackable, so a hashed email must be treated as personal data under MODPA, never presented as anonymized data.</li>
+      </ul>
+
+      <h3>10.1 Referendum ballot secrecy</h3>
+      <p>A single table holding <code>user_id</code> and <code>choice</code> together, indefinitely, would be a queryable dataset of named residents' positions on contested political issues — exactly the kind of politically sensitive record a breach, a subpoena, or a careless internal query turns into a doxxing incident. That risk deserves the same seriousness as the defamation risk in Section 2.3, and the design responds structurally:</p>
+      <ul>
+        <li><strong>Identity and choice are split across two tables.</strong> <code>referendum_ballot_tokens</code> records that a verified user was issued a single-use token — this enforces one-person-one-vote and eligibility weighting. <code>referendum_ballots</code> records a choice against a <em>token</em>, with no <code>user_id</code> column anywhere in that table.</li>
+        <li><strong>Retention severs the last link.</strong> After a referendum is certified and its mandate published (plus a fixed audit window), <code>referendum_ballot_tokens.user_id</code> is redacted to <code>NULL</code>. Once that happens, no query against the database — including a subpoena scoped to the database itself — can reconstruct who voted which way.</li>
+        <li><strong>This is honest, practical secrecy — not a cryptographic guarantee.</strong> The schema-level split only holds if the redemption service never persists the (user, choice) correlation anywhere — logs, tracing, analytics. A real election system would formalize this with split trust, mix-nets, or zero-knowledge proofs; if a future version needs that stronger guarantee, it's a distinct research and vendor decision, flagged in Section 13.</li>
+      </ul>
+
+      <h3>10.2 Participation privacy: public acts vs. private signals</h3>
+      <p>Ballot secrecy (10.1) fixed the most obvious identity-to-position table, but the debate layer generates the same category of data. Every participation act is therefore classified one way or the other, deliberately:</p>
+      <ul>
+        <li><strong>Deliberately public acts</strong> — posting an argument, seconding a proposal, proposing an issue or amendment. These are civic speech acts, like signing a public petition or testifying at a hearing: attribution is the point, and they persist (subject to account-deletion pseudonymization above).</li>
+        <li><strong>Private signals with a retention rule</strong> — referendum ballots (10.1), per-user <code>argument_agreement_votes</code>, and <code>call_the_question_votes</code>. Agreement votes deserve the most care: they are the raw Pol.is matrix, a per-person ledger of agree/disagree stances across potentially hundreds of political statements — a <em>richer</em> political profile than any single referendum choice, gathered through a one-tap interaction no user experiences as going on the record. They are held only while genuinely needed (the open debate window, opinion-cluster recomputation, plus a short audit window) and then deleted. What persists: the denormalized per-argument tallies and the final <code>opinion_clusters</code> snapshots, neither of which contains a user identity. Call-the-question votes are deleted when the thread closes; only the outcome on <code>forum_threads</code> persists.</li>
+      </ul>
+      <p>The UI should say which kind of act the user is performing at the moment they perform it — "your name will appear on this" versus "this is private and will be deleted after the debate closes" — because the distinction only protects people who know it exists.</p>
+    </section>
+
+    <section id="s11">
+      <h2>11. Accessibility &amp; localization</h2>
+      <p>Montgomery County is 34% foreign-born, well above state and national rates, and the League of Women Voters already runs its guides in English and Spanish for exactly that reason. VoteRight treats localization as core scope, not a stretch goal:</p>
+      <ul>
+        <li><code>users.locale</code> drives UI language from day one; content models need translation fields or a companion translation table before scaling past a pilot.</li>
+        <li>Audio arguments are an accessibility asset (low-literacy and visually impaired users) as well as a moderation liability — the transcript requirement serves both search and accessibility.</li>
+        <li>WCAG 2.1 AA as a baseline for both mobile and web.</li>
+      </ul>
+    </section>
+
+    <section id="s12" class="wide">
+      <div class="prosewrap">
+        <h2>12. MVP phasing</h2>
+      </div>
+      <div class="tablewrap"><table>
+        <tr><th>Phase</th><th>Scope</th><th>Legal risk</th><th>Rationale</th></tr>
+        <tr><td><strong>1</strong></td><td>Politician/candidate profiles, sourced positions, voter priorities, alignment scoring, plus independent-expenditure disclosure and endorsement tracking (8.1)</td><td>Low</td><td>Same lane as BallotReady; delivers the personalization hook with the least exposure. Outside-money and endorsement data are as sourced and factual as voting records.</td></tr>
+        <tr><td><strong>2</strong></td><td>Promise tracking + integrity flags, with the dispute/right-of-reply workflow live before any flag is public, plus ballot-authenticity checks and expert commentary (8.2)</td><td>Medium-high — counsel review of methodology and dispute process before this ships</td><td>The "guardrail against deception" half of the brief; also the defamation-risk half. Ballot-authenticity checks verify documents, not character; commentator inclusion is lower-risk still (an objective coverage-volume test, not a claim about anyone) — but both need active human process (verification, outreach) before Phase 1's purely-ingested data model.</td></tr>
+        <tr><td><strong>3</strong></td><td>Issue proposals → seconding → debate forum (text, audio, local video, YouTube-linked), with clustering and opinion mapping (7.5), amendments, calling the question (7.6), and claim-detection prompts (7.7)</td><td>Medium — standard UGC moderation exposure, raised by video</td><td>Builds the direct-democracy muscle without yet publishing binding-sounding results. Ship text + audio first within the phase; treat clustering, amendments, calling the question, and claim detection as volume-triggered features.</td></tr>
+        <tr><td><strong>4</strong></td><td>Referenda + voter mandates + mandate commitments (put standing mandates to every candidate in the next race, on the record — 7.9) + accountability pathways (including <code>charter_amendment_petition</code> — 2.1.1)</td><td>Highest — manipulation target (9), voter-confusion risk (2.4), removal-mechanism accuracy (2.1), candidate-stance attribution (13)</td><td>Ship last, with the strongest verification gate, only after Phase 2's dispute workflow is proven. Mandate commitments depend on Phase 2's citation discipline and complete the loop the product exists for.</td></tr>
+        <tr><td><strong>5</strong></td><td>AI debate agents (7.8) — one-shot, evidence-grounded, imbalance-triggered</td><td>Medium-high — Maryland's enacted SB 141 (effective June 1, 2026) governs AI election content; counsel must confirm the feature against the statute as interpreted at launch</td><td>Ships last and separately from Phase 3 so it can wait on legal confirmation without blocking the debate forum. Depends on Phase 3's moderation and clustering pipeline.</td></tr>
+      </table></div>
+    </section>
+
+    <section id="s13">
+      <h2>13. Open questions for counsel before public launch</h2>
+      <ol>
+        <li>Does aggregating and publishing candidate integrity scores, especially near an election, trigger FEC/Maryland "electioneering communication" rules under any funding or promotion scenario?</li>
+        <li>What nonprofit structure (501(c)(3), 501(c)(4), for-profit B-corp, or none) fits the funding model, and how does it constrain what the platform can say about specific candidates?</li>
+        <li>Confirm, office-by-office, whether any <em>municipal</em> jurisdiction VoteRight expands into actually has a charter recall provision — <code>accountability_pathways</code> must be verified per office, never assumed.</li>
+        <li>Defamation exposure review of the integrity-flag/dispute workflow design (2.3, 9), before Phase 2 ships.</li>
+        <li>Data-broker / re-identification risk review of any <code>anonymous_aggregate</code> output — small-N cross-tabs can de-anonymize individuals.</li>
+        <li>Does spending organizational funds to organize or promote a real charter-amendment signature drive (2.1.1) trigger campaign-finance or ballot-question-committee registration under Maryland law?</li>
+        <li>Confirm the YouTube embedding approach (9.1) against YouTube's current Terms of Service and API terms.</li>
+        <li>Confirm the AI debate agent feature (7.8) against Maryland's <strong>enacted</strong> AI-election-content law (SB 141, effective June 1, 2026) as interpreted at launch, and monitor future sessions for prohibition-style successors (the SB 361 approach passed the Senate in 2025 without becoming law).</li>
+        <li><strong>Sybil resistance vs. equity of access are in tension, and this document only prices the manipulation side.</strong> <code>address_verified</code> is self-attested and format-checked, which makes it trivially farmable — the tier that actually resists coordinated manipulation is <code>govt_id_verified</code>. That tier has a real per-check vendor cost (who pays?) and a well-documented skew in who reliably possesses and will submit government ID, which cuts directly against "the people's voice" as a premise and against the 34%-foreign-born population Section 11 highlights. This needs a product decision before referenda (Phase 4) gate on verification tier.</li>
+        <li><strong>Ballot secrecy (10.1) is structural, not cryptographic</strong> — confirm whether that level of guarantee is sufficient, or whether an e-voting-grade protocol is warranted before referendum results carry real political weight.</li>
+        <li>The alignment-scoring methodology (5.1) needs its own design document — matching approach, handling of unscored topics, weight aggregation, and a bias-audit process — reviewed before Phase 1 ships.</li>
+        <li><strong>MODPA compliance review</strong> (Section 10): confirm coverage thresholds, whether the platform's political-opinion data triggers sensitive-data treatment, whether the retention rules in 10.1–10.2 satisfy data-minimization, and whether pseudonymize-and-keep satisfies the deletion right for public debate contributions.</li>
+        <li><strong>Mandate commitments</strong> (7.9): does publicly tabulating candidates' commit / decline / no-response stances on voter mandates — especially close to an election — change the electioneering analysis in item 1? And confirm that displaying <code>no_response</code> as a bare fact (with the platform's outreach attempts documented) carries no defamation-adjacent risk of implying a stance the candidate never took.</li>
+        <li><strong>Expert commentary</strong> (Section 8.2): does actively recruiting specific named commentators to satisfy roster balance itself carry any campaign-finance or in-kind-support exposure if a commentator is later found to have undisclosed ties to a candidate? And confirm the <code>commentary_promotion_blackout_days</code> default (0, meaning no blackout unless configured) is actually set to a real value per jurisdiction before Phase 2 launch — an unset blackout window defeats the purpose of having one.</li>
+      </ol>
+    </section>
+
+    <footer class="doc">
+      <p>VoteRight — Architecture &amp; Domain Model &middot; draft v0.2 &middot; pre-legal-review. Companion files: <code>docs/ARCHITECTURE.md</code> and <code>docs/SCHEMA.sql</code> (DDL validated end-to-end against PostgreSQL 16, including constraint gates and the ballot-choice trigger). This document describes an unofficial civic platform; nothing in it is legal advice, and every legal claim in Section 2 must be re-verified by counsel before launch.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.codeblock').forEach(function (b) {
+    b.innerHTML = b.innerHTML.replace(/(--[^\n]*)/g, '<span class="c">$1</span>');
+  });
+</script>

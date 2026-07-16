@@ -1,0 +1,487 @@
+
+<script>
+'use strict';
+
+/* ─────────────────────────── i18n ─────────────────────────── */
+const I18N = {
+  en: {
+    app_title: 'VoteRight', county: 'Montgomery County, MD',
+    welcome_h: 'Matched to what you actually want',
+    welcome_p: 'Tell VoteRight your priorities in your own words. We score every candidate against them using sourced positions and real voting records — and show you the receipts.',
+    welcome_priv: 'Your priorities are private to you. They are used only to compute your matches and are never shown to anyone.',
+    welcome_fict: 'Prototype — the candidates and sources in this demo are fictional. Real county data lands in Phase 1.',
+    get_started: 'Get started',
+    prio_h: 'What matters to you?',
+    prio_p: 'Pick at least 3 issues. Edit the statement so it says what you want, choose your side, and set how much it matters.',
+    prio_state_on: 'Selected', prio_state_off: 'Tap to add',
+    stance_agree: 'I want this', stance_oppose: 'I want the opposite',
+    weight_lbl: ['','Barely matters','Matters a little','Matters','Matters a lot','Non-negotiable'],
+    see_matches: 'See my matches', need_more: 'Pick at least 3 issues to continue',
+    priv_footer: 'Private to you — used only to compute your matches. Deleted if you delete your account.',
+    results_h: 'Your matches',
+    race_atlarge: 'Council At-Large', race_exec: 'County Executive',
+    atlarge_note: 'This contest elects 4 councilmembers — you can vote for up to 4.',
+    exec_note: 'Open seat — the current County Executive is term-limited.',
+    based_on: 'Based on', of_your: 'of your', priorities_w: 'priorities',
+    incumbent: 'Incumbent',
+    band2: 'Aligns strongly', band1: 'Leans aligned', band0: 'Mixed', bandm1: 'Leans opposed', bandm2: 'Opposed', bandnull: 'No public position',
+    ov_strong: 'Strong match', ov_good: 'Good match', ov_mixed: 'Mixed', ov_weak: 'Differs from your priorities', ov_insuff: 'Not enough information',
+    insuff_note: 'Too few public positions found to score fairly. Shown last, not hidden — silence is information too.',
+    your_words: 'You said:', archived: 'archived', source_vote: 'Roll call',
+    nopos_row: 'No public position found. Not counted for or against — shown so silence stays visible.',
+    promises_h: 'Promise record', promises_none: 'No prior term on record — promise tracking starts if elected.',
+    p_kept: 'kept', p_broken: 'broken', p_inprog: 'in progress', p_stalled: 'stalled',
+    mandate_h: 'Standing voter mandate for this office',
+    mandate_q: '“Should the County fund late-night Ride On Flex service countywide?”',
+    mandate_res: '62% yes · turnout 3.4% of registered voters',
+    mandate_disc: 'Unofficial, advisory result from VoteRight members. It has no legal force and is not an official ballot.',
+    mandate_none: 'No standing voter mandates for this office yet.',
+    m_commit: 'Committed', m_decline: 'Declined', m_nores: 'No response',
+    m_nores_note: 'Did not answer. VoteRight asked all candidates on May 12, 2026.',
+    save_plan: 'Save to my ballot plan', save_priv: 'Private — only you can see your plan.',
+    share_card: 'Share this scorecard', share_pub: 'Public — creates a link anyone can open.',
+    unofficial: 'Unofficial · advisory', sourced: 'Sourced', fictional: 'Sample data',
+    back: 'Back', results_title: 'Matches', detail_title: 'Scorecard', prio_title: 'Your priorities',
+    committed_src: 'On the record:',
+    ballot_title: 'Your ballot',
+    ballot_h: 'Every seat your address elects',
+    ballot_p: 'Pick an address to see how the list changes with the jurisdiction stack.',
+    addr_ss: 'Silver Spring (unincorporated)', addr_rock: 'Rockville (city)',
+    resolves: 'This address resolves to:',
+    grp_federal: 'Federal', grp_state: 'State of Maryland', grp_county: 'Montgomery County',
+    grp_municipal: 'City of Rockville', grp_school: 'School board', grp_judicial: 'Judicial',
+    st_match: 'Match available', st_later: 'Not yet tracked', st_jud: 'Different treatment',
+    later_note: 'Unscored levels stay on the list — an incomplete ballot must never look complete. Scoring for these arrives in later phases.',
+    jud_note: 'Judges can’t campaign on issues, so this seat gets background and bar evaluations — never a match score.',
+    next26: 'On your ballot in 2026', next27: 'Next city election 2027',
+    to_prio: 'Set my priorities',
+    m_grid_title: 'Mandate commitments',
+    grid_h: 'Where every candidate stands on the voters’ mandates',
+    grid_p: 'These mandates came from advisory referenda. Every candidate for this office was asked, on the record, before the election.',
+    grid_legend: '✓ committed · ✗ declined · — no response',
+    grid_loop: 'If a committed candidate wins, the commitment becomes a tracked promise automatically — and shows up in their promise record.',
+    tap_cell: 'Tap any cell for the source.',
+    see_grid: 'Mandate commitments for this race',
+    promises_title: 'Promise record', full_record: 'Full promise record',
+    p_compromised: 'compromised',
+    reply_lbl: 'Right of reply',
+    h_pending: 'Pledged', h_inprog: 'In progress', h_kept: 'Kept', h_broken: 'Broken', h_comp: 'Compromised', h_stalled: 'Stalled',
+    hist_note: 'Status history is append-only — every change shows its date and its source, and corrections add a new entry rather than erasing the old one.',
+    comm_h: 'Local commentary',
+    comm_reg: 'Analysis · attributed opinion — not verified by VoteRight',
+    comm_how: 'Commentators are included by a disclosed rule — sustained local coverage, a real byline, disclosed ties — never picked by VoteRight staff.',
+    comm_blackout: 'Near an election, commentary stays viewable but is never pushed or featured.',
+    thread_title: 'Debate',
+    see_debate: 'See a live debate',
+    deb_from_grid: 'Watch how a mandate gets made — open a live debate',
+    deb_status: 'Debating · closes July 22', deb_seconded: '412 seconds · threshold was 400',
+    amended: 'Amended', view_orig: 'View original text', view_curr: 'Back to current text',
+    orig_lbl: 'Original proposal — preserved, never overwritten. Amendments needed their own seconds before adoption.',
+    ctq_h: 'Close debate early?',
+    ctq_note: 'Any active participant — one posted argument, or 3+ agreement votes — can vote to end debate and move to the advisory vote. Needs 66.7% (Robert’s Rules).',
+    ctq_btn: 'Call the question', of_active: 'of 78 active participants',
+    ctq_voted: '✓ Recorded — private, deleted when the thread closes.',
+    view_clusters: 'Points', view_camps: 'Camps',
+    side_for: 'For', side_against: 'Against',
+    made_point: 'people made this point', helpful_w: 'found this helpful',
+    add_name: 'Add my name to this point', show_members: 'See individual arguments', hide_members: 'Hide arguments',
+    audio_lbl: 'Audio argument · transcript',
+    agree: 'Agree', disagree: 'Disagree', pass_b: 'Pass',
+    agr_priv: 'Agreement votes are private and deleted after the debate closes.',
+    ai_tag: 'AI-generated — not a person',
+    ai_note: 'Machine-authored to balance a thin side; every factual sentence maps to a citation. It can be rebutted and rated — it can never second, vote, or call the question.',
+    rebut: 'Rebut',
+    camps_p: 'Camps are computed from 1,240 agreement votes — who agrees with whom, not who posted what.',
+    camp: 'Camp', members_n: 'members', c_defining: 'Defining points',
+    bridging_lbl: 'Bridging point — most of every camp agrees',
+    composer_h: 'Add your argument', post: 'Post argument',
+    post_pub: 'Public — your name appears on this argument.',
+    claim_q: 'This reads like a factual claim — want to attach a source?',
+    claim_add: 'Add source', claim_op: 'It’s my opinion', claim_dismiss: 'Post as-is',
+    posted_src: 'Posted with source — pending moderation review.',
+    posted_op: 'Posted, marked as your opinion — pending moderation review.',
+    posted_dis: 'Posted — pending moderation review.',
+    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.'
+  },
+  es: {
+    app_title: 'VoteRight', county: 'Condado de Montgomery, MD',
+    welcome_h: 'Compatibilidad con lo que tú realmente quieres',
+    welcome_p: 'Cuéntale a VoteRight tus prioridades con tus propias palabras. Evaluamos a cada candidato con posiciones documentadas y votos reales — y te mostramos las fuentes.',
+    welcome_priv: 'Tus prioridades son privadas. Solo se usan para calcular tus coincidencias y nunca se muestran a nadie.',
+    welcome_fict: 'Prototipo — los candidatos y las fuentes de esta demo son ficticios. Los datos reales del condado llegan en la Fase 1.',
+    get_started: 'Comenzar',
+    prio_h: '¿Qué te importa?',
+    prio_p: 'Elige al menos 3 temas. Edita la frase para que diga lo que tú quieres, elige tu postura y decide cuánto importa.',
+    prio_state_on: 'Seleccionado', prio_state_off: 'Toca para agregar',
+    stance_agree: 'Quiero esto', stance_oppose: 'Quiero lo contrario',
+    weight_lbl: ['','Casi no importa','Importa poco','Importa','Importa mucho','Innegociable'],
+    see_matches: 'Ver mis coincidencias', need_more: 'Elige al menos 3 temas para continuar',
+    priv_footer: 'Privado — solo se usa para calcular tus coincidencias. Se elimina si borras tu cuenta.',
+    results_h: 'Tus coincidencias',
+    race_atlarge: 'Concejo — Escaños generales', race_exec: 'Ejecutivo del Condado',
+    atlarge_note: 'Esta contienda elige 4 concejales — puedes votar hasta por 4.',
+    exec_note: 'Escaño abierto — el Ejecutivo actual llegó a su límite de mandatos.',
+    based_on: 'Basado en', of_your: 'de tus', priorities_w: 'prioridades',
+    incumbent: 'En el cargo',
+    band2: 'Coincide plenamente', band1: 'Tiende a coincidir', band0: 'Posición mixta', bandm1: 'Tiende a diferir', bandm2: 'Difiere claramente', bandnull: 'Sin posición pública',
+    ov_strong: 'Coincidencia fuerte', ov_good: 'Buena coincidencia', ov_mixed: 'Mixto', ov_weak: 'Difiere de tus prioridades', ov_insuff: 'Información insuficiente',
+    insuff_note: 'Muy pocas posiciones públicas para calificar con justicia. Se muestra al final, no se oculta — el silencio también es información.',
+    your_words: 'Dijiste:', archived: 'archivado', source_vote: 'Votación',
+    nopos_row: 'No se encontró posición pública. No cuenta ni a favor ni en contra — se muestra para que el silencio sea visible.',
+    promises_h: 'Historial de promesas', promises_none: 'Sin mandato previo — el seguimiento de promesas comienza si resulta electo.',
+    p_kept: 'cumplidas', p_broken: 'incumplida', p_inprog: 'en curso', p_stalled: 'estancada',
+    mandate_h: 'Mandato ciudadano vigente para este cargo',
+    mandate_q: '«¿Debe el Condado financiar el servicio nocturno de Ride On Flex en todo el condado?»',
+    mandate_res: '62% sí · participación: 3.4% de los votantes registrados',
+    mandate_disc: 'Resultado no oficial y consultivo de miembros de VoteRight. No tiene fuerza legal y no es una boleta oficial.',
+    mandate_none: 'Aún no hay mandatos ciudadanos vigentes para este cargo.',
+    m_commit: 'Se comprometió', m_decline: 'Declinó', m_nores: 'Sin respuesta',
+    m_nores_note: 'No respondió. VoteRight preguntó a todos los candidatos el 12 de mayo de 2026.',
+    save_plan: 'Guardar en mi plan de voto', save_priv: 'Privado — solo tú puedes ver tu plan.',
+    share_card: 'Compartir esta tarjeta', share_pub: 'Público — crea un enlace que cualquiera puede abrir.',
+    unofficial: 'No oficial · consultivo', sourced: 'Con fuentes', fictional: 'Datos de muestra',
+    back: 'Atrás', results_title: 'Coincidencias', detail_title: 'Tarjeta', prio_title: 'Tus prioridades',
+    committed_src: 'Constancia:',
+    ballot_title: 'Tu boleta',
+    ballot_h: 'Cada cargo que elige tu dirección',
+    ballot_p: 'Elige una dirección para ver cómo cambia la lista según las jurisdicciones.',
+    addr_ss: 'Silver Spring (no incorporado)', addr_rock: 'Rockville (ciudad)',
+    resolves: 'Esta dirección corresponde a:',
+    grp_federal: 'Federal', grp_state: 'Estado de Maryland', grp_county: 'Condado de Montgomery',
+    grp_municipal: 'Ciudad de Rockville', grp_school: 'Junta escolar', grp_judicial: 'Judicial',
+    st_match: 'Coincidencia disponible', st_later: 'Aún sin seguimiento', st_jud: 'Tratamiento distinto',
+    later_note: 'Los niveles sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa. Su evaluación llega en fases posteriores.',
+    jud_note: 'Los jueces no pueden hacer campaña sobre temas; este cargo recibe trayectoria y evaluaciones — nunca una puntuación.',
+    next26: 'En tu boleta en 2026', next27: 'Próxima elección municipal 2027',
+    to_prio: 'Definir mis prioridades',
+    m_grid_title: 'Compromisos de mandato',
+    grid_h: 'La postura de cada candidato ante los mandatos ciudadanos',
+    grid_p: 'Estos mandatos provienen de referendos consultivos. A cada candidato a este cargo se le preguntó, con constancia, antes de la elección.',
+    grid_legend: '✓ se comprometió · ✗ declinó · — sin respuesta',
+    grid_loop: 'Si gana un candidato comprometido, el compromiso se convierte automáticamente en una promesa con seguimiento — y aparece en su historial.',
+    tap_cell: 'Toca una celda para ver la fuente.',
+    see_grid: 'Compromisos de mandato de esta contienda',
+    promises_title: 'Historial de promesas', full_record: 'Historial completo de promesas',
+    p_compromised: 'con concesiones',
+    reply_lbl: 'Derecho de réplica',
+    h_pending: 'Prometida', h_inprog: 'En curso', h_kept: 'Cumplida', h_broken: 'Incumplida', h_comp: 'Con concesiones', h_stalled: 'Estancada',
+    hist_note: 'El historial de estado es de solo escritura — cada cambio muestra su fecha y su fuente, y las correcciones agregan una entrada nueva en lugar de borrar la anterior.',
+    comm_h: 'Análisis local',
+    comm_reg: 'Análisis · opinión con autoría — no verificado por VoteRight',
+    comm_how: 'Los analistas se incluyen por una regla pública — cobertura local sostenida, autoría real, vínculos declarados — nunca por selección del equipo de VoteRight.',
+    comm_blackout: 'Cerca de una elección, el análisis sigue disponible pero nunca se promociona ni se destaca.',
+    thread_title: 'Debate',
+    see_debate: 'Ver un debate en vivo',
+    deb_from_grid: 'Mira cómo nace un mandato — abre un debate en vivo',
+    deb_status: 'En debate · cierra el 22 de julio', deb_seconded: '412 apoyos · el umbral era 400',
+    amended: 'Enmendada', view_orig: 'Ver texto original', view_curr: 'Volver al texto vigente',
+    orig_lbl: 'Propuesta original — preservada, nunca sobrescrita. Las enmiendas necesitaron sus propios apoyos antes de adoptarse.',
+    ctq_h: '¿Cerrar el debate antes?',
+    ctq_note: 'Cualquier participante activo — un argumento publicado, o 3+ votos de acuerdo — puede votar por terminar el debate y pasar a la votación consultiva. Requiere 66.7% (Reglas de Robert).',
+    ctq_btn: 'Pedir la votación', of_active: 'de 78 participantes activos',
+    ctq_voted: '✓ Registrado — privado, se elimina cuando cierra el hilo.',
+    view_clusters: 'Puntos', view_camps: 'Grupos',
+    side_for: 'A favor', side_against: 'En contra',
+    made_point: 'personas plantearon este punto', helpful_w: 'lo consideraron útil',
+    add_name: 'Sumar mi nombre a este punto', show_members: 'Ver argumentos individuales', hide_members: 'Ocultar argumentos',
+    audio_lbl: 'Argumento en audio · transcripción',
+    agree: 'De acuerdo', disagree: 'En desacuerdo', pass_b: 'Paso',
+    agr_priv: 'Los votos de acuerdo son privados y se eliminan al cerrar el debate.',
+    ai_tag: 'Generado por IA — no es una persona',
+    ai_note: 'Redactado por una máquina para equilibrar un lado débil; cada oración factual tiene su cita. Puede rebatirse y calificarse — nunca puede apoyar, votar ni pedir la votación.',
+    rebut: 'Rebatir',
+    camps_p: 'Los grupos se calculan con 1,240 votos de acuerdo — quién coincide con quién, no quién publicó qué.',
+    camp: 'Grupo', members_n: 'integrantes', c_defining: 'Puntos definitorios',
+    bridging_lbl: 'Punto puente — la mayoría de todos los grupos coincide',
+    composer_h: 'Agrega tu argumento', post: 'Publicar argumento',
+    post_pub: 'Público — tu nombre aparecerá en este argumento.',
+    claim_q: 'Esto parece una afirmación de hecho — ¿quieres adjuntar una fuente?',
+    claim_add: 'Agregar fuente', claim_op: 'Es mi opinión', claim_dismiss: 'Publicar tal cual',
+    posted_src: 'Publicado con fuente — pendiente de moderación.',
+    posted_op: 'Publicado, marcado como tu opinión — pendiente de moderación.',
+    posted_dis: 'Publicado — pendiente de moderación.',
+    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.'
+  }
+};
+
+/* ─────────────────────────── data ─────────────────────────── */
+const TOPICS = [
+  { id: 'housing', en: 'Housing affordability', es: 'Vivienda asequible',
+    p_en: 'Keep annual rent increases capped near the current 3% limit.', p_es: 'Mantener los aumentos anuales de renta cerca del límite actual de 3%.' },
+  { id: 'transit', en: 'Transit & roads', es: 'Transporte y vialidad',
+    p_en: 'Expand Ride On bus frequency and late-night service.', p_es: 'Ampliar la frecuencia y el servicio nocturno de los autobuses Ride On.' },
+  { id: 'schools', en: 'Public schools', es: 'Escuelas públicas',
+    p_en: 'Fully fund the MCPS operating budget request.', p_es: 'Financiar por completo el presupuesto operativo que solicita MCPS.' },
+  { id: 'climate', en: 'Climate & environment', es: 'Clima y medio ambiente',
+    p_en: 'Meet the county’s zero-emissions targets on schedule.', p_es: 'Cumplir a tiempo las metas de cero emisiones del condado.' },
+  { id: 'safety', en: 'Public safety', es: 'Seguridad pública',
+    p_en: 'Hire more police officers for neighborhood patrols.', p_es: 'Contratar más policías para patrullaje en los vecindarios.' },
+  { id: 'budget', en: 'Taxes & budget', es: 'Impuestos y presupuesto',
+    p_en: 'Hold the line on property tax increases.', p_es: 'Evitar aumentos al impuesto sobre la propiedad.' }
+];
+
+/* Your-ballot demo: the seat roster the jurisdiction stack resolves to.
+   st: 'match' (scored in this prototype) | 'later' (tracked as a seat, not yet scored) | 'jud' (judicial treatment) */
+const STACKS = {
+  ss:   ['Maryland', 'Montgomery County', 'Council District 5', 'MCPS'],
+  rock: ['Maryland', 'Montgomery County', 'City of Rockville', 'Council District 3', 'MCPS']
+};
+const SEATS = [
+  { grp: 'grp_federal', rows: [
+    { en: 'U.S. Senate', es: 'Senado de EE. UU.', st: 'later', meta: 'next26' },
+    { en: 'U.S. House — MD-8', es: 'Cámara de Representantes — MD-8', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_state', rows: [
+    { en: 'Governor & Lt. Governor', es: 'Gobernador y Vicegobernador', st: 'later', meta: 'next26' },
+    { en: 'State Senate & Delegates — District {d}', es: 'Senado y Delegados estatales — Distrito {d}', st: 'later', meta: 'next26', d: { ss: '20', rock: '17' } } ] },
+  { grp: 'grp_county', rows: [
+    { en: 'County Executive', es: 'Ejecutivo del Condado', st: 'match', race: 'exec', meta: 'next26' },
+    { en: 'County Council — At-Large (4 seats)', es: 'Concejo — Escaños generales (4)', st: 'match', race: 'atlarge', meta: 'next26' },
+    { en: 'County Council — District {d}', es: 'Concejo — Distrito {d}', st: 'later', meta: 'next26', d: { ss: '5', rock: '3' } },
+    { en: 'State’s Attorney', es: 'Fiscal del Condado', st: 'later', meta: 'next26' },
+    { en: 'Sheriff', es: 'Alguacil (Sheriff)', st: 'later', meta: 'next26' },
+    { en: 'Clerk of the Circuit Court', es: 'Secretaría del Tribunal de Circuito', st: 'later', meta: 'next26' },
+    { en: 'Register of Wills', es: 'Registro de Testamentos', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_municipal', only: 'rock', rows: [
+    { en: 'Mayor', es: 'Alcaldía', st: 'later', meta: 'next27' },
+    { en: 'City Council (6 at-large seats)', es: 'Concejo Municipal (6 escaños generales)', st: 'later', meta: 'next27' } ] },
+  { grp: 'grp_school', rows: [
+    { en: 'Board of Education — at-large & district seats', es: 'Junta de Educación — escaños generales y por distrito', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_judicial', rows: [
+    { en: 'Circuit Court Judges', es: 'Jueces del Tribunal de Circuito', st: 'jud', meta: 'next26' } ] }
+];
+
+/* Standing advisory mandates for the at-large office — the columns of the commitment grid. */
+const MANDATES = {
+  flex: {
+    q_en: '“Should the County fund late-night Ride On Flex service countywide?”',
+    q_es: '«¿Debe el Condado financiar el servicio nocturno de Ride On Flex en todo el condado?»',
+    res_en: '62% yes · turnout 3.4% of registered voters',
+    res_es: '62% sí · participación: 3.4% de los votantes registrados',
+    short_en: 'Late-night bus service', short_es: 'Autobús nocturno' },
+  contracts: {
+    q_en: '“Should every county contract over $250,000 be published in a searchable public database?”',
+    q_es: '«¿Debe publicarse todo contrato del condado mayor a $250,000 en una base de datos pública consultable?»',
+    res_en: '71% yes · turnout 2.6% of registered voters',
+    res_es: '71% sí · participación: 2.6% de los votantes registrados',
+    short_en: 'Open contracts database', short_es: 'Contratos públicos' }
+};
+
+/* Expert commentary (§8.2): fictional commentator, included by disclosed rule — never a staff pick. */
+const COMMENTATORS = {
+  marsh: {
+    name: 'Elena Marsh', outlet: 'The Glenmont Ledger',
+    aff_en: 'Reader-funded newsletter; no campaign ties (self-disclosed).',
+    aff_es: 'Boletín financiado por lectores; sin vínculos de campaña (declarado).',
+    rule_en: 'Included by rule: 14 pieces on county politics in the last 12 months.',
+    rule_es: 'Incluida por regla: 14 artículos sobre política del condado en los últimos 12 meses.'
+  }
+};
+const COMMENTARY = {
+  trent: [
+    { c: 'marsh', d: '2026-05', t_en: 'What the rent-cap fight tells us about Trent’s coalition', t_es: 'Lo que la disputa del tope de rentas revela sobre la coalición de Trent' },
+    { c: 'marsh', d: '2026-06', t_en: 'The at-large field, ranked by budget realism', t_es: 'Los candidatos generales, según su realismo presupuestario' }
+  ],
+  quintana: [
+    { c: 'marsh', d: '2026-04', t_en: 'Quintana’s transit record is stronger than his housing story', t_es: 'El historial de transporte de Quintana pesa más que su discurso de vivienda' }
+  ]
+};
+
+/* Live debate thread demo (§7.5–7.8): clusters, opinion camps, amendment history,
+   calling the question, claim prompts, and one disclosed AI argument on the thin side. */
+const DEBATE = {
+  title_en: 'Allow duplexes and triplexes within a half-mile of Metro stations',
+  title_es: 'Permitir dúplex y tríplex a media milla de las estaciones de Metro',
+  body_en: 'Amend county zoning so that lots currently restricted to single-family homes within a half-mile of a Metro station may also build duplexes and triplexes, subject to existing height limits.',
+  body_es: 'Modificar la zonificación del condado para que los lotes hoy limitados a vivienda unifamiliar, a media milla de una estación de Metro, puedan también construir dúplex y tríplex, respetando los límites de altura vigentes.',
+  orig_en: 'Original text: applied within a quarter-mile of stations and also eliminated parking minimums. The adopted amendment widened the radius and dropped the parking provision.',
+  orig_es: 'Texto original: aplicaba a un cuarto de milla de las estaciones y además eliminaba los mínimos de estacionamiento. La enmienda adoptada amplió el radio y retiró lo de estacionamiento.',
+  ctq: { votes: 41, active: 78, pct: 66.7 },
+  clusters: [
+    { id: 'f1', side: 'for', n: 142, helpful: 96,
+      sum_en: 'Housing near transit is the least disruptive way to add supply.',
+      sum_es: 'Vivienda junto al transporte es la forma menos disruptiva de sumar oferta.',
+      rep: { by: 'Marcus J.', t_en: 'The Planning Board’s own corridor study shows station areas can absorb gentle density without new road load — that’s the whole point of having Metro.', t_es: 'El estudio de corredores de la Junta de Planificación muestra que las zonas de estación absorben densidad suave sin más carga vial — para eso está el Metro.',
+        cites: ['Planning Board corridor study · 2025', 'ACS commute data · 2024'] },
+      member: { by: 'Lena P.', audio: true, t_en: '“I teach at a school two blocks from a station and can’t afford to live within ten miles of it…”', t_es: '«Doy clases a dos cuadras de una estación y no puedo pagar vivir a menos de diez millas…»' } },
+    { id: 'f2', side: 'for', n: 57, helpful: 41,
+      sum_en: 'Current zoning locks young families out of the county.',
+      sum_es: 'La zonificación actual deja fuera del condado a las familias jóvenes.',
+      rep: { by: 'Sofia R.', t_en: 'Median first-home prices near stations have doubled in a decade while starter-home construction fell to almost nothing.', t_es: 'El precio medio de una primera vivienda cerca de estaciones se duplicó en una década, mientras la construcción de vivienda inicial cayó casi a cero.',
+        cites: ['County housing dashboard · 2026'] } },
+    { id: 'a1', side: 'against', n: 38, helpful: 52,
+      sum_en: 'Infrastructure first: schools and sewers near stations are already over capacity.',
+      sum_es: 'Primero la infraestructura: escuelas y drenaje junto a estaciones ya están saturados.',
+      rep: { by: 'Ted W.', t_en: 'Three of the five clusters closest to a station are over 120% school capacity today. Approve the review money first, then the zoning.', t_es: 'Tres de los cinco conjuntos escolares más cercanos a una estación superan hoy el 120% de capacidad. Primero el dinero para la revisión, luego la zonificación.',
+        cites: ['MCPS capacity report · 2026'] } }
+  ],
+  ai: { id: 'ai1', side: 'against',
+    t_en: 'A steel-man for the thin side: peer counties saw assessed-value shifts concentrate in exactly these station areas after similar upzonings, and renter displacement within the radius rose before new supply arrived. Any version of this proposal has to say what happens in years 1–5, not just at buildout.',
+    t_es: 'El mejor argumento del lado débil: en condados comparables, los cambios de valor catastral se concentraron justo en estas zonas tras rezonificaciones similares, y el desplazamiento de inquilinos subió antes de que llegara la nueva oferta. Cualquier versión de esta propuesta debe decir qué pasa en los años 1–5, no solo al final.',
+    cites: ['Peer-county assessment study · 2024', 'Displacement literature review · 2025', 'County rent registry · 2026'], helpful: 12 },
+  camps: [
+    { name_en: 'Build near transit', name_es: 'Construir junto al transporte', n: 61,
+      pts_en: ['Supply shortfall is the root problem', 'Station areas absorb density best'],
+      pts_es: ['La escasez de oferta es el problema de fondo', 'Las zonas de estación absorben mejor la densidad'] },
+    { name_en: 'Infrastructure first', name_es: 'Primero la infraestructura', n: 34,
+      pts_en: ['School capacity before permits', 'Phase the radius, start smaller'],
+      pts_es: ['Capacidad escolar antes que permisos', 'Escalonar el radio, empezar más pequeño'] }
+  ],
+  bridging_en: 'Any upzoning should come with a school-capacity review published before permits issue.',
+  bridging_es: 'Cualquier rezonificación debe incluir una revisión de capacidad escolar publicada antes de emitir permisos.',
+  composer_en: 'This will add 4,000 homes but cost the county $12M a year in services.',
+  composer_es: 'Esto sumará 4,000 viviendas pero costará al condado $12M al año en servicios.',
+  commentary: { c: 'marsh', d: '2026-07', t_en: 'The Metro-zoning debate is really about school capacity math', t_es: 'El debate de zonificación del Metro es, en el fondo, una cuestión de capacidad escolar' }
+};
+
+// src.type: 'vote' | 'site' | 'quest' | 'debate'
+const SRC_LABEL = {
+  vote:  { en: 'Recorded vote · Legistar', es: 'Voto registrado · Legistar' },
+  site:  { en: 'Campaign site', es: 'Sitio de campaña' },
+  quest: { en: 'Candidate questionnaire', es: 'Cuestionario a candidatos' },
+  debate:{ en: 'Debate transcript', es: 'Transcripción de debate' }
+};
+
+const CANDS = [
+  { id: 'trent', race: 'atlarge', name: 'Maya Trent', party: 'D', inc: true,
+    st: {
+      housing: { pos: 2, en: 'Voted for the county’s rent stabilization law and supports keeping the ~3% cap.', es: 'Votó por la ley de estabilización de rentas y apoya mantener el tope de ~3%.', src: { type: 'vote', pub: 'Bill 15-23 · YES', date: '2023-07' } },
+      transit: { pos: 1, en: 'Supports more frequent Ride On service on major corridors, phased by budget.', es: 'Apoya más frecuencia de Ride On en corredores principales, por etapas según presupuesto.', src: { type: 'site', pub: 'mayatrent.example', date: '2026-03' } },
+      schools: { pos: 2, en: 'Pledges to fully fund the MCPS request every year of the term.', es: 'Se compromete a financiar por completo la solicitud de MCPS cada año.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      climate: { pos: 2, en: 'Voted for building energy performance standards; backs the zero-emissions schedule.', es: 'Votó por estándares de desempeño energético; respalda el calendario de cero emisiones.', src: { type: 'vote', pub: 'Bill 13-22 · YES', date: '2022-04' } },
+      safety:  { pos: 0, en: 'Supports current staffing with more investment in violence-interruption programs.', es: 'Apoya la plantilla actual con más inversión en programas de interrupción de violencia.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      budget:  { pos: -1, en: 'Open to a modest property-tax increase if tied to the schools budget.', es: 'Abierta a un aumento moderado del predial si se destina a escuelas.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } }
+    },
+    promises: { kept: 1, broken: 1, inprog: 1, comp: 1, stalled: 0,
+      ex: { en: '“Pass rent stabilization” — Kept (Bill 15-23 enacted, July 2023). “Office hours in every district, every year” — Broken (none held in 2025).',
+            es: '«Aprobar estabilización de rentas» — Cumplida (Bill 15-23, julio 2023). «Atención ciudadana en cada distrito cada año» — Incumplida (ninguna en 2025).' },
+      list: [
+        { en: 'Pass rent stabilization', es: 'Aprobar la estabilización de rentas', status: 'kept', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.', src: { type: 'site', pub: 'mayatrent.example', date: '2022-11' } },
+          { h: 'inprog', d: '2023-03', en: 'Co-sponsored Bill 15-23.', es: 'Copatrocinó el Bill 15-23.', src: { type: 'vote', pub: 'Legistar', date: '2023-03' } },
+          { h: 'kept', d: '2023-07', en: 'Enacted — voted YES on final passage.', es: 'Promulgada — votó SÍ en la aprobación final.', src: { type: 'vote', pub: 'Bill 15-23 · YES', date: '2023-07' } } ] },
+        { en: 'Office hours in every district, every year', es: 'Atención ciudadana en cada distrito, cada año', status: 'broken', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'kept', d: '2023-12', en: 'Held in all seven districts in 2023.', es: 'Cumplida en los siete distritos en 2023.', src: { type: 'site', pub: 'Council calendar', date: '2023-12' } },
+          { h: 'broken', d: '2026-01', en: 'None held in 2025, per the public calendar.', es: 'Ninguna en 2025, según el calendario público.', src: { type: 'site', pub: 'Council calendar', date: '2026-01' } } ],
+          reply: { en: '“2025 sessions were canceled during the budget emergency; a make-up schedule is posted.”', es: '«Las sesiones de 2025 se cancelaron por la emergencia presupuestaria; ya hay calendario de reposición».' } },
+        { en: 'Quadruple the housing acquisition fund', es: 'Cuadruplicar el fondo de adquisición de vivienda', status: 'inprog', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'inprog', d: '2024-05', en: 'Fund doubled in the FY25 budget — halfway there.', es: 'El fondo se duplicó en el presupuesto FY25 — a mitad de camino.', src: { type: 'vote', pub: 'FY25 budget · YES', date: '2024-05' } } ] },
+        { en: 'All-electric county vehicle purchases by 2025', es: 'Compras de vehículos del condado 100% eléctricas para 2025', status: 'comp', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'comp', d: '2025-09', en: '60% electric by the deadline; supported a revised 2027 target.', es: '60% eléctricas al llegar el plazo; apoyó una nueva meta para 2027.', src: { type: 'vote', pub: 'Resolution 20-114 · YES', date: '2025-09' } } ] }
+      ] },
+    mandates: {
+      flex: { s: 'commit', en: 'Committed in writing to fund the pilot in the FY28 budget.', es: 'Se comprometió por escrito a financiar el piloto en el presupuesto FY28.', src: { type: 'site', pub: 'mayatrent.example', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Backed the contracts database in the questionnaire.', es: 'Respaldó la base de datos de contratos en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } } } },
+
+  { id: 'quintana', race: 'atlarge', name: 'Rafael Quintana', party: 'D', inc: true,
+    st: {
+      housing: { pos: -1, en: 'Voted against the rent cap; argues supply-side zoning reform lowers rents faster.', es: 'Votó contra el tope de rentas; sostiene que reformar la zonificación baja las rentas más rápido.', src: { type: 'vote', pub: 'Bill 15-23 · NO', date: '2023-07' } },
+      transit: { pos: 2, en: 'Sponsored the FY26 amendment that expanded Ride On weekend frequency.', es: 'Impulsó la enmienda FY26 que amplió la frecuencia de Ride On los fines de semana.', src: { type: 'vote', pub: 'FY26 budget amendment · YES', date: '2025-05' } },
+      schools: { pos: 1, en: 'Supports increasing MCPS funding, short of the full request.', es: 'Apoya aumentar fondos a MCPS, sin llegar a la solicitud completa.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-02' } },
+      climate: { pos: 1, en: 'Backs the targets with flexibility on the compliance timeline for small buildings.', es: 'Respalda las metas con flexibilidad de plazos para edificios pequeños.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 1, en: 'Supports adding patrol officers in high-incident corridors.', es: 'Apoya más patrullas en corredores con más incidentes.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-02' } },
+      budget:  { pos: 1, en: 'Says he would not support a property-tax increase this term.', es: 'Dice que no apoyaría un aumento del predial en este período.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } }
+    },
+    promises: { kept: 1, broken: 0, inprog: 0, comp: 0, stalled: 1,
+      ex: { en: '“Weekend bus frequency” — Kept (FY26). “County land for affordable housing inventory” — Stalled (no report since 2024).',
+            es: '«Frecuencia de autobús en fin de semana» — Cumplida (FY26). «Inventario de suelo público para vivienda» — Estancada (sin informe desde 2024).' },
+      list: [
+        { en: 'Weekend bus frequency on the busiest routes', es: 'Frecuencia de autobús en fin de semana en las rutas más usadas', status: 'kept', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'kept', d: '2025-05', en: 'FY26 amendment funded the expansion.', es: 'La enmienda FY26 financió la expansión.', src: { type: 'vote', pub: 'FY26 amendment · YES', date: '2025-05' } } ] },
+        { en: 'Public inventory of county land for affordable housing', es: 'Inventario público de suelo del condado para vivienda asequible', status: 'stalled', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'inprog', d: '2024-02', en: 'Pilot list published for two districts.', es: 'Lista piloto publicada para dos distritos.', src: { type: 'site', pub: 'Council staff report', date: '2024-02' } },
+          { h: 'stalled', d: '2025-06', en: 'No update in 12+ months.', es: 'Sin avances en más de 12 meses.' } ] }
+      ] },
+    mandates: {
+      flex: { s: 'decline', en: 'Declined: says Flex expansion should wait for the corridor study.', es: 'Declinó: dice que la expansión de Flex debe esperar el estudio de corredores.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Committed on his campaign site.', es: 'Se comprometió en su sitio de campaña.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-05' } } } },
+
+  { id: 'okafor', race: 'atlarge', name: 'Dana Okafor', party: 'I', inc: false,
+    st: {
+      housing: { pos: 1, en: 'Supports keeping the cap while the affordability study runs.', es: 'Apoya mantener el tope mientras se realiza el estudio de asequibilidad.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 0, en: 'Mixed: more frequency yes, but paired with road maintenance first.', es: 'Mixto: sí a más frecuencia, pero antes mantenimiento vial.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      schools: { pos: 2, en: 'Makes full MCPS funding the centerpiece of the campaign.', es: 'Hace del financiamiento pleno de MCPS el eje de su campaña.', src: { type: 'site', pub: 'okafor2026.example', date: '2026-01' } },
+      climate: { pos: null },
+      safety:  { pos: 2, en: 'Proposes 120 additional patrol officers over four years.', es: 'Propone 120 policías de patrulla adicionales en cuatro años.', src: { type: 'site', pub: 'okafor2026.example', date: '2026-01' } },
+      budget:  { pos: 0, en: 'Would decide on taxes only after a line-by-line budget review.', es: 'Decidiría sobre impuestos solo tras revisar el presupuesto línea por línea.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'commit', en: 'Committed in the questionnaire.', es: 'Se comprometió en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } },
+      contracts: { s: 'no_response' } } },
+
+  { id: 'breuer', race: 'atlarge', name: 'Colin Breuer', party: 'R', inc: false,
+    st: {
+      housing: { pos: -2, en: 'Would repeal the rent cap; calls it a deterrent to new construction.', es: 'Derogaría el tope de rentas; lo llama un freno a la construcción.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      transit: { pos: -1, en: 'Prioritizes road capacity over bus expansion.', es: 'Prioriza la capacidad vial sobre la expansión de autobuses.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 0, en: 'Supports the schools but wants an independent audit before more funding.', es: 'Apoya a las escuelas pero pide una auditoría independiente antes de más fondos.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      climate: { pos: -1, en: 'Says compliance costs fall too hard on small property owners.', es: 'Dice que los costos de cumplimiento golpean a los pequeños propietarios.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      safety:  { pos: 2, en: 'Makes police hiring the campaign’s first plank.', es: 'Hace de la contratación policial su primera propuesta.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      budget:  { pos: 2, en: 'Signs a no-new-taxes pledge for the full term.', es: 'Firma un compromiso de no crear impuestos durante todo el período.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'no_response' },
+      contracts: { s: 'commit', en: 'Committed — transparency is a core plank.', es: 'Se comprometió — la transparencia es un eje de su plataforma.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-04' } } } },
+
+  { id: 'raman', race: 'atlarge', name: 'Priya Raman', party: 'D', inc: false,
+    st: {
+      housing: { pos: 2, en: 'Supports the cap and pairing it with a county acquisition fund.', es: 'Apoya el tope junto con un fondo de adquisición del condado.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 2, en: 'Backs late-night service countywide as a first-year priority.', es: 'Respalda el servicio nocturno en todo el condado como prioridad del primer año.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } },
+      schools: { pos: 1, en: 'Supports growing MCPS funding toward the full request over two budgets.', es: 'Apoya crecer el financiamiento de MCPS hacia la solicitud completa en dos presupuestos.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      climate: { pos: 2, en: 'Would accelerate the fleet-electrification schedule.', es: 'Aceleraría el calendario de electrificación de la flota.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } },
+      safety:  { pos: -1, en: 'Prefers investing in crisis-response teams over adding patrol officers.', es: 'Prefiere invertir en equipos de respuesta a crisis antes que sumar patrullas.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      budget:  { pos: -1, en: 'Open to a small property-tax increase dedicated to transit.', es: 'Abierta a un aumento pequeño del predial dedicado al transporte.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'commit', en: 'Committed on stage at the at-large forum.', es: 'Se comprometió en el foro de candidatos.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Committed in the questionnaire.', es: 'Se comprometió en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } } } },
+
+  { id: 'quinn', race: 'atlarge', name: 'Jordan Quinn', party: 'I', inc: false,
+    st: {
+      housing: { pos: null }, transit: { pos: null },
+      schools: { pos: 1, en: 'Supports increased school funding.', es: 'Apoya aumentar los fondos escolares.', src: { type: 'site', pub: 'quinnindependent.example', date: '2026-03' } },
+      climate: { pos: null }, safety: { pos: null }, budget: { pos: null }
+    },
+    promises: null,
+    mandates: { flex: { s: 'no_response' }, contracts: { s: 'no_response' } } },
+
+  { id: 'vasquez', race: 'exec', name: 'Elena Vásquez', party: 'D', inc: false,
+    st: {
+      housing: { pos: 2, en: 'Would defend the rent cap and expand the housing acquisition fund.', es: 'Defendería el tope de rentas y ampliaría el fondo de adquisición de vivienda.', src: { type: 'site', pub: 'vasquezforexec.example', date: '2026-02' } },
+      transit: { pos: 1, en: 'Supports phased Ride On expansion tied to state matching funds.', es: 'Apoya expandir Ride On por fases con fondos estatales.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 2, en: 'Pledges the full MCPS request in her first budget.', es: 'Promete la solicitud completa de MCPS en su primer presupuesto.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } },
+      climate: { pos: 1, en: 'Backs the targets; would review small-building timelines.', es: 'Respalda las metas; revisaría plazos para edificios pequeños.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 0, en: 'Holds staffing flat; redirects growth to co-responder teams.', es: 'Mantiene la plantilla; dirige el crecimiento a equipos co-respondedores.', src: { type: 'site', pub: 'vasquezforexec.example', date: '2026-02' } },
+      budget:  { pos: -1, en: 'Won’t rule out a property-tax increase for schools.', es: 'No descarta un aumento del predial para escuelas.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null },
+
+  { id: 'hollis', race: 'exec', name: 'Marcus Hollis', party: 'D', inc: false,
+    st: {
+      housing: { pos: 0, en: 'Keep the cap short-term, sunset it as new supply comes online.', es: 'Mantener el tope a corto plazo y retirarlo conforme llegue nueva oferta.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 2, en: 'Campaign centerpiece: countywide bus-rapid-transit build-out.', es: 'Eje de campaña: red de autobús rápido en todo el condado.', src: { type: 'site', pub: 'hollis2026.example', date: '2026-01' } },
+      schools: { pos: 1, en: 'Supports MCPS growth within existing revenue.', es: 'Apoya crecer MCPS dentro de los ingresos actuales.', src: { type: 'site', pub: 'hollis2026.example', date: '2026-01' } },
+      climate: { pos: 2, en: 'Would move the county fleet target two years earlier.', es: 'Adelantaría dos años la meta de la flota del condado.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 1, en: 'Supports modest patrol growth plus retention bonuses.', es: 'Apoya un crecimiento moderado de patrullas y bonos de retención.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } },
+      budget:  { pos: 0, en: 'No tax position until the FY28 forecast is published.', es: 'Sin postura fiscal hasta que se publique el pronóstico FY28.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null },
+
+  { id: 'nakamura', race: 'exec', name: 'Teresa Nakamura', party: 'R', inc: false,
+    st: {
+      housing: { pos: -2, en: 'Would seek repeal of the rent cap in year one.', es: 'Buscaría derogar el tope de rentas en el primer año.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      transit: { pos: 0, en: 'Supports current service levels; opposes new transit taxes.', es: 'Apoya el servicio actual; se opone a nuevos impuestos al transporte.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 1, en: 'Supports more school funding contingent on an efficiency audit.', es: 'Apoya más fondos escolares sujetos a una auditoría de eficiencia.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      climate: { pos: -1, en: 'Would extend compliance deadlines for all private buildings.', es: 'Extendería los plazos de cumplimiento para edificios privados.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 2, en: 'Proposes the largest police hiring plan in the race.', es: 'Propone el mayor plan de contratación policial de la contienda.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      budget:  { pos: 2, en: 'Pledges a property-tax cut in the first budget.', es: 'Promete recortar el predial en el primer presupuesto.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null }
+];
+</script>

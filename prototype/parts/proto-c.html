@@ -1,0 +1,624 @@
+<script>
+'use strict';
+
+/* ─────────────────────────── state ─────────────────────────── */
+const S = {
+  lang: 'en', view: 'proto', screen: 'welcome',
+  race: 'atlarge', candId: null, open: null, addr: 'ss',
+  dv: 'clusters', showOrig: false, openCluster: null, ctq: false, claim: null,
+  agreeVotes: {}, threadBack: 'welcome',
+  prios: {} // topicId -> { statement, stance: 1|-1, w: 1..5 }
+};
+const t = (k) => (I18N[S.lang][k] !== undefined ? I18N[S.lang][k] : k);
+const tt = (obj, base) => obj[base + '_' + S.lang] !== undefined ? obj[base + '_' + S.lang] : obj[S.lang];
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ─────────────────────────── scoring ───────────────────────── */
+function topicAgreement(cand, topicId) {
+  const st = cand.st[topicId];
+  if (!st || st.pos === null || st.pos === undefined) return null;
+  const p = S.prios[topicId];
+  const raw = st.pos * p.stance;                    // -4..4 conceptually, pos in -2..2 → raw -2..2
+  return Math.max(-2, Math.min(2, raw));
+}
+function scoreCand(cand) {
+  let num = 0, wAns = 0, wAll = 0;
+  const perTopic = {};
+  for (const [tid, p] of Object.entries(S.prios)) {
+    wAll += p.w;
+    const a = topicAgreement(cand, tid);
+    perTopic[tid] = a;
+    if (a !== null) { num += p.w * a; wAns += p.w; }
+  }
+  const coverage = wAll ? wAns / wAll : 0;
+  const score = wAns ? num / (2 * wAns) : 0;        // -1..1
+  let band;
+  if (coverage < 0.5) band = 'insuff';
+  else if (score >= 0.55) band = 'strong';
+  else if (score >= 0.2) band = 'good';
+  else if (score > -0.2) band = 'mixed';
+  else band = 'weak';
+  return { score, coverage, band, perTopic, nAns: Object.values(perTopic).filter(v => v !== null).length, nAll: Object.keys(perTopic).length };
+}
+const OV_LABEL = { strong: 'ov_strong', good: 'ov_good', mixed: 'ov_mixed', weak: 'ov_weak', insuff: 'ov_insuff' };
+const OV_CLASS = { strong: 'b2', good: 'b1', mixed: 'b0', weak: 'bm1', insuff: 'bnull' };
+function bandChip(a) {
+  if (a === null) return '<span class="chip band bnull">' + t('bandnull') + '</span>';
+  const map = { '2': ['b2', 'band2'], '1': ['b1', 'band1'], '0': ['b0', 'band0'], '-1': ['bm1', 'bandm1'], '-2': ['bm2', 'bandm2'] };
+  const [cls, key] = map[String(a)];
+  return '<span class="chip band ' + cls + '">' + t(key) + '</span>';
+}
+function dot(a) {
+  const cls = a === null ? 'dnull' : ({ '2': 'd2', '1': 'd1', '0': 'd0', '-1': 'dm1', '-2': 'dm2' })[String(a)];
+  return '<i class="' + cls + '"></i>';
+}
+function citeChip(src) {
+  if (!src) return '';
+  const label = SRC_LABEL[src.type][S.lang];
+  return '<span class="chip cite" title="' + t('sourced') + '">▣ ' + esc(label) + ' · ' + esc(src.pub) + ' · ' + esc(src.date) + ' · ' + t('archived') + ' ✓</span>';
+}
+
+/* ─────────────────────────── screens ───────────────────────── */
+function renderWelcome() {
+  return `
+    <div style="padding-top:1.5rem">
+      <div class="serif" style="font-size:1.7rem;font-weight:700;line-height:1.2;text-wrap:balance">${t('welcome_h')}</div>
+      <p style="color:var(--muted);font-size:0.95rem">${t('welcome_p')}</p>
+      <div class="card raised">
+        <div class="privnote private"><span class="dot"></span><span>${t('welcome_priv')}</span></div>
+      </div>
+      <div class="disclosure"><span class="tag">${t('fictional')}</span><span>${t('welcome_fict')}</span></div>
+      <button class="btn" onclick="VR.go('ballot')" style="margin-top:0.5rem">${t('get_started')}</button>
+      <button class="btn secondary" onclick="VR.openThread('welcome')" style="margin-top:0.5rem">${t('see_debate')}</button>
+    </div>`;
+}
+
+function renderBallot() {
+  const stack = STACKS[S.addr].map(x => '<span>' + esc(x) + '</span>').join('');
+  const groups = SEATS.filter(g => !g.only || g.only === S.addr).map(g => {
+    const rows = g.rows.map(row => {
+      const name = esc(row[S.lang].replace('{d}', row.d ? row.d[S.addr] : ''));
+      const meta = t(row.meta);
+      if (row.st === 'match') {
+        return `<button class="seat" onclick="VR.pickRace('${row.race}')">
+          <span class="sname">${name}<span class="smeta">${meta}</span></span>
+          <span class="chip band b2">${t('st_match')} →</span></button>`;
+      }
+      if (row.st === 'jud') {
+        return `<div class="seat wrap">
+          <span class="sname">${name}<span class="smeta">${meta}</span></span>
+          <span class="chip band bnull">⚖ ${t('st_jud')}</span>
+          <span class="snote">${t('jud_note')}</span></div>`;
+      }
+      return `<div class="seat">
+        <span class="sname">${name}<span class="smeta">${meta}</span></span>
+        <span class="chip band bnull">${t('st_later')}</span></div>`;
+    }).join('');
+    return '<div class="grouph">' + t(g.grp) + '</div>' + rows;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('ballot_h')}</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">${t('ballot_p')}</p>
+    <div class="seg" role="group">
+      <button aria-pressed="${S.addr === 'ss'}" onclick="VR.setAddr('ss')">${t('addr_ss')}</button>
+      <button aria-pressed="${S.addr === 'rock'}" onclick="VR.setAddr('rock')">${t('addr_rock')}</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem">${t('resolves')}</div>
+    <div class="stackchips">${stack}</div>
+    ${groups}
+    <p style="font-size:0.74rem;color:var(--muted);font-style:italic">${t('later_note')}</p>
+    <button class="btn" style="margin-top:0.4rem" onclick="VR.go('prio')">${t('to_prio')}</button>`;
+}
+
+function renderPrio() {
+  const chosen = Object.keys(S.prios).length;
+  const rows = TOPICS.map(tp => {
+    const sel = S.prios[tp.id];
+    const openMe = S.open === tp.id;
+    let body = '';
+    if (sel && openMe) {
+      body = `
+        <div style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.55rem">
+          <textarea class="statement" aria-label="${esc(tp[S.lang])}" onchange="VR.setStmt('${tp.id}', this.value)">${esc(sel.statement)}</textarea>
+          <div class="seg" role="group">
+            <button aria-pressed="${sel.stance === 1}" onclick="VR.setStance('${tp.id}',1)">${t('stance_agree')}</button>
+            <button aria-pressed="${sel.stance === -1}" onclick="VR.setStance('${tp.id}',-1)">${t('stance_oppose')}</button>
+          </div>
+          <div class="weight">
+            <button aria-label="less" onclick="VR.setW('${tp.id}',-1)">−</button>
+            <span class="wval">${'●'.repeat(sel.w)}${'○'.repeat(5 - sel.w)}<br>${t('weight_lbl')[sel.w]}</span>
+            <button aria-label="more" onclick="VR.setW('${tp.id}',1)">+</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="card">
+        <button class="topichead" onclick="VR.toggleTopic('${tp.id}')" aria-expanded="${!!openMe}">
+          <span class="check ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>
+          <span class="tname">${esc(tp[S.lang])}</span>
+          <span class="state">${sel ? t('prio_state_on') : t('prio_state_off')}</span>
+        </button>
+        ${body}
+      </div>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('prio_h')}</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">${t('prio_p')}</p>
+    ${rows}
+    <button class="btn" style="margin-top:0.6rem" ${chosen >= 3 ? '' : 'disabled'} onclick="VR.go('results')">${chosen >= 3 ? t('see_matches') : t('need_more')}</button>
+    <div class="privnote private" style="margin-top:0.7rem"><span class="dot"></span><span>${t('priv_footer')}</span></div>`;
+}
+
+function renderResults() {
+  const cands = CANDS.filter(c => c.race === S.race).map(c => ({ c, r: scoreCand(c) }));
+  cands.sort((a, b) => (a.r.band === 'insuff') - (b.r.band === 'insuff') || b.r.score - a.r.score);
+  const note = S.race === 'atlarge' ? t('atlarge_note') : t('exec_note');
+  const cards = cands.map(({ c, r }) => {
+    const dots = Object.keys(S.prios).map(tid => dot(r.perTopic[tid])).join('');
+    const insuff = r.band === 'insuff';
+    return `
+      <button class="cand ${insuff ? 'insuff' : ''}" onclick="VR.openCand('${c.id}')">
+        <div class="row1">
+          <span class="cname">${esc(c.name)}</span>
+          <span class="cparty">(${c.party})</span>
+          ${c.inc ? '<span class="inc">' + t('incumbent') + '</span>' : ''}
+        </div>
+        <div class="row2">
+          <span class="chip band ${OV_CLASS[r.band]}">${t(OV_LABEL[r.band])}</span>
+          <span class="dots" aria-hidden="true">${dots}</span>
+          <span class="cover">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
+        </div>
+        ${insuff ? '<div class="nopos" style="margin-top:0.4rem">' + t('insuff_note') + '</div>' : ''}
+      </button>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('results_h')}</div>
+    <div class="seg" role="group" style="margin:0.6rem 0 0.3rem">
+      <button aria-pressed="${S.race === 'atlarge'}" onclick="VR.setRace('atlarge')">${t('race_atlarge')}</button>
+      <button aria-pressed="${S.race === 'exec'}" onclick="VR.setRace('exec')">${t('race_exec')}</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin:0.35rem 0 0.2rem">${note}</p>
+    ${S.race === 'atlarge' ? '<button class="btn secondary" style="margin:0.2rem 0 0.1rem" onclick="VR.openGrid()">' + t('see_grid') + ' →</button>' : ''}
+    <div class="disclosure"><span class="tag">${t('fictional')}</span><span>${t('welcome_fict')}</span></div>
+    ${cards}`;
+}
+
+function renderMandates() {
+  const cands = CANDS.filter(c => c.race === 'atlarge');
+  const mids = Object.keys(MANDATES);
+  const head = '<tr><th style="text-align:left;padding-left:0.6rem"></th>' + mids.map(mid => '<th>' + esc(MANDATES[mid]['short_' + S.lang]) + '</th>').join('') + '</tr>';
+  const rows = cands.map(c => {
+    const cells = mids.map(mid => {
+      const m = c.mandates[mid];
+      const sym = m.s === 'commit' ? '<span class="c-commit">✓</span>' : m.s === 'decline' ? '<span class="c-decline">✗</span>' : '<span class="c-none">—</span>';
+      const lbl = m.s === 'commit' ? t('m_commit') : m.s === 'decline' ? t('m_decline') : t('m_nores');
+      const sel = S.cell && S.cell.cid === c.id && S.cell.mid === mid;
+      return '<td><button class="cellbtn" aria-pressed="' + sel + '" aria-label="' + esc(c.name) + ' — ' + esc(MANDATES[mid]['short_' + S.lang]) + ' — ' + lbl + '" onclick="VR.selCell(\'' + c.id + '\',\'' + mid + '\')">' + sym + '</button></td>';
+    }).join('');
+    return '<tr><td class="cn">' + esc(c.name) + '</td>' + cells + '</tr>';
+  }).join('');
+
+  const mandateCards = mids.map(mid => {
+    const md = MANDATES[mid];
+    return `<div class="card" style="border-color:var(--adv);padding:0.6rem 0.75rem">
+      <span class="chip adv">${t('unofficial')}</span>
+      <div class="serif" style="font-size:0.9rem;margin:0.3rem 0 0.1rem">${md['q_' + S.lang]}</div>
+      <div style="font-size:0.74rem;color:var(--muted)">${md['res_' + S.lang]}</div>
+    </div>`;
+  }).join('');
+
+  let strip = '';
+  if (S.cell) {
+    const c = CANDS.find(x => x.id === S.cell.cid);
+    const md = MANDATES[S.cell.mid];
+    const m = c.mandates[S.cell.mid];
+    const stance = m.s === 'commit' ? '<span class="chip band b2">✓ ' + t('m_commit') + '</span>'
+      : m.s === 'decline' ? '<span class="chip band bm2">' + t('m_decline') + '</span>'
+      : '<span class="chip band bnull">' + t('m_nores') + '</span>';
+    const body = m.s === 'no_response'
+      ? '<div class="nopos" style="margin-top:0.35rem">' + t('m_nores_note') + '</div>'
+      : '<div style="font-size:0.8rem;margin-top:0.35rem">' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+    strip = `<div class="card raised"><h4>${esc(c.name)} · ${esc(md['short_' + S.lang])}</h4><div style="margin-top:0.25rem">${stance}</div>${body}</div>`;
+  }
+
+  return `
+    <div class="serif" style="font-size:1.3rem;font-weight:700;line-height:1.25">${t('grid_h')}</div>
+    <p style="color:var(--muted);font-size:0.82rem;margin-top:0.3rem">${t('grid_p')}</p>
+    ${mandateCards}
+    <div class="mgridwrap"><table class="mgrid">${head}${rows}</table></div>
+    <div style="font-size:0.72rem;color:var(--muted)">${t('grid_legend')} · ${t('tap_cell')}</div>
+    ${strip}
+    <div class="disclosure" style="margin-top:0.8rem"><span class="tag">${t('unofficial')}</span><span>${t('mandate_disc')}</span></div>
+    <p style="font-size:0.78rem;color:var(--ev);font-weight:600">${t('grid_loop')}</p>
+    <button class="btn secondary" onclick="VR.openThread('mandates')">${t('deb_from_grid')} →</button>`;
+}
+
+function renderPromises() {
+  const c = CANDS.find(x => x.id === S.candId);
+  const HP = { pending: 'h_pending', inprog: 'h_inprog', kept: 'h_kept', broken: 'h_broken', comp: 'h_comp', stalled: 'h_stalled' };
+  const PILL = { kept: 'kept', broken: 'broken', inprog: 'pending', comp: 'pending', stalled: 'neutral' };
+  const PLBL = { kept: 'p_kept', broken: 'p_broken', inprog: 'p_inprog', comp: 'p_compromised', stalled: 'p_stalled' };
+  const ICON = { kept: '✓', broken: '✗', inprog: '⟳', comp: '◑', stalled: '⏸' };
+  const cards = c.promises.list.map(p => {
+    const hist = p.hist.map(ev =>
+      '<div class="histline"><span class="hd">' + ev.d + '</span><span class="hl">' + t(HP[ev.h]) + '</span><span style="flex:1;min-width:12ch">' + esc(ev[S.lang]) + '</span>' + (ev.src ? citeChip(ev.src) : '') + '</div>').join('');
+    const reply = p.reply ? '<div class="reply"><b>' + t('reply_lbl') + '</b>' + esc(p.reply[S.lang]) + '</div>' : '';
+    return `<div class="card">
+      <div style="display:flex;gap:0.5rem;align-items:baseline;flex-wrap:wrap">
+        <h4 style="flex:1;margin:0">${esc(p[S.lang])}</h4>
+        <span class="pill ${PILL[p.status]}">${ICON[p.status]} ${t(PLBL[p.status])}</span>
+      </div>
+      <div style="margin-top:0.45rem">${hist}</div>
+      ${reply}
+    </div>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${esc(c.name)}</div>
+    <p style="color:var(--muted);font-size:0.8rem;margin-top:0.2rem">${t('promises_h')}</p>
+    ${cards}
+    <p style="font-size:0.74rem;color:var(--muted);font-style:italic">${t('hist_note')}</p>`;
+}
+
+function renderDetail() {
+  const c = CANDS.find(x => x.id === S.candId);
+  const r = scoreCand(c);
+  const rows = Object.entries(S.prios).map(([tid, p]) => {
+    const tp = TOPICS.find(x => x.id === tid);
+    const st = c.st[tid];
+    const a = r.perTopic[tid];
+    let theirs;
+    if (a === null) {
+      theirs = '<div class="nopos">' + t('nopos_row') + '</div>';
+    } else {
+      theirs = '<div class="theirs">' + esc(st[S.lang]) + '</div>' + citeChip(st.src);
+      if (st.src && st.src.type === 'vote') {
+        theirs += '<div class="evrow">' + t('source_vote') + ' · ' + esc(st.src.pub) + ' · ' + esc(st.src.date) + '</div>';
+      }
+    }
+    return `
+      <div class="topicrow">
+        <div class="trhead"><span class="tn">${esc(tp[S.lang])}</span>${bandChip(a)}</div>
+        <div class="yours">${t('your_words')} <q>${esc(p.statement)}</q> · ${t('weight_lbl')[p.w]}</div>
+        ${theirs}
+      </div>`;
+  }).join('');
+
+  let promises;
+  if (c.promises) {
+    const pr = c.promises;
+    promises = `
+      <div class="card">
+        <h4>${t('promises_h')}</h4>
+        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin:0.3rem 0 0.5rem">
+          ${pr.kept ? '<span class="pill kept">✓ ' + pr.kept + ' ' + t('p_kept') + '</span>' : ''}
+          ${pr.broken ? '<span class="pill broken">✗ ' + pr.broken + ' ' + t('p_broken') + '</span>' : ''}
+          ${pr.inprog ? '<span class="pill pending">⟳ ' + pr.inprog + ' ' + t('p_inprog') + '</span>' : ''}
+          ${pr.comp ? '<span class="pill pending">◑ ' + pr.comp + ' ' + t('p_compromised') + '</span>' : ''}
+          ${pr.stalled ? '<span class="pill neutral">⏸ ' + pr.stalled + ' ' + t('p_stalled') + '</span>' : ''}
+        </div>
+        <div style="font-size:0.8rem;color:var(--muted)">${esc(pr.ex[S.lang])}</div>
+        ${pr.list ? '<button class="btn secondary" style="margin-top:0.55rem" onclick="VR.go(\'promises\')">' + t('full_record') + ' →</button>' : ''}
+      </div>`;
+  } else {
+    promises = `<div class="card"><h4>${t('promises_h')}</h4><div class="nopos">${t('promises_none')}</div></div>`;
+  }
+
+  let mandate;
+  if (S.race === 'atlarge') {
+    const blocks = Object.keys(MANDATES).map(mid => {
+      const md = MANDATES[mid];
+      const m = c.mandates[mid];
+      let stance;
+      if (m.s === 'commit') stance = '<span class="chip band b2">✓ ' + t('m_commit') + '</span> <div style="font-size:0.8rem;margin-top:0.35rem">' + t('committed_src') + ' ' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+      else if (m.s === 'decline') stance = '<span class="chip band bm2">' + t('m_decline') + '</span> <div style="font-size:0.8rem;margin-top:0.35rem">' + t('committed_src') + ' ' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+      else stance = '<span class="chip band bnull">' + t('m_nores') + '</span> <div class="nopos" style="margin-top:0.35rem">' + t('m_nores_note') + '</div>';
+      return `
+        <div class="serif" style="font-size:0.95rem;margin:0.6rem 0 0.2rem">${md['q_' + S.lang]}</div>
+        <div style="font-size:0.76rem;color:var(--muted)">${md['res_' + S.lang]}</div>
+        <div style="margin:0.45rem 0 0.2rem">${stance}</div>`;
+    }).join('<div style="border-top:1px solid var(--line);margin-top:0.6rem"></div>');
+    mandate = `
+      <div class="card" style="border-color:var(--adv)">
+        <div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.3rem">
+          <span class="chip adv">${t('unofficial')}</span>
+        </div>
+        <h4>${t('mandate_h')}</h4>
+        ${blocks}
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem;border-top:1px solid var(--line);padding-top:0.45rem">${t('mandate_disc')}</div>
+      </div>`;
+  } else {
+    mandate = `<div class="card" style="border-color:var(--adv)"><span class="chip adv">${t('unofficial')}</span><div class="nopos" style="margin-top:0.4rem">${t('mandate_none')}</div></div>`;
+  }
+
+  let commentary = '';
+  const pieces = COMMENTARY[c.id];
+  if (pieces) {
+    const items = pieces.map(p => {
+      const cm = COMMENTATORS[p.c];
+      return `<div class="commitem">
+        <div class="ct">${esc(p['t_' + S.lang])}</div>
+        <div class="cb">${esc(cm.name)} · ${esc(cm.outlet)} · ${p.d} — ${esc(cm['aff_' + S.lang])}</div>
+      </div>`;
+    }).join('');
+    const cm0 = COMMENTATORS[pieces[0].c];
+    commentary = `
+      <div class="card analysis">
+        <div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.35rem;flex-wrap:wrap">
+          <h4 style="flex:1;margin:0">${t('comm_h')}</h4>
+          <span class="chip analysis">${t('comm_reg')}</span>
+        </div>
+        ${items}
+        <div style="font-size:0.7rem;color:var(--muted);border-top:1px solid var(--line);margin-top:0.4rem;padding-top:0.4rem">
+          ${esc(cm0['rule_' + S.lang])} ${t('comm_how')} ${t('comm_blackout')}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="row1" style="display:flex;align-items:baseline;gap:0.5rem">
+      <span class="serif" style="font-size:1.45rem;font-weight:700">${esc(c.name)}</span>
+      <span style="font-size:0.75rem;color:var(--muted)">(${c.party})</span>
+      ${c.inc ? '<span class="inc" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ev);border:1px solid var(--ev);border-radius:4px;padding:0.05rem 0.3rem">' + t('incumbent') + '</span>' : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0 0.8rem;flex-wrap:wrap">
+      <span class="chip band ${OV_CLASS[r.band]}">${t(OV_LABEL[r.band])}</span>
+      <span style="font-size:0.72rem;color:var(--muted)">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
+    </div>
+    ${rows}
+    ${promises}
+    ${mandate}
+    ${commentary}
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.9rem">
+      <div>
+        <button class="btn secondary">${t('save_plan')}</button>
+        <div class="privnote private" style="margin-top:0.3rem"><span class="dot"></span><span>${t('save_priv')}</span></div>
+      </div>
+      <div>
+        <button class="btn secondary">${t('share_card')}</button>
+        <div class="privnote public" style="margin-top:0.3rem"><span class="dot"></span><span>${t('share_pub')}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderThread() {
+  const D = DEBATE;
+  const L = S.lang;
+
+  // proposal header + amendment history
+  const body = S.showOrig
+    ? '<div class="card raised"><div style="font-size:0.7rem;color:var(--adv);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.25rem">' + t('orig_lbl') + '</div><div style="font-size:0.86rem">' + esc(D['orig_' + L]) + '</div></div>'
+    : '<p style="font-size:0.88rem;margin:0.4rem 0">' + esc(D['body_' + L]) + '</p>';
+
+  // calling the question
+  const votes = D.ctq.votes + (S.ctq ? 1 : 0);
+  const pct = Math.round(votes / D.ctq.active * 1000) / 10;
+  const ctq = `
+    <div class="card">
+      <h4>${t('ctq_h')}</h4>
+      <div style="font-size:0.76rem;color:var(--muted)">${votes} ${t('of_active')} · ${pct}% / 66.7%</div>
+      <div class="ctqbar" role="img" aria-label="${pct}% of 66.7%"><i style="width:${Math.min(100, pct / 66.7 * 100)}%"></i></div>
+      <div style="font-size:0.72rem;color:var(--muted)">${t('ctq_note')}</div>
+      ${S.ctq
+        ? '<div class="privnote private" style="margin-top:0.5rem"><span class="dot"></span><span>' + t('ctq_voted') + '</span></div>'
+        : '<button class="btn secondary" style="margin-top:0.5rem" onclick="VR.ctqVote()">' + t('ctq_btn') + '</button>'}
+    </div>`;
+
+  const agrBtns = (id) => {
+    const v = S.agreeVotes[id];
+    return `<div class="agrrow">
+      <button aria-pressed="${v === 'agree'}" onclick="VR.agr('${id}','agree')">${t('agree')}</button>
+      <button aria-pressed="${v === 'disagree'}" onclick="VR.agr('${id}','disagree')">${t('disagree')}</button>
+      <button aria-pressed="${v === 'pass'}" onclick="VR.agr('${id}','pass')">${t('pass_b')}</button>
+    </div>`;
+  };
+
+  let main = '';
+  if (S.dv === 'clusters') {
+    const cards = D.clusters.map(cl => {
+      const open = S.openCluster === cl.id;
+      const member = open && cl.member ? `
+        <div class="repq" style="border-left-style:dotted">
+          <div style="font-size:0.82rem;font-style:italic">${esc(cl.member['t_' + L])}</div>
+          <div class="by">${esc(cl.member.by)}${cl.member.audio ? ' · 🎧 ' + t('audio_lbl') : ''}</div>
+        </div>` : '';
+      return `
+      <div class="card clcard">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <span class="sidechip ${cl.side}">${t(cl.side === 'for' ? 'side_for' : 'side_against')}</span>
+          <span class="cnum">${cl.n} ${t('made_point')} · ${cl.helpful} ${t('helpful_w')}</span>
+        </div>
+        <div style="font-weight:700;font-size:0.94rem;margin-top:0.35rem">${esc(cl['sum_' + L])}</div>
+        <div class="repq">
+          <div>${esc(cl.rep['t_' + L])}</div>
+          <div class="by">${esc(cl.rep.by)}</div>
+          <div style="margin-top:0.3rem;display:flex;gap:0.3rem;flex-wrap:wrap">${cl.rep.cites.map(c => '<span class="chip cite">▣ ' + esc(c) + ' · ' + t('archived') + ' ✓</span>').join('')}</div>
+        </div>
+        ${member}
+        ${agrBtns(cl.id)}
+        <div style="display:flex;gap:0.6rem;margin-top:0.45rem;flex-wrap:wrap">
+          <button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem" onclick="VR.noop()">${t('add_name')}</button>
+          ${cl.member ? '<button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem" onclick="VR.toggleCluster(\'' + cl.id + '\')">' + t(open ? 'hide_members' : 'show_members') + '</button>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    const ai = `
+      <div class="aicard">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <span class="sidechip against">${t('side_against')}</span>
+          <span class="chip analysis">${t('ai_tag')}</span>
+        </div>
+        <div style="font-size:0.88rem;margin-top:0.4rem">${esc(D.ai['t_' + L])}</div>
+        <div style="margin-top:0.35rem;display:flex;gap:0.3rem;flex-wrap:wrap">${D.ai.cites.map(c => '<span class="chip cite">▣ ' + esc(c) + ' · ' + t('archived') + ' ✓</span>').join('')}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">${t('ai_note')}</div>
+        ${agrBtns(D.ai.id)}
+        <button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem;margin-top:0.45rem" onclick="VR.noop()">${t('rebut')}</button>
+      </div>`;
+
+    main = cards + ai + '<div class="privnote private" style="margin:0.2rem 0 0.6rem"><span class="dot"></span><span>' + t('agr_priv') + '</span></div>';
+  } else {
+    const camps = D.camps.map(cp => `
+      <div class="campcard">
+        <div style="display:flex;gap:0.5rem;align-items:baseline">
+          <span style="font-weight:750">${esc(cp['name_' + L])}</span>
+          <span style="font-size:0.7rem;color:var(--muted)">${cp.n} ${t('members_n')}</span>
+        </div>
+        <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-top:0.35rem">${t('c_defining')}</div>
+        <ul style="margin:0.25rem 0 0;font-size:0.82rem">${cp['pts_' + L].map(p => '<li>' + esc(p) + '</li>').join('')}</ul>
+      </div>`).join('');
+    main = '<p style="font-size:0.78rem;color:var(--muted)">' + t('camps_p') + '</p>' + camps +
+      '<div class="bridge"><span class="bl">' + t('bridging_lbl') + '</span><div style="font-size:0.88rem">' + esc(D['bridging_' + L]) + '</div></div>';
+  }
+
+  // composer with claim-detection prompt
+  let composer;
+  if (S.claim === null || S.claim === 'prompt') {
+    composer = `
+      <div class="card">
+        <h4>${t('composer_h')}</h4>
+        <textarea class="statement" id="composer" aria-label="${t('composer_h')}">${esc(D['composer_' + L])}</textarea>
+        ${S.claim === 'prompt' ? `
+          <div class="claimprompt">
+            <strong>${t('claim_q')}</strong>
+            <div style="font-size:0.76rem;color:var(--muted);margin-top:0.2rem">“$12M …”</div>
+            <div class="row">
+              <button onclick="VR.claimAnswer('src')">${t('claim_add')}</button>
+              <button onclick="VR.claimAnswer('op')">${t('claim_op')}</button>
+              <button onclick="VR.claimAnswer('dis')">${t('claim_dismiss')}</button>
+            </div>
+          </div>` : ''}
+        ${S.claim === null ? '<button class="btn" style="margin-top:0.5rem" onclick="VR.tryPost()">' + t('post') + '</button>' : ''}
+        <div class="privnote public" style="margin-top:0.4rem"><span class="dot"></span><span>${t('post_pub')}</span></div>
+      </div>`;
+  } else {
+    const msg = S.claim === 'src' ? t('posted_src') : S.claim === 'op' ? t('posted_op') : t('posted_dis');
+    composer = `
+      <div class="card">
+        <h4>${t('composer_h')}</h4>
+        <div class="pill pending" style="margin-top:0.3rem">⟳ ${msg}</div>
+        ${S.claim === 'src' ? '<div style="margin-top:0.4rem"><span class="chip cite">▣ ' + (S.lang === 'es' ? 'Informe fiscal del condado · 2026' : 'County fiscal report · 2026') + ' · ' + t('archived') + ' ✓</span></div>' : ''}
+      </div>`;
+  }
+
+  const cm = COMMENTATORS[D.commentary.c];
+  const commentary = `
+    <div class="card analysis">
+      <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+        <h4 style="flex:1;margin:0">${t('comm_h')}</h4>
+        <span class="chip analysis">${t('comm_reg')}</span>
+      </div>
+      <div class="commitem"><div class="ct">${esc(D.commentary['t_' + L])}</div>
+      <div class="cb">${esc(cm.name)} · ${esc(cm.outlet)} · ${D.commentary.d}</div></div>
+      <div style="font-size:0.7rem;color:var(--muted);border-top:1px solid var(--line);margin-top:0.35rem;padding-top:0.35rem">${t('comm_blackout')}</div>
+    </div>`;
+
+  return `
+    <div style="display:flex;gap:0.45rem;align-items:center;flex-wrap:wrap">
+      <span class="chip adv">${t('unofficial')}</span>
+      <span class="chip band b1">${t('amended')}</span>
+    </div>
+    <div class="serif" style="font-size:1.3rem;font-weight:700;line-height:1.25;margin-top:0.4rem">${esc(D['title_' + L])}</div>
+    <div style="font-size:0.74rem;color:var(--muted);margin-top:0.2rem">${t('deb_status')} · ${t('deb_seconded')}</div>
+    ${body}
+    <button class="btn secondary" style="width:auto;padding:0.3rem 0.8rem;font-size:0.74rem" onclick="VR.toggleOrig()">${t(S.showOrig ? 'view_curr' : 'view_orig')}</button>
+    ${ctq}
+    <div class="seg" role="group" style="margin:0.8rem 0 0.4rem">
+      <button aria-pressed="${S.dv === 'clusters'}" onclick="VR.setDv('clusters')">${t('view_clusters')}</button>
+      <button aria-pressed="${S.dv === 'camps'}" onclick="VR.setDv('camps')">${t('view_camps')}</button>
+    </div>
+    ${main}
+    ${composer}
+    ${commentary}
+    <div class="disclosure"><span class="tag">${t('unofficial')}</span><span>${t('ref_next')} ${t('mandate_disc')}</span></div>`;
+}
+
+/* ─────────────────────────── shell & wiring ────────────────── */
+const TITLES = { welcome: 'app_title', ballot: 'ballot_title', prio: 'prio_title', results: 'results_title', detail: 'detail_title', mandates: 'm_grid_title', promises: 'promises_title', thread: 'thread_title' };
+function render() {
+  document.getElementById('app-title').textContent = t(TITLES[S.screen]);
+  document.getElementById('app-where').textContent = t('county');
+  document.getElementById('btn-back').classList.toggle('hidden', S.screen === 'welcome');
+  const app = document.getElementById('app');
+  app.innerHTML = S.screen === 'welcome' ? renderWelcome()
+    : S.screen === 'ballot' ? renderBallot()
+    : S.screen === 'prio' ? renderPrio()
+    : S.screen === 'results' ? renderResults()
+    : S.screen === 'mandates' ? renderMandates()
+    : S.screen === 'promises' ? renderPromises()
+    : S.screen === 'thread' ? renderThread()
+    : renderDetail();
+  app.scrollTop = 0;
+}
+
+window.VR = {
+  go(s) { S.screen = s; render(); },
+  back() {
+    S.screen = S.screen === 'thread' ? S.threadBack
+      : S.screen === 'promises' ? 'detail'
+      : S.screen === 'mandates' ? 'results'
+      : S.screen === 'detail' ? 'results'
+      : S.screen === 'results' ? 'prio'
+      : S.screen === 'prio' ? 'ballot'
+      : 'welcome';
+    render();
+  },
+  setAddr(a) { S.addr = a; render(); },
+  pickRace(r) {
+    S.race = r;
+    S.screen = Object.keys(S.prios).length >= 3 ? 'results' : 'prio';
+    render();
+  },
+  openGrid() { S.cell = null; S.screen = 'mandates'; render(); },
+  selCell(cid, mid) { S.cell = { cid, mid }; render(); },
+  openThread(from) { S.threadBack = from; S.screen = 'thread'; render(); },
+  setDv(v) { S.dv = v; render(); },
+  toggleOrig() { S.showOrig = !S.showOrig; render(); },
+  toggleCluster(id) { S.openCluster = S.openCluster === id ? null : id; render(); },
+  ctqVote() { S.ctq = true; render(); },
+  agr(id, v) { S.agreeVotes[id] = S.agreeVotes[id] === v ? undefined : v; render(); },
+  tryPost() { S.claim = 'prompt'; render(); },
+  claimAnswer(a) { S.claim = a; render(); },
+  noop() {},
+  toggleTopic(id) {
+    if (!S.prios[id]) {
+      const tp = TOPICS.find(x => x.id === id);
+      S.prios[id] = { statement: tp['p_' + S.lang], stance: 1, w: 3 };
+      S.open = id;
+    } else if (S.open === id) {
+      delete S.prios[id]; S.open = null;
+    } else {
+      S.open = id;
+    }
+    render();
+  },
+  setStmt(id, v) { S.prios[id].statement = v; },
+  setStance(id, v) { S.prios[id].stance = v; render(); },
+  setW(id, d) { S.prios[id].w = Math.max(1, Math.min(5, S.prios[id].w + d)); render(); },
+  setRace(r) { S.race = r; render(); },
+  openCand(id) { S.candId = id; S.screen = 'detail'; render(); },
+  setLang(l) {
+    const old = S.lang; S.lang = l;
+    document.getElementById('lang-en').setAttribute('aria-pressed', l === 'en');
+    document.getElementById('lang-es').setAttribute('aria-pressed', l === 'es');
+    for (const [tid, p] of Object.entries(S.prios)) {
+      const tp = TOPICS.find(x => x.id === tid);
+      if (p.statement === tp['p_' + old]) p.statement = tp['p_' + l];
+    }
+    render();
+  },
+  setView(v) {
+    S.view = v;
+    document.getElementById('view-proto').classList.toggle('hidden', v !== 'proto');
+    document.getElementById('view-sys').classList.toggle('hidden', v !== 'sys');
+    document.getElementById('tab-proto').setAttribute('aria-selected', v === 'proto');
+    document.getElementById('tab-sys').setAttribute('aria-selected', v === 'sys');
+  }
+};
+
+document.getElementById('btn-back').addEventListener('click', VR.back);
+document.getElementById('tab-proto').addEventListener('click', () => VR.setView('proto'));
+document.getElementById('tab-sys').addEventListener('click', () => VR.setView('sys'));
+document.getElementById('lang-en').addEventListener('click', () => VR.setLang('en'));
+document.getElementById('lang-es').addEventListener('click', () => VR.setLang('es'));
+render();
+</script>

@@ -1,0 +1,133 @@
+<script>
+'use strict';
+document.getElementById('view-sys').innerHTML = `
+  <p style="max-width:70ch;color:var(--muted);font-size:0.92rem;margin-top:0.5rem">
+    The working design language for VoteRight's app and site — derived from the architecture document's
+    guardrails, which are as much design requirements as legal ones. The prototype tab applies everything below.
+    (Design-system reference is English-only; the product itself is bilingual from day one.)</p>
+
+  <h2>Principles</h2>
+  <div class="sysgrid">
+    <div class="card"><h4>1 · Epistemic status is visible at a glance</h4>
+      <p style="font-size:0.85rem">Two registers run through everything and are never interchangeable:
+      <strong style="color:var(--ev)">teal</strong> for anything backed by a citation or a recorded vote,
+      <strong style="color:var(--adv)">gold</strong> for anything advisory, expressive, or unofficial.
+      A voter should know what kind of claim they're looking at before they read a word.</p></div>
+    <div class="card"><h4>2 · Evidence is always one tap away</h4>
+      <p style="font-size:0.85rem">Any claim about a named person carries its citation chip inline — publisher,
+      date, archived tick. Never buried in a detail view, never asserted bare.</p></div>
+    <div class="card"><h4>3 · Say what kind of act this is, when it happens</h4>
+      <p style="font-size:0.85rem">Every action is labeled public or private at the moment of the action
+      (§10.2): "your name will appear on this" vs. "private, deleted after the debate closes" —
+      part of the button, not a settings page.</p></div>
+    <div class="card"><h4>4 · Calm over engagement</h4>
+      <p style="font-size:0.85rem">No infinite feeds, no streaks, no outrage mechanics, no red/blue party
+      coding in the core palette. Closer to a well-designed ballot guide than a social network.
+      Disagreement is information, not error.</p></div>
+  </div>
+
+  <h2>The two registers</h2>
+  <div class="card" style="max-width:560px">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.6rem">
+      <span class="chip cite">▣ Recorded vote · Legistar · Bill 15-23 · 2023-07 · archived ✓</span>
+      <span class="chip adv">Unofficial · advisory</span>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin:0">Sourced fact (teal, mono, squared) never shares
+    a visual treatment with community opinion or advisory results (gold, stamped, uppercase). The
+    disclosure banner is non-removable on every advisory surface:</p>
+    <div class="disclosure"><span class="tag">Unofficial</span><span>This is an unofficial, advisory poll.
+    It has no legal effect and is not an official ballot.</span></div>
+    <p style="font-size:0.82rem;color:var(--muted)">A third, quieter treatment exists for <strong>attributed
+    analysis</strong> (§8.2) — expert commentary included by disclosed rule, never a staff pick. Dotted,
+    byline-forward, and explicitly labeled as opinion the platform did not verify:</p>
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+      <span class="chip analysis">Analysis · attributed opinion — not verified by VoteRight</span>
+    </div>
+  </div>
+
+  <h2>Color tokens</h2>
+  <p style="font-size:0.85rem;color:var(--muted)">Sage-tinted neutrals (chosen, not defaulted); teal and gold
+  registers; a validated diverging pair for agreement. The diverging poles pass CVD separation (ΔE 8.3 light /
+  9.0 dark), the normal-vision floor (20.0 / 16.9), and ≥3:1 contrast on both surfaces — checked with a
+  validator, not by eye. Status colors always ship with icon + label, never color alone.</p>
+  <div class="sysgrid">
+    <div class="card">
+      <h4>Ground &amp; ink</h4>
+      <div class="sw"><i style="background:var(--ground)"></i><code>--ground</code> #F2F4F0 / #121614</div>
+      <div class="sw"><i style="background:var(--surface)"></i><code>--surface</code> #FBFCFA / #1B211E</div>
+      <div class="sw"><i style="background:var(--surface-2)"></i><code>--surface-2</code> #ECEFEA / #232A26</div>
+      <div class="sw"><i style="background:var(--ink)"></i><code>--ink</code> #1A1F1C / #E9EDE9</div>
+      <div class="sw"><i style="background:var(--muted)"></i><code>--muted</code> #5C665F / #9CA79F</div>
+    </div>
+    <div class="card">
+      <h4>Registers</h4>
+      <div class="sw"><i style="background:var(--ev)"></i><code>--ev</code> evidence · #1D6069 / #74BDB7</div>
+      <div class="sw"><i style="background:var(--adv)"></i><code>--adv</code> advisory · #8F6410 / #E2B05C</div>
+      <h4 style="margin-top:0.8rem">Diverging agreement pair</h4>
+      <div class="sw"><i style="background:var(--agree)"></i><code>--agree</code> aligns · = evidence teal</div>
+      <div class="sw"><i style="background:var(--chip-neutral)"></i>neutral midpoint (gray, never a hue)</div>
+      <div class="sw"><i style="background:var(--differ)"></i><code>--differ</code> differs · #A24A33 / #DE9276</div>
+    </div>
+    <div class="card">
+      <h4>Status (reserved, icon + label always)</h4>
+      <div class="sw"><i style="background:var(--kept)"></i><code>--kept</code> #2E6B3F / #79C48C</div>
+      <div class="sw"><i style="background:var(--broken)"></i><code>--broken</code> #99372F / #E08B82</div>
+      <div class="sw"><i style="background:var(--pending)"></i><code>--pending</code> #A06A1A / #E2B05C</div>
+      <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem">
+        <span class="pill kept">✓ 2 kept</span><span class="pill broken">✗ 1 broken</span>
+        <span class="pill pending">⟳ 1 in progress</span><span class="pill neutral">⏸ 1 stalled</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>The agreement scale</h2>
+  <p style="font-size:0.85rem;color:var(--muted);max-width:70ch">Agreement is a polarity, so it gets a proper
+  diverging encoding — teal pole, gray midpoint, copper pole — and <strong>never a number</strong>. "87.3/100"
+  manufactures precision the methodology can't back (§5.1); a band states exactly as much as we know. Every
+  chip carries its label, so identity is never color-alone. "No position" is a separate dashed state:
+  excluded from scoring, but shown — silence stays visible.</p>
+  <div class="card" style="max-width:640px;display:flex;gap:0.4rem;flex-wrap:wrap">
+    <span class="chip band b2">Aligns strongly</span>
+    <span class="chip band b1">Leans aligned</span>
+    <span class="chip band b0">Mixed</span>
+    <span class="chip band bm1">Leans opposed</span>
+    <span class="chip band bm2">Opposed</span>
+    <span class="chip band bnull">No public position</span>
+  </div>
+
+  <h2>Type</h2>
+  <div class="card" style="max-width:640px">
+    <div class="typerow serif" style="font-size:1.6rem;font-weight:700">Display — Iowan Old Style / Charter / Georgia</div>
+    <div class="typerow" style="font-size:0.95rem">UI text — system sans (−apple-system, Segoe UI). Running text ≤ 68ch.</div>
+    <div class="typerow mono" style="font-size:0.78rem;color:var(--ev)">Data &amp; citations — ui-monospace · tabular-nums · always in the evidence register</div>
+    <div class="typerow" style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Labels — 0.72rem · uppercase · letter-spaced</div>
+  </div>
+
+  <h2>Act labeling</h2>
+  <div class="sysgrid" style="max-width:640px">
+    <div class="card">
+      <button class="btn secondary">Save to my ballot plan</button>
+      <div class="privnote private" style="margin-top:0.35rem"><span class="dot"></span><span>Private — only you can see your plan.</span></div>
+    </div>
+    <div class="card">
+      <button class="btn secondary">Second this proposal</button>
+      <div class="privnote public" style="margin-top:0.35rem"><span class="dot"></span><span>Public — your name appears as a co-sponsor, like signing a petition.</span></div>
+    </div>
+  </div>
+
+  <h2>Fairness patterns</h2>
+  <div class="sysgrid">
+    <div class="card"><h4>Silence is shown, not scored</h4>
+      <p style="font-size:0.82rem">A missing position is excluded from the match <em>and</em> displayed:
+      "No public position found. Not counted for or against — shown so silence stays visible."
+      A candidate with too little public record gets <span class="chip band bnull">Not enough information</span>,
+      sorted last with a dashed card — never hidden, never punished with a low score.</p></div>
+    <div class="card"><h4>No response is a fact, not an accusation</h4>
+      <p style="font-size:0.82rem">On mandate commitments, <span class="chip band bnull">No response</span> always
+      carries the outreach record ("VoteRight asked all candidates on May 12") — the platform states what it did
+      and what didn't happen, and implies nothing more (§2.3, §7.9).</p></div>
+    <div class="card"><h4>Party is metadata, not identity</h4>
+      <p style="font-size:0.82rem">Party appears as small text after the name. Nothing in the palette maps to
+      a party; candidate cards differ only by their relationship to <em>your</em> priorities.</p></div>
+  </div>`;
+</script>

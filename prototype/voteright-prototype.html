@@ -1,0 +1,1539 @@
+<title>VoteRight — Design System &amp; Scorecard Prototype</title>
+<style>
+  :root {
+    --ground: #F2F4F0; --surface: #FBFCFA; --surface-2: #ECEFEA;
+    --ink: #1A1F1C; --muted: #5C665F; --line: #D8DED7;
+    --ev: #1D6069; --ev-soft: #1D60691A;
+    --adv: #8F6410; --adv-soft: #8F641016;
+    --agree: #1D6069; --agree-mid: #DEEBEA;
+    --differ: #A24A33; --differ-mid: #F0DFD9;
+    --kept: #2E6B3F; --broken: #99372F; --pending: #A06A1A;
+    --chip-neutral: #E4E8E2;
+    --shadow: 0 10px 30px rgba(20,25,22,0.10), 0 1px 3px rgba(20,25,22,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121614; --surface: #1B211E; --surface-2: #232A26;
+      --ink: #E9EDE9; --muted: #9CA79F; --line: #353D38;
+      --ev: #74BDB7; --ev-soft: #74BDB71F;
+      --adv: #E2B05C; --adv-soft: #E2B05C1C;
+      --agree: #74BDB7; --agree-mid: #2A3E3C;
+      --differ: #DE9276; --differ-mid: #43302A;
+      --kept: #79C48C; --broken: #E08B82; --pending: #E2B05C;
+      --chip-neutral: #2A312C;
+      --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #121614; --surface: #1B211E; --surface-2: #232A26;
+    --ink: #E9EDE9; --muted: #9CA79F; --line: #353D38;
+    --ev: #74BDB7; --ev-soft: #74BDB71F;
+    --adv: #E2B05C; --adv-soft: #E2B05C1C;
+    --agree: #74BDB7; --agree-mid: #2A3E3C;
+    --differ: #DE9276; --differ-mid: #43302A;
+    --kept: #79C48C; --broken: #E08B82; --pending: #E2B05C;
+    --chip-neutral: #2A312C;
+    --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --ground: #F2F4F0; --surface: #FBFCFA; --surface-2: #ECEFEA;
+    --ink: #1A1F1C; --muted: #5C665F; --line: #D8DED7;
+    --ev: #1D6069; --ev-soft: #1D60691A;
+    --adv: #8F6410; --adv-soft: #8F641016;
+    --agree: #1D6069; --agree-mid: #DEEBEA;
+    --differ: #A24A33; --differ-mid: #F0DFD9;
+    --kept: #2E6B3F; --broken: #99372F; --pending: #A06A1A;
+    --chip-neutral: #E4E8E2;
+    --shadow: 0 10px 30px rgba(20,25,22,0.10), 0 1px 3px rgba(20,25,22,0.08);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.55;
+  }
+  ::selection { background: var(--ev-soft); }
+  .serif { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; }
+  .mono { font-family: ui-monospace, "SFMono-Regular", Consolas, Menlo, monospace; }
+  a { color: var(--ev); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, [tabindex]:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--ev); outline-offset: 2px; border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* ── Top chrome ─────────────────────────────── */
+  header.site {
+    max-width: 1080px; margin: 0 auto; padding: 1.1rem 1.25rem 0.5rem;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  .wordmark { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-weight: 700; font-size: 1.25rem; }
+  .wordmark small { display: block; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-weight: 500; font-size: 0.68rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+  .tabs { display: flex; gap: 0.25rem; margin-left: auto; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem; }
+  .tabs button {
+    border: none; background: transparent; border-radius: 999px; padding: 0.35rem 0.9rem;
+    font-size: 0.85rem; font-weight: 600; color: var(--muted);
+  }
+  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+  .langs { display: flex; gap: 0.25rem; }
+  .langs button { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 0.25rem 0.55rem; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+  .langs button[aria-pressed="true"] { color: var(--ev); border-color: var(--ev); }
+
+  main.stage { max-width: 1080px; margin: 0 auto; padding: 1rem 1.25rem 4rem; }
+
+  /* ── Phone frame ────────────────────────────── */
+  .phone {
+    width: min(430px, 100%); margin: 0 auto; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 26px; box-shadow: var(--shadow);
+    min-height: 740px; display: flex; flex-direction: column; overflow: hidden;
+  }
+  @media (max-width: 500px) { .phone { border-radius: 0; border-left: none; border-right: none; min-height: 88vh; } }
+  .appbar {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--line); background: var(--surface);
+  }
+  .appbar .back { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 0.2rem 0.6rem; font-size: 0.95rem; }
+  .appbar .title { font-weight: 700; font-size: 0.98rem; }
+  .appbar .where { margin-left: auto; font-size: 0.7rem; color: var(--muted); text-align: right; line-height: 1.3; }
+  .screen { flex: 1; overflow-y: auto; padding: 1rem 1rem 1.5rem; }
+
+  /* ── Registers ──────────────────────────────── */
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+    padding: 0.18rem 0.55rem; border-radius: 999px; border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .chip.cite {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 600;
+    font-size: 0.68rem; color: var(--ev); border-color: var(--ev);
+    background: var(--ev-soft); border-radius: 5px; white-space: normal;
+  }
+  .chip.adv { color: var(--adv); border-color: var(--adv); background: var(--adv-soft); border-radius: 5px;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .band { border-radius: 6px; }
+  .band.b2  { background: var(--agree); color: var(--surface); }
+  .band.b1  { background: var(--agree-mid); color: var(--ink); border-color: var(--agree); }
+  .band.b0  { background: var(--chip-neutral); color: var(--ink); border-color: var(--line); }
+  .band.bm1 { background: var(--differ-mid); color: var(--ink); border-color: var(--differ); }
+  .band.bm2 { background: var(--differ); color: var(--surface); }
+  .band.bnull { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
+  .pill { font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px; display: inline-flex; gap: 0.3rem; align-items: center; }
+  .pill.kept { color: var(--kept); background: color-mix(in srgb, var(--kept) 14%, transparent); }
+  .pill.broken { color: var(--broken); background: color-mix(in srgb, var(--broken) 14%, transparent); }
+  .pill.pending { color: var(--pending); background: color-mix(in srgb, var(--pending) 14%, transparent); }
+  .pill.neutral { color: var(--muted); background: var(--chip-neutral); }
+
+  .disclosure {
+    display: flex; gap: 0.55rem; align-items: flex-start;
+    border: 1.5px solid var(--adv); background: var(--adv-soft); color: var(--ink);
+    border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.78rem; margin: 0.75rem 0;
+  }
+  .disclosure .tag { flex: 0 0 auto; font-family: ui-monospace, Consolas, monospace; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adv); border: 1.5px solid var(--adv); border-radius: 4px; padding: 0.1rem 0.35rem; transform: rotate(-1.5deg); margin-top: 0.1rem; }
+
+  .privnote { display: flex; gap: 0.45rem; align-items: center; font-size: 0.74rem; color: var(--muted); }
+  .privnote .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+  .privnote.public .dot { background: var(--adv); }
+  .privnote.private .dot { background: var(--ev); }
+
+  /* ── Cards & controls ───────────────────────── */
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0.85rem 0.9rem; margin: 0.6rem 0; }
+  .card.raised { background: var(--surface-2); }
+  .card h4 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    border: none; border-radius: 10px; padding: 0.7rem 1.1rem; font-weight: 700; font-size: 0.95rem;
+    background: var(--ev); color: var(--surface); width: 100%;
+  }
+  .btn.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .seg { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 0.15rem; gap: 0.15rem; }
+  .seg button { flex: 1; border: none; background: transparent; border-radius: 7px; padding: 0.4rem 0.5rem; font-size: 0.8rem; font-weight: 650; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  textarea.statement {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+    color: var(--ink); font: inherit; font-size: 0.88rem; padding: 0.5rem 0.6rem; resize: vertical; min-height: 3.2em;
+  }
+  .weight { display: flex; gap: 0.3rem; align-items: center; }
+  .weight button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; }
+  .weight .wval { min-width: 8ch; text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--ev); }
+  .topichead { display: flex; align-items: center; gap: 0.5rem; width: 100%; background: none; border: none; padding: 0; text-align: left; }
+  .topichead .tname { font-weight: 700; font-size: 0.95rem; flex: 1; }
+  .topichead .state { font-size: 0.72rem; color: var(--muted); }
+  .check { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; color: var(--surface); flex: 0 0 auto; }
+  .check.on { background: var(--ev); border-color: var(--ev); }
+
+  .cand { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0.8rem 0.9rem; margin: 0.55rem 0; display: block; }
+  .cand:hover { border-color: var(--ev); }
+  .cand .row1 { display: flex; align-items: baseline; gap: 0.5rem; }
+  .cand .cname { font-weight: 750; font-size: 1.02rem; }
+  .cand .cparty { font-size: 0.7rem; color: var(--muted); }
+  .cand .inc { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ev); border: 1px solid var(--ev); border-radius: 4px; padding: 0.05rem 0.3rem; }
+  .cand .row2 { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.45rem; flex-wrap: wrap; }
+  .cand .cover { font-size: 0.7rem; color: var(--muted); }
+  .cand.insuff { border-style: dashed; }
+  .dots { display: inline-flex; gap: 4px; }
+  .dots i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); }
+  .dots i.d2 { background: var(--agree); border-color: var(--agree); }
+  .dots i.d1 { background: var(--agree-mid); border-color: var(--agree); }
+  .dots i.d0 { background: var(--chip-neutral); }
+  .dots i.dm1 { background: var(--differ-mid); border-color: var(--differ); }
+  .dots i.dm2 { background: var(--differ); border-color: var(--differ); }
+  .dots i.dnull { background: transparent; border-style: dashed; }
+
+  .topicrow { border-top: 1px solid var(--line); padding: 0.75rem 0; }
+  .topicrow .yours { font-size: 0.78rem; color: var(--muted); margin: 0.15rem 0 0.4rem; }
+  .topicrow .yours q { font-style: italic; }
+  .topicrow .theirs { font-size: 0.88rem; margin: 0.2rem 0 0.4rem; }
+  .trhead { display: flex; align-items: center; gap: 0.5rem; }
+  .trhead .tn { font-weight: 700; font-size: 0.9rem; flex: 1; }
+  .evrow { font-family: ui-monospace, Consolas, monospace; font-size: 0.68rem; color: var(--ev); background: var(--ev-soft); border-left: 3px solid var(--ev); border-radius: 0 5px 5px 0; padding: 0.35rem 0.55rem; margin-top: 0.35rem; }
+  .nopos { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+
+  .sysgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; align-items: start; }
+  .sys h2 { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-size: 1.4rem; border-top: 1px solid var(--line); padding-top: 1.4rem; margin-top: 2rem; text-wrap: balance; }
+  .sys h3 { font-size: 1.02rem; margin: 1.2rem 0 0.4rem; }
+  .sys p { max-width: 68ch; }
+  .sw { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; font-size: 0.8rem; }
+  .sw i { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); flex: 0 0 auto; }
+  .sw code { background: var(--surface-2); border-radius: 4px; padding: 0.05rem 0.35rem; font-size: 0.72rem; }
+  .typerow { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+
+  /* ── Your ballot ────────────────────────────── */
+  .grouph { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 0.25rem; }
+  .seat { display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 0.55rem 0.7rem; margin: 0.35rem 0; width: 100%; text-align: left; }
+  .seat .sname { font-weight: 650; font-size: 0.88rem; flex: 1; }
+  .seat .smeta { font-size: 0.66rem; color: var(--muted); display: block; font-weight: 400; margin-top: 0.05rem; }
+  button.seat:hover { border-color: var(--ev); }
+  .seat .snote { flex-basis: 100%; font-size: 0.72rem; color: var(--muted); font-style: italic; margin-top: 0.15rem; }
+  .seat.wrap { flex-wrap: wrap; }
+  .stackchips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.55rem 0 0.2rem; }
+  .stackchips span { font-size: 0.68rem; border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 0.1rem 0.5rem; color: var(--muted); font-weight: 600; }
+
+  /* ── Mandate grid & promise timelines ───────── */
+  .mgridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin: 0.7rem 0; }
+  .mgrid { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .mgrid th, .mgrid td { border-bottom: 1px solid var(--line); padding: 0.5rem 0.35rem; text-align: center; vertical-align: middle; }
+  .mgrid tr:last-child td { border-bottom: none; }
+  .mgrid th { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 750; background: var(--surface-2); }
+  .mgrid td.cn { text-align: left; font-weight: 650; font-size: 0.8rem; padding-left: 0.6rem; }
+  .cellbtn { border: 1px solid transparent; background: none; padding: 0.2rem 0.55rem; border-radius: 7px; font-weight: 800; font-size: 0.9rem; }
+  .cellbtn:hover { border-color: var(--line); }
+  .cellbtn[aria-pressed="true"] { border-color: var(--ev); background: var(--ev-soft); }
+  .c-commit { color: var(--agree); }
+  .c-decline { color: var(--differ); }
+  .c-none { color: var(--muted); }
+  .histline { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.76rem; padding: 0.22rem 0 0.22rem 0.6rem; border-left: 2px solid var(--line); margin-left: 0.2rem; flex-wrap: wrap; }
+  .histline .hd { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: 0.66rem; min-width: 5.4ch; }
+  .histline .hl { font-weight: 750; min-width: 8ch; }
+  .reply { border-left: 3px solid var(--adv); background: var(--adv-soft); padding: 0.4rem 0.6rem; border-radius: 0 5px 5px 0; font-size: 0.75rem; margin-top: 0.35rem; }
+  .reply b { color: var(--adv); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.07em; display: block; margin-bottom: 0.1rem; }
+
+  /* ── Attributed-analysis register (commentary, §8.2) ── */
+  .chip.analysis {
+    color: var(--muted); border: 1.5px dotted var(--muted); background: transparent;
+    border-radius: 5px; font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    white-space: normal;
+  }
+  .card.analysis { border-style: dotted; }
+  .commitem { padding: 0.45rem 0; border-top: 1px solid var(--line); }
+  .commitem:first-of-type { border-top: none; padding-top: 0.1rem; }
+  .commitem .ct { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-size: 0.92rem; font-weight: 650; }
+  .commitem .cb { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+
+  /* ── Debate thread ──────────────────────────── */
+  .sidechip { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; border-radius: 4px; padding: 0.12rem 0.45rem; }
+  .sidechip.for { background: var(--agree-mid); color: var(--ink); border: 1px solid var(--agree); }
+  .sidechip.against { background: var(--differ-mid); color: var(--ink); border: 1px solid var(--differ); }
+  .clcard .cnum { font-size: 0.7rem; color: var(--muted); }
+  .repq { border-left: 3px solid var(--line); padding: 0.3rem 0 0.3rem 0.6rem; margin: 0.45rem 0; font-size: 0.85rem; }
+  .repq .by { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+  .agrrow { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; margin-top: 0.45rem; }
+  .agrrow button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.74rem; font-weight: 700; color: var(--muted); }
+  .agrrow button[aria-pressed="true"] { border-color: var(--ev); color: var(--ev); background: var(--ev-soft); }
+  .aicard { border: 1.5px dashed var(--line); border-radius: 12px; padding: 0.85rem 0.9rem; margin: 0.6rem 0; background: var(--surface); }
+  .bridge { border: 1.5px solid var(--agree); background: var(--agree-mid); border-radius: 10px; padding: 0.7rem 0.85rem; margin: 0.7rem 0; }
+  .bridge .bl { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--agree); display: block; margin-bottom: 0.25rem; }
+  .campcard { border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem 0.85rem; margin: 0.5rem 0; background: var(--surface); }
+  .ctqbar { height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; margin: 0.45rem 0 0.3rem; }
+  .ctqbar i { display: block; height: 100%; background: var(--ev); }
+  .ctqmark { position: relative; }
+  .claimprompt { border: 1.5px solid var(--adv); background: var(--adv-soft); border-radius: 8px; padding: 0.6rem 0.7rem; margin-top: 0.5rem; font-size: 0.82rem; }
+  .claimprompt .row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .claimprompt button { border: 1px solid var(--adv); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.76rem; font-weight: 700; }
+
+  .hidden { display: none !important; }
+</style>
+
+<header class="site">
+  <div class="wordmark">VoteRight<small id="hdr-sub">Design system &amp; scorecard prototype</small></div>
+  <div class="tabs" role="tablist">
+    <button id="tab-proto" role="tab" aria-selected="true">Prototype</button>
+    <button id="tab-sys" role="tab" aria-selected="false">Design system</button>
+  </div>
+  <div class="langs" aria-label="Language">
+    <button id="lang-en" aria-pressed="true">EN</button>
+    <button id="lang-es" aria-pressed="false">ES</button>
+  </div>
+</header>
+
+<main class="stage">
+  <div id="view-proto">
+    <div class="phone">
+      <div class="appbar">
+        <button class="back hidden" id="btn-back" aria-label="Back">←</button>
+        <div class="title" id="app-title">VoteRight</div>
+        <div class="where" id="app-where">Montgomery County, MD</div>
+      </div>
+      <div class="screen" id="app"></div>
+    </div>
+  </div>
+
+  <div id="view-sys" class="sys hidden"></div>
+</main>
+
+<script>
+'use strict';
+
+/* ─────────────────────────── i18n ─────────────────────────── */
+const I18N = {
+  en: {
+    app_title: 'VoteRight', county: 'Montgomery County, MD',
+    welcome_h: 'Matched to what you actually want',
+    welcome_p: 'Tell VoteRight your priorities in your own words. We score every candidate against them using sourced positions and real voting records — and show you the receipts.',
+    welcome_priv: 'Your priorities are private to you. They are used only to compute your matches and are never shown to anyone.',
+    welcome_fict: 'Prototype — the candidates and sources in this demo are fictional. Real county data lands in Phase 1.',
+    get_started: 'Get started',
+    prio_h: 'What matters to you?',
+    prio_p: 'Pick at least 3 issues. Edit the statement so it says what you want, choose your side, and set how much it matters.',
+    prio_state_on: 'Selected', prio_state_off: 'Tap to add',
+    stance_agree: 'I want this', stance_oppose: 'I want the opposite',
+    weight_lbl: ['','Barely matters','Matters a little','Matters','Matters a lot','Non-negotiable'],
+    see_matches: 'See my matches', need_more: 'Pick at least 3 issues to continue',
+    priv_footer: 'Private to you — used only to compute your matches. Deleted if you delete your account.',
+    results_h: 'Your matches',
+    race_atlarge: 'Council At-Large', race_exec: 'County Executive',
+    atlarge_note: 'This contest elects 4 councilmembers — you can vote for up to 4.',
+    exec_note: 'Open seat — the current County Executive is term-limited.',
+    based_on: 'Based on', of_your: 'of your', priorities_w: 'priorities',
+    incumbent: 'Incumbent',
+    band2: 'Aligns strongly', band1: 'Leans aligned', band0: 'Mixed', bandm1: 'Leans opposed', bandm2: 'Opposed', bandnull: 'No public position',
+    ov_strong: 'Strong match', ov_good: 'Good match', ov_mixed: 'Mixed', ov_weak: 'Differs from your priorities', ov_insuff: 'Not enough information',
+    insuff_note: 'Too few public positions found to score fairly. Shown last, not hidden — silence is information too.',
+    your_words: 'You said:', archived: 'archived', source_vote: 'Roll call',
+    nopos_row: 'No public position found. Not counted for or against — shown so silence stays visible.',
+    promises_h: 'Promise record', promises_none: 'No prior term on record — promise tracking starts if elected.',
+    p_kept: 'kept', p_broken: 'broken', p_inprog: 'in progress', p_stalled: 'stalled',
+    mandate_h: 'Standing voter mandate for this office',
+    mandate_q: '“Should the County fund late-night Ride On Flex service countywide?”',
+    mandate_res: '62% yes · turnout 3.4% of registered voters',
+    mandate_disc: 'Unofficial, advisory result from VoteRight members. It has no legal force and is not an official ballot.',
+    mandate_none: 'No standing voter mandates for this office yet.',
+    m_commit: 'Committed', m_decline: 'Declined', m_nores: 'No response',
+    m_nores_note: 'Did not answer. VoteRight asked all candidates on May 12, 2026.',
+    save_plan: 'Save to my ballot plan', save_priv: 'Private — only you can see your plan.',
+    share_card: 'Share this scorecard', share_pub: 'Public — creates a link anyone can open.',
+    unofficial: 'Unofficial · advisory', sourced: 'Sourced', fictional: 'Sample data',
+    back: 'Back', results_title: 'Matches', detail_title: 'Scorecard', prio_title: 'Your priorities',
+    committed_src: 'On the record:',
+    ballot_title: 'Your ballot',
+    ballot_h: 'Every seat your address elects',
+    ballot_p: 'Pick an address to see how the list changes with the jurisdiction stack.',
+    addr_ss: 'Silver Spring (unincorporated)', addr_rock: 'Rockville (city)',
+    resolves: 'This address resolves to:',
+    grp_federal: 'Federal', grp_state: 'State of Maryland', grp_county: 'Montgomery County',
+    grp_municipal: 'City of Rockville', grp_school: 'School board', grp_judicial: 'Judicial',
+    st_match: 'Match available', st_later: 'Not yet tracked', st_jud: 'Different treatment',
+    later_note: 'Unscored levels stay on the list — an incomplete ballot must never look complete. Scoring for these arrives in later phases.',
+    jud_note: 'Judges can’t campaign on issues, so this seat gets background and bar evaluations — never a match score.',
+    next26: 'On your ballot in 2026', next27: 'Next city election 2027',
+    to_prio: 'Set my priorities',
+    m_grid_title: 'Mandate commitments',
+    grid_h: 'Where every candidate stands on the voters’ mandates',
+    grid_p: 'These mandates came from advisory referenda. Every candidate for this office was asked, on the record, before the election.',
+    grid_legend: '✓ committed · ✗ declined · — no response',
+    grid_loop: 'If a committed candidate wins, the commitment becomes a tracked promise automatically — and shows up in their promise record.',
+    tap_cell: 'Tap any cell for the source.',
+    see_grid: 'Mandate commitments for this race',
+    promises_title: 'Promise record', full_record: 'Full promise record',
+    p_compromised: 'compromised',
+    reply_lbl: 'Right of reply',
+    h_pending: 'Pledged', h_inprog: 'In progress', h_kept: 'Kept', h_broken: 'Broken', h_comp: 'Compromised', h_stalled: 'Stalled',
+    hist_note: 'Status history is append-only — every change shows its date and its source, and corrections add a new entry rather than erasing the old one.',
+    comm_h: 'Local commentary',
+    comm_reg: 'Analysis · attributed opinion — not verified by VoteRight',
+    comm_how: 'Commentators are included by a disclosed rule — sustained local coverage, a real byline, disclosed ties — never picked by VoteRight staff.',
+    comm_blackout: 'Near an election, commentary stays viewable but is never pushed or featured.',
+    thread_title: 'Debate',
+    see_debate: 'See a live debate',
+    deb_from_grid: 'Watch how a mandate gets made — open a live debate',
+    deb_status: 'Debating · closes July 22', deb_seconded: '412 seconds · threshold was 400',
+    amended: 'Amended', view_orig: 'View original text', view_curr: 'Back to current text',
+    orig_lbl: 'Original proposal — preserved, never overwritten. Amendments needed their own seconds before adoption.',
+    ctq_h: 'Close debate early?',
+    ctq_note: 'Any active participant — one posted argument, or 3+ agreement votes — can vote to end debate and move to the advisory vote. Needs 66.7% (Robert’s Rules).',
+    ctq_btn: 'Call the question', of_active: 'of 78 active participants',
+    ctq_voted: '✓ Recorded — private, deleted when the thread closes.',
+    view_clusters: 'Points', view_camps: 'Camps',
+    side_for: 'For', side_against: 'Against',
+    made_point: 'people made this point', helpful_w: 'found this helpful',
+    add_name: 'Add my name to this point', show_members: 'See individual arguments', hide_members: 'Hide arguments',
+    audio_lbl: 'Audio argument · transcript',
+    agree: 'Agree', disagree: 'Disagree', pass_b: 'Pass',
+    agr_priv: 'Agreement votes are private and deleted after the debate closes.',
+    ai_tag: 'AI-generated — not a person',
+    ai_note: 'Machine-authored to balance a thin side; every factual sentence maps to a citation. It can be rebutted and rated — it can never second, vote, or call the question.',
+    rebut: 'Rebut',
+    camps_p: 'Camps are computed from 1,240 agreement votes — who agrees with whom, not who posted what.',
+    camp: 'Camp', members_n: 'members', c_defining: 'Defining points',
+    bridging_lbl: 'Bridging point — most of every camp agrees',
+    composer_h: 'Add your argument', post: 'Post argument',
+    post_pub: 'Public — your name appears on this argument.',
+    claim_q: 'This reads like a factual claim — want to attach a source?',
+    claim_add: 'Add source', claim_op: 'It’s my opinion', claim_dismiss: 'Post as-is',
+    posted_src: 'Posted with source — pending moderation review.',
+    posted_op: 'Posted, marked as your opinion — pending moderation review.',
+    posted_dis: 'Posted — pending moderation review.',
+    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.'
+  },
+  es: {
+    app_title: 'VoteRight', county: 'Condado de Montgomery, MD',
+    welcome_h: 'Compatibilidad con lo que tú realmente quieres',
+    welcome_p: 'Cuéntale a VoteRight tus prioridades con tus propias palabras. Evaluamos a cada candidato con posiciones documentadas y votos reales — y te mostramos las fuentes.',
+    welcome_priv: 'Tus prioridades son privadas. Solo se usan para calcular tus coincidencias y nunca se muestran a nadie.',
+    welcome_fict: 'Prototipo — los candidatos y las fuentes de esta demo son ficticios. Los datos reales del condado llegan en la Fase 1.',
+    get_started: 'Comenzar',
+    prio_h: '¿Qué te importa?',
+    prio_p: 'Elige al menos 3 temas. Edita la frase para que diga lo que tú quieres, elige tu postura y decide cuánto importa.',
+    prio_state_on: 'Seleccionado', prio_state_off: 'Toca para agregar',
+    stance_agree: 'Quiero esto', stance_oppose: 'Quiero lo contrario',
+    weight_lbl: ['','Casi no importa','Importa poco','Importa','Importa mucho','Innegociable'],
+    see_matches: 'Ver mis coincidencias', need_more: 'Elige al menos 3 temas para continuar',
+    priv_footer: 'Privado — solo se usa para calcular tus coincidencias. Se elimina si borras tu cuenta.',
+    results_h: 'Tus coincidencias',
+    race_atlarge: 'Concejo — Escaños generales', race_exec: 'Ejecutivo del Condado',
+    atlarge_note: 'Esta contienda elige 4 concejales — puedes votar hasta por 4.',
+    exec_note: 'Escaño abierto — el Ejecutivo actual llegó a su límite de mandatos.',
+    based_on: 'Basado en', of_your: 'de tus', priorities_w: 'prioridades',
+    incumbent: 'En el cargo',
+    band2: 'Coincide plenamente', band1: 'Tiende a coincidir', band0: 'Posición mixta', bandm1: 'Tiende a diferir', bandm2: 'Difiere claramente', bandnull: 'Sin posición pública',
+    ov_strong: 'Coincidencia fuerte', ov_good: 'Buena coincidencia', ov_mixed: 'Mixto', ov_weak: 'Difiere de tus prioridades', ov_insuff: 'Información insuficiente',
+    insuff_note: 'Muy pocas posiciones públicas para calificar con justicia. Se muestra al final, no se oculta — el silencio también es información.',
+    your_words: 'Dijiste:', archived: 'archivado', source_vote: 'Votación',
+    nopos_row: 'No se encontró posición pública. No cuenta ni a favor ni en contra — se muestra para que el silencio sea visible.',
+    promises_h: 'Historial de promesas', promises_none: 'Sin mandato previo — el seguimiento de promesas comienza si resulta electo.',
+    p_kept: 'cumplidas', p_broken: 'incumplida', p_inprog: 'en curso', p_stalled: 'estancada',
+    mandate_h: 'Mandato ciudadano vigente para este cargo',
+    mandate_q: '«¿Debe el Condado financiar el servicio nocturno de Ride On Flex en todo el condado?»',
+    mandate_res: '62% sí · participación: 3.4% de los votantes registrados',
+    mandate_disc: 'Resultado no oficial y consultivo de miembros de VoteRight. No tiene fuerza legal y no es una boleta oficial.',
+    mandate_none: 'Aún no hay mandatos ciudadanos vigentes para este cargo.',
+    m_commit: 'Se comprometió', m_decline: 'Declinó', m_nores: 'Sin respuesta',
+    m_nores_note: 'No respondió. VoteRight preguntó a todos los candidatos el 12 de mayo de 2026.',
+    save_plan: 'Guardar en mi plan de voto', save_priv: 'Privado — solo tú puedes ver tu plan.',
+    share_card: 'Compartir esta tarjeta', share_pub: 'Público — crea un enlace que cualquiera puede abrir.',
+    unofficial: 'No oficial · consultivo', sourced: 'Con fuentes', fictional: 'Datos de muestra',
+    back: 'Atrás', results_title: 'Coincidencias', detail_title: 'Tarjeta', prio_title: 'Tus prioridades',
+    committed_src: 'Constancia:',
+    ballot_title: 'Tu boleta',
+    ballot_h: 'Cada cargo que elige tu dirección',
+    ballot_p: 'Elige una dirección para ver cómo cambia la lista según las jurisdicciones.',
+    addr_ss: 'Silver Spring (no incorporado)', addr_rock: 'Rockville (ciudad)',
+    resolves: 'Esta dirección corresponde a:',
+    grp_federal: 'Federal', grp_state: 'Estado de Maryland', grp_county: 'Condado de Montgomery',
+    grp_municipal: 'Ciudad de Rockville', grp_school: 'Junta escolar', grp_judicial: 'Judicial',
+    st_match: 'Coincidencia disponible', st_later: 'Aún sin seguimiento', st_jud: 'Tratamiento distinto',
+    later_note: 'Los niveles sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa. Su evaluación llega en fases posteriores.',
+    jud_note: 'Los jueces no pueden hacer campaña sobre temas; este cargo recibe trayectoria y evaluaciones — nunca una puntuación.',
+    next26: 'En tu boleta en 2026', next27: 'Próxima elección municipal 2027',
+    to_prio: 'Definir mis prioridades',
+    m_grid_title: 'Compromisos de mandato',
+    grid_h: 'La postura de cada candidato ante los mandatos ciudadanos',
+    grid_p: 'Estos mandatos provienen de referendos consultivos. A cada candidato a este cargo se le preguntó, con constancia, antes de la elección.',
+    grid_legend: '✓ se comprometió · ✗ declinó · — sin respuesta',
+    grid_loop: 'Si gana un candidato comprometido, el compromiso se convierte automáticamente en una promesa con seguimiento — y aparece en su historial.',
+    tap_cell: 'Toca una celda para ver la fuente.',
+    see_grid: 'Compromisos de mandato de esta contienda',
+    promises_title: 'Historial de promesas', full_record: 'Historial completo de promesas',
+    p_compromised: 'con concesiones',
+    reply_lbl: 'Derecho de réplica',
+    h_pending: 'Prometida', h_inprog: 'En curso', h_kept: 'Cumplida', h_broken: 'Incumplida', h_comp: 'Con concesiones', h_stalled: 'Estancada',
+    hist_note: 'El historial de estado es de solo escritura — cada cambio muestra su fecha y su fuente, y las correcciones agregan una entrada nueva en lugar de borrar la anterior.',
+    comm_h: 'Análisis local',
+    comm_reg: 'Análisis · opinión con autoría — no verificado por VoteRight',
+    comm_how: 'Los analistas se incluyen por una regla pública — cobertura local sostenida, autoría real, vínculos declarados — nunca por selección del equipo de VoteRight.',
+    comm_blackout: 'Cerca de una elección, el análisis sigue disponible pero nunca se promociona ni se destaca.',
+    thread_title: 'Debate',
+    see_debate: 'Ver un debate en vivo',
+    deb_from_grid: 'Mira cómo nace un mandato — abre un debate en vivo',
+    deb_status: 'En debate · cierra el 22 de julio', deb_seconded: '412 apoyos · el umbral era 400',
+    amended: 'Enmendada', view_orig: 'Ver texto original', view_curr: 'Volver al texto vigente',
+    orig_lbl: 'Propuesta original — preservada, nunca sobrescrita. Las enmiendas necesitaron sus propios apoyos antes de adoptarse.',
+    ctq_h: '¿Cerrar el debate antes?',
+    ctq_note: 'Cualquier participante activo — un argumento publicado, o 3+ votos de acuerdo — puede votar por terminar el debate y pasar a la votación consultiva. Requiere 66.7% (Reglas de Robert).',
+    ctq_btn: 'Pedir la votación', of_active: 'de 78 participantes activos',
+    ctq_voted: '✓ Registrado — privado, se elimina cuando cierra el hilo.',
+    view_clusters: 'Puntos', view_camps: 'Grupos',
+    side_for: 'A favor', side_against: 'En contra',
+    made_point: 'personas plantearon este punto', helpful_w: 'lo consideraron útil',
+    add_name: 'Sumar mi nombre a este punto', show_members: 'Ver argumentos individuales', hide_members: 'Ocultar argumentos',
+    audio_lbl: 'Argumento en audio · transcripción',
+    agree: 'De acuerdo', disagree: 'En desacuerdo', pass_b: 'Paso',
+    agr_priv: 'Los votos de acuerdo son privados y se eliminan al cerrar el debate.',
+    ai_tag: 'Generado por IA — no es una persona',
+    ai_note: 'Redactado por una máquina para equilibrar un lado débil; cada oración factual tiene su cita. Puede rebatirse y calificarse — nunca puede apoyar, votar ni pedir la votación.',
+    rebut: 'Rebatir',
+    camps_p: 'Los grupos se calculan con 1,240 votos de acuerdo — quién coincide con quién, no quién publicó qué.',
+    camp: 'Grupo', members_n: 'integrantes', c_defining: 'Puntos definitorios',
+    bridging_lbl: 'Punto puente — la mayoría de todos los grupos coincide',
+    composer_h: 'Agrega tu argumento', post: 'Publicar argumento',
+    post_pub: 'Público — tu nombre aparecerá en este argumento.',
+    claim_q: 'Esto parece una afirmación de hecho — ¿quieres adjuntar una fuente?',
+    claim_add: 'Agregar fuente', claim_op: 'Es mi opinión', claim_dismiss: 'Publicar tal cual',
+    posted_src: 'Publicado con fuente — pendiente de moderación.',
+    posted_op: 'Publicado, marcado como tu opinión — pendiente de moderación.',
+    posted_dis: 'Publicado — pendiente de moderación.',
+    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.'
+  }
+};
+
+/* ─────────────────────────── data ─────────────────────────── */
+const TOPICS = [
+  { id: 'housing', en: 'Housing affordability', es: 'Vivienda asequible',
+    p_en: 'Keep annual rent increases capped near the current 3% limit.', p_es: 'Mantener los aumentos anuales de renta cerca del límite actual de 3%.' },
+  { id: 'transit', en: 'Transit & roads', es: 'Transporte y vialidad',
+    p_en: 'Expand Ride On bus frequency and late-night service.', p_es: 'Ampliar la frecuencia y el servicio nocturno de los autobuses Ride On.' },
+  { id: 'schools', en: 'Public schools', es: 'Escuelas públicas',
+    p_en: 'Fully fund the MCPS operating budget request.', p_es: 'Financiar por completo el presupuesto operativo que solicita MCPS.' },
+  { id: 'climate', en: 'Climate & environment', es: 'Clima y medio ambiente',
+    p_en: 'Meet the county’s zero-emissions targets on schedule.', p_es: 'Cumplir a tiempo las metas de cero emisiones del condado.' },
+  { id: 'safety', en: 'Public safety', es: 'Seguridad pública',
+    p_en: 'Hire more police officers for neighborhood patrols.', p_es: 'Contratar más policías para patrullaje en los vecindarios.' },
+  { id: 'budget', en: 'Taxes & budget', es: 'Impuestos y presupuesto',
+    p_en: 'Hold the line on property tax increases.', p_es: 'Evitar aumentos al impuesto sobre la propiedad.' }
+];
+
+/* Your-ballot demo: the seat roster the jurisdiction stack resolves to.
+   st: 'match' (scored in this prototype) | 'later' (tracked as a seat, not yet scored) | 'jud' (judicial treatment) */
+const STACKS = {
+  ss:   ['Maryland', 'Montgomery County', 'Council District 5', 'MCPS'],
+  rock: ['Maryland', 'Montgomery County', 'City of Rockville', 'Council District 3', 'MCPS']
+};
+const SEATS = [
+  { grp: 'grp_federal', rows: [
+    { en: 'U.S. Senate', es: 'Senado de EE. UU.', st: 'later', meta: 'next26' },
+    { en: 'U.S. House — MD-8', es: 'Cámara de Representantes — MD-8', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_state', rows: [
+    { en: 'Governor & Lt. Governor', es: 'Gobernador y Vicegobernador', st: 'later', meta: 'next26' },
+    { en: 'State Senate & Delegates — District {d}', es: 'Senado y Delegados estatales — Distrito {d}', st: 'later', meta: 'next26', d: { ss: '20', rock: '17' } } ] },
+  { grp: 'grp_county', rows: [
+    { en: 'County Executive', es: 'Ejecutivo del Condado', st: 'match', race: 'exec', meta: 'next26' },
+    { en: 'County Council — At-Large (4 seats)', es: 'Concejo — Escaños generales (4)', st: 'match', race: 'atlarge', meta: 'next26' },
+    { en: 'County Council — District {d}', es: 'Concejo — Distrito {d}', st: 'later', meta: 'next26', d: { ss: '5', rock: '3' } },
+    { en: 'State’s Attorney', es: 'Fiscal del Condado', st: 'later', meta: 'next26' },
+    { en: 'Sheriff', es: 'Alguacil (Sheriff)', st: 'later', meta: 'next26' },
+    { en: 'Clerk of the Circuit Court', es: 'Secretaría del Tribunal de Circuito', st: 'later', meta: 'next26' },
+    { en: 'Register of Wills', es: 'Registro de Testamentos', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_municipal', only: 'rock', rows: [
+    { en: 'Mayor', es: 'Alcaldía', st: 'later', meta: 'next27' },
+    { en: 'City Council (6 at-large seats)', es: 'Concejo Municipal (6 escaños generales)', st: 'later', meta: 'next27' } ] },
+  { grp: 'grp_school', rows: [
+    { en: 'Board of Education — at-large & district seats', es: 'Junta de Educación — escaños generales y por distrito', st: 'later', meta: 'next26' } ] },
+  { grp: 'grp_judicial', rows: [
+    { en: 'Circuit Court Judges', es: 'Jueces del Tribunal de Circuito', st: 'jud', meta: 'next26' } ] }
+];
+
+/* Standing advisory mandates for the at-large office — the columns of the commitment grid. */
+const MANDATES = {
+  flex: {
+    q_en: '“Should the County fund late-night Ride On Flex service countywide?”',
+    q_es: '«¿Debe el Condado financiar el servicio nocturno de Ride On Flex en todo el condado?»',
+    res_en: '62% yes · turnout 3.4% of registered voters',
+    res_es: '62% sí · participación: 3.4% de los votantes registrados',
+    short_en: 'Late-night bus service', short_es: 'Autobús nocturno' },
+  contracts: {
+    q_en: '“Should every county contract over $250,000 be published in a searchable public database?”',
+    q_es: '«¿Debe publicarse todo contrato del condado mayor a $250,000 en una base de datos pública consultable?»',
+    res_en: '71% yes · turnout 2.6% of registered voters',
+    res_es: '71% sí · participación: 2.6% de los votantes registrados',
+    short_en: 'Open contracts database', short_es: 'Contratos públicos' }
+};
+
+/* Expert commentary (§8.2): fictional commentator, included by disclosed rule — never a staff pick. */
+const COMMENTATORS = {
+  marsh: {
+    name: 'Elena Marsh', outlet: 'The Glenmont Ledger',
+    aff_en: 'Reader-funded newsletter; no campaign ties (self-disclosed).',
+    aff_es: 'Boletín financiado por lectores; sin vínculos de campaña (declarado).',
+    rule_en: 'Included by rule: 14 pieces on county politics in the last 12 months.',
+    rule_es: 'Incluida por regla: 14 artículos sobre política del condado en los últimos 12 meses.'
+  }
+};
+const COMMENTARY = {
+  trent: [
+    { c: 'marsh', d: '2026-05', t_en: 'What the rent-cap fight tells us about Trent’s coalition', t_es: 'Lo que la disputa del tope de rentas revela sobre la coalición de Trent' },
+    { c: 'marsh', d: '2026-06', t_en: 'The at-large field, ranked by budget realism', t_es: 'Los candidatos generales, según su realismo presupuestario' }
+  ],
+  quintana: [
+    { c: 'marsh', d: '2026-04', t_en: 'Quintana’s transit record is stronger than his housing story', t_es: 'El historial de transporte de Quintana pesa más que su discurso de vivienda' }
+  ]
+};
+
+/* Live debate thread demo (§7.5–7.8): clusters, opinion camps, amendment history,
+   calling the question, claim prompts, and one disclosed AI argument on the thin side. */
+const DEBATE = {
+  title_en: 'Allow duplexes and triplexes within a half-mile of Metro stations',
+  title_es: 'Permitir dúplex y tríplex a media milla de las estaciones de Metro',
+  body_en: 'Amend county zoning so that lots currently restricted to single-family homes within a half-mile of a Metro station may also build duplexes and triplexes, subject to existing height limits.',
+  body_es: 'Modificar la zonificación del condado para que los lotes hoy limitados a vivienda unifamiliar, a media milla de una estación de Metro, puedan también construir dúplex y tríplex, respetando los límites de altura vigentes.',
+  orig_en: 'Original text: applied within a quarter-mile of stations and also eliminated parking minimums. The adopted amendment widened the radius and dropped the parking provision.',
+  orig_es: 'Texto original: aplicaba a un cuarto de milla de las estaciones y además eliminaba los mínimos de estacionamiento. La enmienda adoptada amplió el radio y retiró lo de estacionamiento.',
+  ctq: { votes: 41, active: 78, pct: 66.7 },
+  clusters: [
+    { id: 'f1', side: 'for', n: 142, helpful: 96,
+      sum_en: 'Housing near transit is the least disruptive way to add supply.',
+      sum_es: 'Vivienda junto al transporte es la forma menos disruptiva de sumar oferta.',
+      rep: { by: 'Marcus J.', t_en: 'The Planning Board’s own corridor study shows station areas can absorb gentle density without new road load — that’s the whole point of having Metro.', t_es: 'El estudio de corredores de la Junta de Planificación muestra que las zonas de estación absorben densidad suave sin más carga vial — para eso está el Metro.',
+        cites: ['Planning Board corridor study · 2025', 'ACS commute data · 2024'] },
+      member: { by: 'Lena P.', audio: true, t_en: '“I teach at a school two blocks from a station and can’t afford to live within ten miles of it…”', t_es: '«Doy clases a dos cuadras de una estación y no puedo pagar vivir a menos de diez millas…»' } },
+    { id: 'f2', side: 'for', n: 57, helpful: 41,
+      sum_en: 'Current zoning locks young families out of the county.',
+      sum_es: 'La zonificación actual deja fuera del condado a las familias jóvenes.',
+      rep: { by: 'Sofia R.', t_en: 'Median first-home prices near stations have doubled in a decade while starter-home construction fell to almost nothing.', t_es: 'El precio medio de una primera vivienda cerca de estaciones se duplicó en una década, mientras la construcción de vivienda inicial cayó casi a cero.',
+        cites: ['County housing dashboard · 2026'] } },
+    { id: 'a1', side: 'against', n: 38, helpful: 52,
+      sum_en: 'Infrastructure first: schools and sewers near stations are already over capacity.',
+      sum_es: 'Primero la infraestructura: escuelas y drenaje junto a estaciones ya están saturados.',
+      rep: { by: 'Ted W.', t_en: 'Three of the five clusters closest to a station are over 120% school capacity today. Approve the review money first, then the zoning.', t_es: 'Tres de los cinco conjuntos escolares más cercanos a una estación superan hoy el 120% de capacidad. Primero el dinero para la revisión, luego la zonificación.',
+        cites: ['MCPS capacity report · 2026'] } }
+  ],
+  ai: { id: 'ai1', side: 'against',
+    t_en: 'A steel-man for the thin side: peer counties saw assessed-value shifts concentrate in exactly these station areas after similar upzonings, and renter displacement within the radius rose before new supply arrived. Any version of this proposal has to say what happens in years 1–5, not just at buildout.',
+    t_es: 'El mejor argumento del lado débil: en condados comparables, los cambios de valor catastral se concentraron justo en estas zonas tras rezonificaciones similares, y el desplazamiento de inquilinos subió antes de que llegara la nueva oferta. Cualquier versión de esta propuesta debe decir qué pasa en los años 1–5, no solo al final.',
+    cites: ['Peer-county assessment study · 2024', 'Displacement literature review · 2025', 'County rent registry · 2026'], helpful: 12 },
+  camps: [
+    { name_en: 'Build near transit', name_es: 'Construir junto al transporte', n: 61,
+      pts_en: ['Supply shortfall is the root problem', 'Station areas absorb density best'],
+      pts_es: ['La escasez de oferta es el problema de fondo', 'Las zonas de estación absorben mejor la densidad'] },
+    { name_en: 'Infrastructure first', name_es: 'Primero la infraestructura', n: 34,
+      pts_en: ['School capacity before permits', 'Phase the radius, start smaller'],
+      pts_es: ['Capacidad escolar antes que permisos', 'Escalonar el radio, empezar más pequeño'] }
+  ],
+  bridging_en: 'Any upzoning should come with a school-capacity review published before permits issue.',
+  bridging_es: 'Cualquier rezonificación debe incluir una revisión de capacidad escolar publicada antes de emitir permisos.',
+  composer_en: 'This will add 4,000 homes but cost the county $12M a year in services.',
+  composer_es: 'Esto sumará 4,000 viviendas pero costará al condado $12M al año en servicios.',
+  commentary: { c: 'marsh', d: '2026-07', t_en: 'The Metro-zoning debate is really about school capacity math', t_es: 'El debate de zonificación del Metro es, en el fondo, una cuestión de capacidad escolar' }
+};
+
+// src.type: 'vote' | 'site' | 'quest' | 'debate'
+const SRC_LABEL = {
+  vote:  { en: 'Recorded vote · Legistar', es: 'Voto registrado · Legistar' },
+  site:  { en: 'Campaign site', es: 'Sitio de campaña' },
+  quest: { en: 'Candidate questionnaire', es: 'Cuestionario a candidatos' },
+  debate:{ en: 'Debate transcript', es: 'Transcripción de debate' }
+};
+
+const CANDS = [
+  { id: 'trent', race: 'atlarge', name: 'Maya Trent', party: 'D', inc: true,
+    st: {
+      housing: { pos: 2, en: 'Voted for the county’s rent stabilization law and supports keeping the ~3% cap.', es: 'Votó por la ley de estabilización de rentas y apoya mantener el tope de ~3%.', src: { type: 'vote', pub: 'Bill 15-23 · YES', date: '2023-07' } },
+      transit: { pos: 1, en: 'Supports more frequent Ride On service on major corridors, phased by budget.', es: 'Apoya más frecuencia de Ride On en corredores principales, por etapas según presupuesto.', src: { type: 'site', pub: 'mayatrent.example', date: '2026-03' } },
+      schools: { pos: 2, en: 'Pledges to fully fund the MCPS request every year of the term.', es: 'Se compromete a financiar por completo la solicitud de MCPS cada año.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      climate: { pos: 2, en: 'Voted for building energy performance standards; backs the zero-emissions schedule.', es: 'Votó por estándares de desempeño energético; respalda el calendario de cero emisiones.', src: { type: 'vote', pub: 'Bill 13-22 · YES', date: '2022-04' } },
+      safety:  { pos: 0, en: 'Supports current staffing with more investment in violence-interruption programs.', es: 'Apoya la plantilla actual con más inversión en programas de interrupción de violencia.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      budget:  { pos: -1, en: 'Open to a modest property-tax increase if tied to the schools budget.', es: 'Abierta a un aumento moderado del predial si se destina a escuelas.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } }
+    },
+    promises: { kept: 1, broken: 1, inprog: 1, comp: 1, stalled: 0,
+      ex: { en: '“Pass rent stabilization” — Kept (Bill 15-23 enacted, July 2023). “Office hours in every district, every year” — Broken (none held in 2025).',
+            es: '«Aprobar estabilización de rentas» — Cumplida (Bill 15-23, julio 2023). «Atención ciudadana en cada distrito cada año» — Incumplida (ninguna en 2025).' },
+      list: [
+        { en: 'Pass rent stabilization', es: 'Aprobar la estabilización de rentas', status: 'kept', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.', src: { type: 'site', pub: 'mayatrent.example', date: '2022-11' } },
+          { h: 'inprog', d: '2023-03', en: 'Co-sponsored Bill 15-23.', es: 'Copatrocinó el Bill 15-23.', src: { type: 'vote', pub: 'Legistar', date: '2023-03' } },
+          { h: 'kept', d: '2023-07', en: 'Enacted — voted YES on final passage.', es: 'Promulgada — votó SÍ en la aprobación final.', src: { type: 'vote', pub: 'Bill 15-23 · YES', date: '2023-07' } } ] },
+        { en: 'Office hours in every district, every year', es: 'Atención ciudadana en cada distrito, cada año', status: 'broken', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'kept', d: '2023-12', en: 'Held in all seven districts in 2023.', es: 'Cumplida en los siete distritos en 2023.', src: { type: 'site', pub: 'Council calendar', date: '2023-12' } },
+          { h: 'broken', d: '2026-01', en: 'None held in 2025, per the public calendar.', es: 'Ninguna en 2025, según el calendario público.', src: { type: 'site', pub: 'Council calendar', date: '2026-01' } } ],
+          reply: { en: '“2025 sessions were canceled during the budget emergency; a make-up schedule is posted.”', es: '«Las sesiones de 2025 se cancelaron por la emergencia presupuestaria; ya hay calendario de reposición».' } },
+        { en: 'Quadruple the housing acquisition fund', es: 'Cuadruplicar el fondo de adquisición de vivienda', status: 'inprog', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'inprog', d: '2024-05', en: 'Fund doubled in the FY25 budget — halfway there.', es: 'El fondo se duplicó en el presupuesto FY25 — a mitad de camino.', src: { type: 'vote', pub: 'FY25 budget · YES', date: '2024-05' } } ] },
+        { en: 'All-electric county vehicle purchases by 2025', es: 'Compras de vehículos del condado 100% eléctricas para 2025', status: 'comp', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'comp', d: '2025-09', en: '60% electric by the deadline; supported a revised 2027 target.', es: '60% eléctricas al llegar el plazo; apoyó una nueva meta para 2027.', src: { type: 'vote', pub: 'Resolution 20-114 · YES', date: '2025-09' } } ] }
+      ] },
+    mandates: {
+      flex: { s: 'commit', en: 'Committed in writing to fund the pilot in the FY28 budget.', es: 'Se comprometió por escrito a financiar el piloto en el presupuesto FY28.', src: { type: 'site', pub: 'mayatrent.example', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Backed the contracts database in the questionnaire.', es: 'Respaldó la base de datos de contratos en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } } } },
+
+  { id: 'quintana', race: 'atlarge', name: 'Rafael Quintana', party: 'D', inc: true,
+    st: {
+      housing: { pos: -1, en: 'Voted against the rent cap; argues supply-side zoning reform lowers rents faster.', es: 'Votó contra el tope de rentas; sostiene que reformar la zonificación baja las rentas más rápido.', src: { type: 'vote', pub: 'Bill 15-23 · NO', date: '2023-07' } },
+      transit: { pos: 2, en: 'Sponsored the FY26 amendment that expanded Ride On weekend frequency.', es: 'Impulsó la enmienda FY26 que amplió la frecuencia de Ride On los fines de semana.', src: { type: 'vote', pub: 'FY26 budget amendment · YES', date: '2025-05' } },
+      schools: { pos: 1, en: 'Supports increasing MCPS funding, short of the full request.', es: 'Apoya aumentar fondos a MCPS, sin llegar a la solicitud completa.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-02' } },
+      climate: { pos: 1, en: 'Backs the targets with flexibility on the compliance timeline for small buildings.', es: 'Respalda las metas con flexibilidad de plazos para edificios pequeños.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 1, en: 'Supports adding patrol officers in high-incident corridors.', es: 'Apoya más patrullas en corredores con más incidentes.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-02' } },
+      budget:  { pos: 1, en: 'Says he would not support a property-tax increase this term.', es: 'Dice que no apoyaría un aumento del predial en este período.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } }
+    },
+    promises: { kept: 1, broken: 0, inprog: 0, comp: 0, stalled: 1,
+      ex: { en: '“Weekend bus frequency” — Kept (FY26). “County land for affordable housing inventory” — Stalled (no report since 2024).',
+            es: '«Frecuencia de autobús en fin de semana» — Cumplida (FY26). «Inventario de suelo público para vivienda» — Estancada (sin informe desde 2024).' },
+      list: [
+        { en: 'Weekend bus frequency on the busiest routes', es: 'Frecuencia de autobús en fin de semana en las rutas más usadas', status: 'kept', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'kept', d: '2025-05', en: 'FY26 amendment funded the expansion.', es: 'La enmienda FY26 financió la expansión.', src: { type: 'vote', pub: 'FY26 amendment · YES', date: '2025-05' } } ] },
+        { en: 'Public inventory of county land for affordable housing', es: 'Inventario público de suelo del condado para vivienda asequible', status: 'stalled', hist: [
+          { h: 'pending', d: '2022-11', en: 'Campaign pledge.', es: 'Promesa de campaña.' },
+          { h: 'inprog', d: '2024-02', en: 'Pilot list published for two districts.', es: 'Lista piloto publicada para dos distritos.', src: { type: 'site', pub: 'Council staff report', date: '2024-02' } },
+          { h: 'stalled', d: '2025-06', en: 'No update in 12+ months.', es: 'Sin avances en más de 12 meses.' } ] }
+      ] },
+    mandates: {
+      flex: { s: 'decline', en: 'Declined: says Flex expansion should wait for the corridor study.', es: 'Declinó: dice que la expansión de Flex debe esperar el estudio de corredores.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Committed on his campaign site.', es: 'Se comprometió en su sitio de campaña.', src: { type: 'site', pub: 'quintanaforcouncil.example', date: '2026-05' } } } },
+
+  { id: 'okafor', race: 'atlarge', name: 'Dana Okafor', party: 'I', inc: false,
+    st: {
+      housing: { pos: 1, en: 'Supports keeping the cap while the affordability study runs.', es: 'Apoya mantener el tope mientras se realiza el estudio de asequibilidad.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 0, en: 'Mixed: more frequency yes, but paired with road maintenance first.', es: 'Mixto: sí a más frecuencia, pero antes mantenimiento vial.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      schools: { pos: 2, en: 'Makes full MCPS funding the centerpiece of the campaign.', es: 'Hace del financiamiento pleno de MCPS el eje de su campaña.', src: { type: 'site', pub: 'okafor2026.example', date: '2026-01' } },
+      climate: { pos: null },
+      safety:  { pos: 2, en: 'Proposes 120 additional patrol officers over four years.', es: 'Propone 120 policías de patrulla adicionales en cuatro años.', src: { type: 'site', pub: 'okafor2026.example', date: '2026-01' } },
+      budget:  { pos: 0, en: 'Would decide on taxes only after a line-by-line budget review.', es: 'Decidiría sobre impuestos solo tras revisar el presupuesto línea por línea.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'commit', en: 'Committed in the questionnaire.', es: 'Se comprometió en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } },
+      contracts: { s: 'no_response' } } },
+
+  { id: 'breuer', race: 'atlarge', name: 'Colin Breuer', party: 'R', inc: false,
+    st: {
+      housing: { pos: -2, en: 'Would repeal the rent cap; calls it a deterrent to new construction.', es: 'Derogaría el tope de rentas; lo llama un freno a la construcción.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      transit: { pos: -1, en: 'Prioritizes road capacity over bus expansion.', es: 'Prioriza la capacidad vial sobre la expansión de autobuses.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 0, en: 'Supports the schools but wants an independent audit before more funding.', es: 'Apoya a las escuelas pero pide una auditoría independiente antes de más fondos.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      climate: { pos: -1, en: 'Says compliance costs fall too hard on small property owners.', es: 'Dice que los costos de cumplimiento golpean a los pequeños propietarios.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      safety:  { pos: 2, en: 'Makes police hiring the campaign’s first plank.', es: 'Hace de la contratación policial su primera propuesta.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } },
+      budget:  { pos: 2, en: 'Signs a no-new-taxes pledge for the full term.', es: 'Firma un compromiso de no crear impuestos durante todo el período.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-02' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'no_response' },
+      contracts: { s: 'commit', en: 'Committed — transparency is a core plank.', es: 'Se comprometió — la transparencia es un eje de su plataforma.', src: { type: 'site', pub: 'breuerforcouncil.example', date: '2026-04' } } } },
+
+  { id: 'raman', race: 'atlarge', name: 'Priya Raman', party: 'D', inc: false,
+    st: {
+      housing: { pos: 2, en: 'Supports the cap and pairing it with a county acquisition fund.', es: 'Apoya el tope junto con un fondo de adquisición del condado.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 2, en: 'Backs late-night service countywide as a first-year priority.', es: 'Respalda el servicio nocturno en todo el condado como prioridad del primer año.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } },
+      schools: { pos: 1, en: 'Supports growing MCPS funding toward the full request over two budgets.', es: 'Apoya crecer el financiamiento de MCPS hacia la solicitud completa en dos presupuestos.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      climate: { pos: 2, en: 'Would accelerate the fleet-electrification schedule.', es: 'Aceleraría el calendario de electrificación de la flota.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } },
+      safety:  { pos: -1, en: 'Prefers investing in crisis-response teams over adding patrol officers.', es: 'Prefiere invertir en equipos de respuesta a crisis antes que sumar patrullas.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      budget:  { pos: -1, en: 'Open to a small property-tax increase dedicated to transit.', es: 'Abierta a un aumento pequeño del predial dedicado al transporte.', src: { type: 'site', pub: 'ramanforall.example', date: '2026-03' } }
+    },
+    promises: null,
+    mandates: {
+      flex: { s: 'commit', en: 'Committed on stage at the at-large forum.', es: 'Se comprometió en el foro de candidatos.', src: { type: 'debate', pub: 'At-large forum', date: '2026-05' } },
+      contracts: { s: 'commit', en: 'Committed in the questionnaire.', es: 'Se comprometió en el cuestionario.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-05' } } } },
+
+  { id: 'quinn', race: 'atlarge', name: 'Jordan Quinn', party: 'I', inc: false,
+    st: {
+      housing: { pos: null }, transit: { pos: null },
+      schools: { pos: 1, en: 'Supports increased school funding.', es: 'Apoya aumentar los fondos escolares.', src: { type: 'site', pub: 'quinnindependent.example', date: '2026-03' } },
+      climate: { pos: null }, safety: { pos: null }, budget: { pos: null }
+    },
+    promises: null,
+    mandates: { flex: { s: 'no_response' }, contracts: { s: 'no_response' } } },
+
+  { id: 'vasquez', race: 'exec', name: 'Elena Vásquez', party: 'D', inc: false,
+    st: {
+      housing: { pos: 2, en: 'Would defend the rent cap and expand the housing acquisition fund.', es: 'Defendería el tope de rentas y ampliaría el fondo de adquisición de vivienda.', src: { type: 'site', pub: 'vasquezforexec.example', date: '2026-02' } },
+      transit: { pos: 1, en: 'Supports phased Ride On expansion tied to state matching funds.', es: 'Apoya expandir Ride On por fases con fondos estatales.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 2, en: 'Pledges the full MCPS request in her first budget.', es: 'Promete la solicitud completa de MCPS en su primer presupuesto.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } },
+      climate: { pos: 1, en: 'Backs the targets; would review small-building timelines.', es: 'Respalda las metas; revisaría plazos para edificios pequeños.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 0, en: 'Holds staffing flat; redirects growth to co-responder teams.', es: 'Mantiene la plantilla; dirige el crecimiento a equipos co-respondedores.', src: { type: 'site', pub: 'vasquezforexec.example', date: '2026-02' } },
+      budget:  { pos: -1, en: 'Won’t rule out a property-tax increase for schools.', es: 'No descarta un aumento del predial para escuelas.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null },
+
+  { id: 'hollis', race: 'exec', name: 'Marcus Hollis', party: 'D', inc: false,
+    st: {
+      housing: { pos: 0, en: 'Keep the cap short-term, sunset it as new supply comes online.', es: 'Mantener el tope a corto plazo y retirarlo conforme llegue nueva oferta.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      transit: { pos: 2, en: 'Campaign centerpiece: countywide bus-rapid-transit build-out.', es: 'Eje de campaña: red de autobús rápido en todo el condado.', src: { type: 'site', pub: 'hollis2026.example', date: '2026-01' } },
+      schools: { pos: 1, en: 'Supports MCPS growth within existing revenue.', es: 'Apoya crecer MCPS dentro de los ingresos actuales.', src: { type: 'site', pub: 'hollis2026.example', date: '2026-01' } },
+      climate: { pos: 2, en: 'Would move the county fleet target two years earlier.', es: 'Adelantaría dos años la meta de la flota del condado.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 1, en: 'Supports modest patrol growth plus retention bonuses.', es: 'Apoya un crecimiento moderado de patrullas y bonos de retención.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } },
+      budget:  { pos: 0, en: 'No tax position until the FY28 forecast is published.', es: 'Sin postura fiscal hasta que se publique el pronóstico FY28.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null },
+
+  { id: 'nakamura', race: 'exec', name: 'Teresa Nakamura', party: 'R', inc: false,
+    st: {
+      housing: { pos: -2, en: 'Would seek repeal of the rent cap in year one.', es: 'Buscaría derogar el tope de rentas en el primer año.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      transit: { pos: 0, en: 'Supports current service levels; opposes new transit taxes.', es: 'Apoya el servicio actual; se opone a nuevos impuestos al transporte.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      schools: { pos: 1, en: 'Supports more school funding contingent on an efficiency audit.', es: 'Apoya más fondos escolares sujetos a una auditoría de eficiencia.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      climate: { pos: -1, en: 'Would extend compliance deadlines for all private buildings.', es: 'Extendería los plazos de cumplimiento para edificios privados.', src: { type: 'quest', pub: 'VoteRight questionnaire', date: '2026-04' } },
+      safety:  { pos: 2, en: 'Proposes the largest police hiring plan in the race.', es: 'Propone el mayor plan de contratación policial de la contienda.', src: { type: 'site', pub: 'nakamuraexec.example', date: '2026-02' } },
+      budget:  { pos: 2, en: 'Pledges a property-tax cut in the first budget.', es: 'Promete recortar el predial en el primer presupuesto.', src: { type: 'debate', pub: 'Executive debate', date: '2026-05' } }
+    },
+    promises: null, mandates: null }
+];
+</script>
+<script>
+'use strict';
+document.getElementById('view-sys').innerHTML = `
+  <p style="max-width:70ch;color:var(--muted);font-size:0.92rem;margin-top:0.5rem">
+    The working design language for VoteRight's app and site — derived from the architecture document's
+    guardrails, which are as much design requirements as legal ones. The prototype tab applies everything below.
+    (Design-system reference is English-only; the product itself is bilingual from day one.)</p>
+
+  <h2>Principles</h2>
+  <div class="sysgrid">
+    <div class="card"><h4>1 · Epistemic status is visible at a glance</h4>
+      <p style="font-size:0.85rem">Two registers run through everything and are never interchangeable:
+      <strong style="color:var(--ev)">teal</strong> for anything backed by a citation or a recorded vote,
+      <strong style="color:var(--adv)">gold</strong> for anything advisory, expressive, or unofficial.
+      A voter should know what kind of claim they're looking at before they read a word.</p></div>
+    <div class="card"><h4>2 · Evidence is always one tap away</h4>
+      <p style="font-size:0.85rem">Any claim about a named person carries its citation chip inline — publisher,
+      date, archived tick. Never buried in a detail view, never asserted bare.</p></div>
+    <div class="card"><h4>3 · Say what kind of act this is, when it happens</h4>
+      <p style="font-size:0.85rem">Every action is labeled public or private at the moment of the action
+      (§10.2): "your name will appear on this" vs. "private, deleted after the debate closes" —
+      part of the button, not a settings page.</p></div>
+    <div class="card"><h4>4 · Calm over engagement</h4>
+      <p style="font-size:0.85rem">No infinite feeds, no streaks, no outrage mechanics, no red/blue party
+      coding in the core palette. Closer to a well-designed ballot guide than a social network.
+      Disagreement is information, not error.</p></div>
+  </div>
+
+  <h2>The two registers</h2>
+  <div class="card" style="max-width:560px">
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.6rem">
+      <span class="chip cite">▣ Recorded vote · Legistar · Bill 15-23 · 2023-07 · archived ✓</span>
+      <span class="chip adv">Unofficial · advisory</span>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin:0">Sourced fact (teal, mono, squared) never shares
+    a visual treatment with community opinion or advisory results (gold, stamped, uppercase). The
+    disclosure banner is non-removable on every advisory surface:</p>
+    <div class="disclosure"><span class="tag">Unofficial</span><span>This is an unofficial, advisory poll.
+    It has no legal effect and is not an official ballot.</span></div>
+    <p style="font-size:0.82rem;color:var(--muted)">A third, quieter treatment exists for <strong>attributed
+    analysis</strong> (§8.2) — expert commentary included by disclosed rule, never a staff pick. Dotted,
+    byline-forward, and explicitly labeled as opinion the platform did not verify:</p>
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+      <span class="chip analysis">Analysis · attributed opinion — not verified by VoteRight</span>
+    </div>
+  </div>
+
+  <h2>Color tokens</h2>
+  <p style="font-size:0.85rem;color:var(--muted)">Sage-tinted neutrals (chosen, not defaulted); teal and gold
+  registers; a validated diverging pair for agreement. The diverging poles pass CVD separation (ΔE 8.3 light /
+  9.0 dark), the normal-vision floor (20.0 / 16.9), and ≥3:1 contrast on both surfaces — checked with a
+  validator, not by eye. Status colors always ship with icon + label, never color alone.</p>
+  <div class="sysgrid">
+    <div class="card">
+      <h4>Ground &amp; ink</h4>
+      <div class="sw"><i style="background:var(--ground)"></i><code>--ground</code> #F2F4F0 / #121614</div>
+      <div class="sw"><i style="background:var(--surface)"></i><code>--surface</code> #FBFCFA / #1B211E</div>
+      <div class="sw"><i style="background:var(--surface-2)"></i><code>--surface-2</code> #ECEFEA / #232A26</div>
+      <div class="sw"><i style="background:var(--ink)"></i><code>--ink</code> #1A1F1C / #E9EDE9</div>
+      <div class="sw"><i style="background:var(--muted)"></i><code>--muted</code> #5C665F / #9CA79F</div>
+    </div>
+    <div class="card">
+      <h4>Registers</h4>
+      <div class="sw"><i style="background:var(--ev)"></i><code>--ev</code> evidence · #1D6069 / #74BDB7</div>
+      <div class="sw"><i style="background:var(--adv)"></i><code>--adv</code> advisory · #8F6410 / #E2B05C</div>
+      <h4 style="margin-top:0.8rem">Diverging agreement pair</h4>
+      <div class="sw"><i style="background:var(--agree)"></i><code>--agree</code> aligns · = evidence teal</div>
+      <div class="sw"><i style="background:var(--chip-neutral)"></i>neutral midpoint (gray, never a hue)</div>
+      <div class="sw"><i style="background:var(--differ)"></i><code>--differ</code> differs · #A24A33 / #DE9276</div>
+    </div>
+    <div class="card">
+      <h4>Status (reserved, icon + label always)</h4>
+      <div class="sw"><i style="background:var(--kept)"></i><code>--kept</code> #2E6B3F / #79C48C</div>
+      <div class="sw"><i style="background:var(--broken)"></i><code>--broken</code> #99372F / #E08B82</div>
+      <div class="sw"><i style="background:var(--pending)"></i><code>--pending</code> #A06A1A / #E2B05C</div>
+      <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem">
+        <span class="pill kept">✓ 2 kept</span><span class="pill broken">✗ 1 broken</span>
+        <span class="pill pending">⟳ 1 in progress</span><span class="pill neutral">⏸ 1 stalled</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>The agreement scale</h2>
+  <p style="font-size:0.85rem;color:var(--muted);max-width:70ch">Agreement is a polarity, so it gets a proper
+  diverging encoding — teal pole, gray midpoint, copper pole — and <strong>never a number</strong>. "87.3/100"
+  manufactures precision the methodology can't back (§5.1); a band states exactly as much as we know. Every
+  chip carries its label, so identity is never color-alone. "No position" is a separate dashed state:
+  excluded from scoring, but shown — silence stays visible.</p>
+  <div class="card" style="max-width:640px;display:flex;gap:0.4rem;flex-wrap:wrap">
+    <span class="chip band b2">Aligns strongly</span>
+    <span class="chip band b1">Leans aligned</span>
+    <span class="chip band b0">Mixed</span>
+    <span class="chip band bm1">Leans opposed</span>
+    <span class="chip band bm2">Opposed</span>
+    <span class="chip band bnull">No public position</span>
+  </div>
+
+  <h2>Type</h2>
+  <div class="card" style="max-width:640px">
+    <div class="typerow serif" style="font-size:1.6rem;font-weight:700">Display — Iowan Old Style / Charter / Georgia</div>
+    <div class="typerow" style="font-size:0.95rem">UI text — system sans (−apple-system, Segoe UI). Running text ≤ 68ch.</div>
+    <div class="typerow mono" style="font-size:0.78rem;color:var(--ev)">Data &amp; citations — ui-monospace · tabular-nums · always in the evidence register</div>
+    <div class="typerow" style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Labels — 0.72rem · uppercase · letter-spaced</div>
+  </div>
+
+  <h2>Act labeling</h2>
+  <div class="sysgrid" style="max-width:640px">
+    <div class="card">
+      <button class="btn secondary">Save to my ballot plan</button>
+      <div class="privnote private" style="margin-top:0.35rem"><span class="dot"></span><span>Private — only you can see your plan.</span></div>
+    </div>
+    <div class="card">
+      <button class="btn secondary">Second this proposal</button>
+      <div class="privnote public" style="margin-top:0.35rem"><span class="dot"></span><span>Public — your name appears as a co-sponsor, like signing a petition.</span></div>
+    </div>
+  </div>
+
+  <h2>Fairness patterns</h2>
+  <div class="sysgrid">
+    <div class="card"><h4>Silence is shown, not scored</h4>
+      <p style="font-size:0.82rem">A missing position is excluded from the match <em>and</em> displayed:
+      "No public position found. Not counted for or against — shown so silence stays visible."
+      A candidate with too little public record gets <span class="chip band bnull">Not enough information</span>,
+      sorted last with a dashed card — never hidden, never punished with a low score.</p></div>
+    <div class="card"><h4>No response is a fact, not an accusation</h4>
+      <p style="font-size:0.82rem">On mandate commitments, <span class="chip band bnull">No response</span> always
+      carries the outreach record ("VoteRight asked all candidates on May 12") — the platform states what it did
+      and what didn't happen, and implies nothing more (§2.3, §7.9).</p></div>
+    <div class="card"><h4>Party is metadata, not identity</h4>
+      <p style="font-size:0.82rem">Party appears as small text after the name. Nothing in the palette maps to
+      a party; candidate cards differ only by their relationship to <em>your</em> priorities.</p></div>
+  </div>`;
+</script>
+<script>
+'use strict';
+
+/* ─────────────────────────── state ─────────────────────────── */
+const S = {
+  lang: 'en', view: 'proto', screen: 'welcome',
+  race: 'atlarge', candId: null, open: null, addr: 'ss',
+  dv: 'clusters', showOrig: false, openCluster: null, ctq: false, claim: null,
+  agreeVotes: {}, threadBack: 'welcome',
+  prios: {} // topicId -> { statement, stance: 1|-1, w: 1..5 }
+};
+const t = (k) => (I18N[S.lang][k] !== undefined ? I18N[S.lang][k] : k);
+const tt = (obj, base) => obj[base + '_' + S.lang] !== undefined ? obj[base + '_' + S.lang] : obj[S.lang];
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ─────────────────────────── scoring ───────────────────────── */
+function topicAgreement(cand, topicId) {
+  const st = cand.st[topicId];
+  if (!st || st.pos === null || st.pos === undefined) return null;
+  const p = S.prios[topicId];
+  const raw = st.pos * p.stance;                    // -4..4 conceptually, pos in -2..2 → raw -2..2
+  return Math.max(-2, Math.min(2, raw));
+}
+function scoreCand(cand) {
+  let num = 0, wAns = 0, wAll = 0;
+  const perTopic = {};
+  for (const [tid, p] of Object.entries(S.prios)) {
+    wAll += p.w;
+    const a = topicAgreement(cand, tid);
+    perTopic[tid] = a;
+    if (a !== null) { num += p.w * a; wAns += p.w; }
+  }
+  const coverage = wAll ? wAns / wAll : 0;
+  const score = wAns ? num / (2 * wAns) : 0;        // -1..1
+  let band;
+  if (coverage < 0.5) band = 'insuff';
+  else if (score >= 0.55) band = 'strong';
+  else if (score >= 0.2) band = 'good';
+  else if (score > -0.2) band = 'mixed';
+  else band = 'weak';
+  return { score, coverage, band, perTopic, nAns: Object.values(perTopic).filter(v => v !== null).length, nAll: Object.keys(perTopic).length };
+}
+const OV_LABEL = { strong: 'ov_strong', good: 'ov_good', mixed: 'ov_mixed', weak: 'ov_weak', insuff: 'ov_insuff' };
+const OV_CLASS = { strong: 'b2', good: 'b1', mixed: 'b0', weak: 'bm1', insuff: 'bnull' };
+function bandChip(a) {
+  if (a === null) return '<span class="chip band bnull">' + t('bandnull') + '</span>';
+  const map = { '2': ['b2', 'band2'], '1': ['b1', 'band1'], '0': ['b0', 'band0'], '-1': ['bm1', 'bandm1'], '-2': ['bm2', 'bandm2'] };
+  const [cls, key] = map[String(a)];
+  return '<span class="chip band ' + cls + '">' + t(key) + '</span>';
+}
+function dot(a) {
+  const cls = a === null ? 'dnull' : ({ '2': 'd2', '1': 'd1', '0': 'd0', '-1': 'dm1', '-2': 'dm2' })[String(a)];
+  return '<i class="' + cls + '"></i>';
+}
+function citeChip(src) {
+  if (!src) return '';
+  const label = SRC_LABEL[src.type][S.lang];
+  return '<span class="chip cite" title="' + t('sourced') + '">▣ ' + esc(label) + ' · ' + esc(src.pub) + ' · ' + esc(src.date) + ' · ' + t('archived') + ' ✓</span>';
+}
+
+/* ─────────────────────────── screens ───────────────────────── */
+function renderWelcome() {
+  return `
+    <div style="padding-top:1.5rem">
+      <div class="serif" style="font-size:1.7rem;font-weight:700;line-height:1.2;text-wrap:balance">${t('welcome_h')}</div>
+      <p style="color:var(--muted);font-size:0.95rem">${t('welcome_p')}</p>
+      <div class="card raised">
+        <div class="privnote private"><span class="dot"></span><span>${t('welcome_priv')}</span></div>
+      </div>
+      <div class="disclosure"><span class="tag">${t('fictional')}</span><span>${t('welcome_fict')}</span></div>
+      <button class="btn" onclick="VR.go('ballot')" style="margin-top:0.5rem">${t('get_started')}</button>
+      <button class="btn secondary" onclick="VR.openThread('welcome')" style="margin-top:0.5rem">${t('see_debate')}</button>
+    </div>`;
+}
+
+function renderBallot() {
+  const stack = STACKS[S.addr].map(x => '<span>' + esc(x) + '</span>').join('');
+  const groups = SEATS.filter(g => !g.only || g.only === S.addr).map(g => {
+    const rows = g.rows.map(row => {
+      const name = esc(row[S.lang].replace('{d}', row.d ? row.d[S.addr] : ''));
+      const meta = t(row.meta);
+      if (row.st === 'match') {
+        return `<button class="seat" onclick="VR.pickRace('${row.race}')">
+          <span class="sname">${name}<span class="smeta">${meta}</span></span>
+          <span class="chip band b2">${t('st_match')} →</span></button>`;
+      }
+      if (row.st === 'jud') {
+        return `<div class="seat wrap">
+          <span class="sname">${name}<span class="smeta">${meta}</span></span>
+          <span class="chip band bnull">⚖ ${t('st_jud')}</span>
+          <span class="snote">${t('jud_note')}</span></div>`;
+      }
+      return `<div class="seat">
+        <span class="sname">${name}<span class="smeta">${meta}</span></span>
+        <span class="chip band bnull">${t('st_later')}</span></div>`;
+    }).join('');
+    return '<div class="grouph">' + t(g.grp) + '</div>' + rows;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('ballot_h')}</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">${t('ballot_p')}</p>
+    <div class="seg" role="group">
+      <button aria-pressed="${S.addr === 'ss'}" onclick="VR.setAddr('ss')">${t('addr_ss')}</button>
+      <button aria-pressed="${S.addr === 'rock'}" onclick="VR.setAddr('rock')">${t('addr_rock')}</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem">${t('resolves')}</div>
+    <div class="stackchips">${stack}</div>
+    ${groups}
+    <p style="font-size:0.74rem;color:var(--muted);font-style:italic">${t('later_note')}</p>
+    <button class="btn" style="margin-top:0.4rem" onclick="VR.go('prio')">${t('to_prio')}</button>`;
+}
+
+function renderPrio() {
+  const chosen = Object.keys(S.prios).length;
+  const rows = TOPICS.map(tp => {
+    const sel = S.prios[tp.id];
+    const openMe = S.open === tp.id;
+    let body = '';
+    if (sel && openMe) {
+      body = `
+        <div style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.55rem">
+          <textarea class="statement" aria-label="${esc(tp[S.lang])}" onchange="VR.setStmt('${tp.id}', this.value)">${esc(sel.statement)}</textarea>
+          <div class="seg" role="group">
+            <button aria-pressed="${sel.stance === 1}" onclick="VR.setStance('${tp.id}',1)">${t('stance_agree')}</button>
+            <button aria-pressed="${sel.stance === -1}" onclick="VR.setStance('${tp.id}',-1)">${t('stance_oppose')}</button>
+          </div>
+          <div class="weight">
+            <button aria-label="less" onclick="VR.setW('${tp.id}',-1)">−</button>
+            <span class="wval">${'●'.repeat(sel.w)}${'○'.repeat(5 - sel.w)}<br>${t('weight_lbl')[sel.w]}</span>
+            <button aria-label="more" onclick="VR.setW('${tp.id}',1)">+</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="card">
+        <button class="topichead" onclick="VR.toggleTopic('${tp.id}')" aria-expanded="${!!openMe}">
+          <span class="check ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>
+          <span class="tname">${esc(tp[S.lang])}</span>
+          <span class="state">${sel ? t('prio_state_on') : t('prio_state_off')}</span>
+        </button>
+        ${body}
+      </div>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('prio_h')}</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">${t('prio_p')}</p>
+    ${rows}
+    <button class="btn" style="margin-top:0.6rem" ${chosen >= 3 ? '' : 'disabled'} onclick="VR.go('results')">${chosen >= 3 ? t('see_matches') : t('need_more')}</button>
+    <div class="privnote private" style="margin-top:0.7rem"><span class="dot"></span><span>${t('priv_footer')}</span></div>`;
+}
+
+function renderResults() {
+  const cands = CANDS.filter(c => c.race === S.race).map(c => ({ c, r: scoreCand(c) }));
+  cands.sort((a, b) => (a.r.band === 'insuff') - (b.r.band === 'insuff') || b.r.score - a.r.score);
+  const note = S.race === 'atlarge' ? t('atlarge_note') : t('exec_note');
+  const cards = cands.map(({ c, r }) => {
+    const dots = Object.keys(S.prios).map(tid => dot(r.perTopic[tid])).join('');
+    const insuff = r.band === 'insuff';
+    return `
+      <button class="cand ${insuff ? 'insuff' : ''}" onclick="VR.openCand('${c.id}')">
+        <div class="row1">
+          <span class="cname">${esc(c.name)}</span>
+          <span class="cparty">(${c.party})</span>
+          ${c.inc ? '<span class="inc">' + t('incumbent') + '</span>' : ''}
+        </div>
+        <div class="row2">
+          <span class="chip band ${OV_CLASS[r.band]}">${t(OV_LABEL[r.band])}</span>
+          <span class="dots" aria-hidden="true">${dots}</span>
+          <span class="cover">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
+        </div>
+        ${insuff ? '<div class="nopos" style="margin-top:0.4rem">' + t('insuff_note') + '</div>' : ''}
+      </button>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${t('results_h')}</div>
+    <div class="seg" role="group" style="margin:0.6rem 0 0.3rem">
+      <button aria-pressed="${S.race === 'atlarge'}" onclick="VR.setRace('atlarge')">${t('race_atlarge')}</button>
+      <button aria-pressed="${S.race === 'exec'}" onclick="VR.setRace('exec')">${t('race_exec')}</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin:0.35rem 0 0.2rem">${note}</p>
+    ${S.race === 'atlarge' ? '<button class="btn secondary" style="margin:0.2rem 0 0.1rem" onclick="VR.openGrid()">' + t('see_grid') + ' →</button>' : ''}
+    <div class="disclosure"><span class="tag">${t('fictional')}</span><span>${t('welcome_fict')}</span></div>
+    ${cards}`;
+}
+
+function renderMandates() {
+  const cands = CANDS.filter(c => c.race === 'atlarge');
+  const mids = Object.keys(MANDATES);
+  const head = '<tr><th style="text-align:left;padding-left:0.6rem"></th>' + mids.map(mid => '<th>' + esc(MANDATES[mid]['short_' + S.lang]) + '</th>').join('') + '</tr>';
+  const rows = cands.map(c => {
+    const cells = mids.map(mid => {
+      const m = c.mandates[mid];
+      const sym = m.s === 'commit' ? '<span class="c-commit">✓</span>' : m.s === 'decline' ? '<span class="c-decline">✗</span>' : '<span class="c-none">—</span>';
+      const lbl = m.s === 'commit' ? t('m_commit') : m.s === 'decline' ? t('m_decline') : t('m_nores');
+      const sel = S.cell && S.cell.cid === c.id && S.cell.mid === mid;
+      return '<td><button class="cellbtn" aria-pressed="' + sel + '" aria-label="' + esc(c.name) + ' — ' + esc(MANDATES[mid]['short_' + S.lang]) + ' — ' + lbl + '" onclick="VR.selCell(\'' + c.id + '\',\'' + mid + '\')">' + sym + '</button></td>';
+    }).join('');
+    return '<tr><td class="cn">' + esc(c.name) + '</td>' + cells + '</tr>';
+  }).join('');
+
+  const mandateCards = mids.map(mid => {
+    const md = MANDATES[mid];
+    return `<div class="card" style="border-color:var(--adv);padding:0.6rem 0.75rem">
+      <span class="chip adv">${t('unofficial')}</span>
+      <div class="serif" style="font-size:0.9rem;margin:0.3rem 0 0.1rem">${md['q_' + S.lang]}</div>
+      <div style="font-size:0.74rem;color:var(--muted)">${md['res_' + S.lang]}</div>
+    </div>`;
+  }).join('');
+
+  let strip = '';
+  if (S.cell) {
+    const c = CANDS.find(x => x.id === S.cell.cid);
+    const md = MANDATES[S.cell.mid];
+    const m = c.mandates[S.cell.mid];
+    const stance = m.s === 'commit' ? '<span class="chip band b2">✓ ' + t('m_commit') + '</span>'
+      : m.s === 'decline' ? '<span class="chip band bm2">' + t('m_decline') + '</span>'
+      : '<span class="chip band bnull">' + t('m_nores') + '</span>';
+    const body = m.s === 'no_response'
+      ? '<div class="nopos" style="margin-top:0.35rem">' + t('m_nores_note') + '</div>'
+      : '<div style="font-size:0.8rem;margin-top:0.35rem">' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+    strip = `<div class="card raised"><h4>${esc(c.name)} · ${esc(md['short_' + S.lang])}</h4><div style="margin-top:0.25rem">${stance}</div>${body}</div>`;
+  }
+
+  return `
+    <div class="serif" style="font-size:1.3rem;font-weight:700;line-height:1.25">${t('grid_h')}</div>
+    <p style="color:var(--muted);font-size:0.82rem;margin-top:0.3rem">${t('grid_p')}</p>
+    ${mandateCards}
+    <div class="mgridwrap"><table class="mgrid">${head}${rows}</table></div>
+    <div style="font-size:0.72rem;color:var(--muted)">${t('grid_legend')} · ${t('tap_cell')}</div>
+    ${strip}
+    <div class="disclosure" style="margin-top:0.8rem"><span class="tag">${t('unofficial')}</span><span>${t('mandate_disc')}</span></div>
+    <p style="font-size:0.78rem;color:var(--ev);font-weight:600">${t('grid_loop')}</p>
+    <button class="btn secondary" onclick="VR.openThread('mandates')">${t('deb_from_grid')} →</button>`;
+}
+
+function renderPromises() {
+  const c = CANDS.find(x => x.id === S.candId);
+  const HP = { pending: 'h_pending', inprog: 'h_inprog', kept: 'h_kept', broken: 'h_broken', comp: 'h_comp', stalled: 'h_stalled' };
+  const PILL = { kept: 'kept', broken: 'broken', inprog: 'pending', comp: 'pending', stalled: 'neutral' };
+  const PLBL = { kept: 'p_kept', broken: 'p_broken', inprog: 'p_inprog', comp: 'p_compromised', stalled: 'p_stalled' };
+  const ICON = { kept: '✓', broken: '✗', inprog: '⟳', comp: '◑', stalled: '⏸' };
+  const cards = c.promises.list.map(p => {
+    const hist = p.hist.map(ev =>
+      '<div class="histline"><span class="hd">' + ev.d + '</span><span class="hl">' + t(HP[ev.h]) + '</span><span style="flex:1;min-width:12ch">' + esc(ev[S.lang]) + '</span>' + (ev.src ? citeChip(ev.src) : '') + '</div>').join('');
+    const reply = p.reply ? '<div class="reply"><b>' + t('reply_lbl') + '</b>' + esc(p.reply[S.lang]) + '</div>' : '';
+    return `<div class="card">
+      <div style="display:flex;gap:0.5rem;align-items:baseline;flex-wrap:wrap">
+        <h4 style="flex:1;margin:0">${esc(p[S.lang])}</h4>
+        <span class="pill ${PILL[p.status]}">${ICON[p.status]} ${t(PLBL[p.status])}</span>
+      </div>
+      <div style="margin-top:0.45rem">${hist}</div>
+      ${reply}
+    </div>`;
+  }).join('');
+  return `
+    <div class="serif" style="font-size:1.35rem;font-weight:700">${esc(c.name)}</div>
+    <p style="color:var(--muted);font-size:0.8rem;margin-top:0.2rem">${t('promises_h')}</p>
+    ${cards}
+    <p style="font-size:0.74rem;color:var(--muted);font-style:italic">${t('hist_note')}</p>`;
+}
+
+function renderDetail() {
+  const c = CANDS.find(x => x.id === S.candId);
+  const r = scoreCand(c);
+  const rows = Object.entries(S.prios).map(([tid, p]) => {
+    const tp = TOPICS.find(x => x.id === tid);
+    const st = c.st[tid];
+    const a = r.perTopic[tid];
+    let theirs;
+    if (a === null) {
+      theirs = '<div class="nopos">' + t('nopos_row') + '</div>';
+    } else {
+      theirs = '<div class="theirs">' + esc(st[S.lang]) + '</div>' + citeChip(st.src);
+      if (st.src && st.src.type === 'vote') {
+        theirs += '<div class="evrow">' + t('source_vote') + ' · ' + esc(st.src.pub) + ' · ' + esc(st.src.date) + '</div>';
+      }
+    }
+    return `
+      <div class="topicrow">
+        <div class="trhead"><span class="tn">${esc(tp[S.lang])}</span>${bandChip(a)}</div>
+        <div class="yours">${t('your_words')} <q>${esc(p.statement)}</q> · ${t('weight_lbl')[p.w]}</div>
+        ${theirs}
+      </div>`;
+  }).join('');
+
+  let promises;
+  if (c.promises) {
+    const pr = c.promises;
+    promises = `
+      <div class="card">
+        <h4>${t('promises_h')}</h4>
+        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin:0.3rem 0 0.5rem">
+          ${pr.kept ? '<span class="pill kept">✓ ' + pr.kept + ' ' + t('p_kept') + '</span>' : ''}
+          ${pr.broken ? '<span class="pill broken">✗ ' + pr.broken + ' ' + t('p_broken') + '</span>' : ''}
+          ${pr.inprog ? '<span class="pill pending">⟳ ' + pr.inprog + ' ' + t('p_inprog') + '</span>' : ''}
+          ${pr.comp ? '<span class="pill pending">◑ ' + pr.comp + ' ' + t('p_compromised') + '</span>' : ''}
+          ${pr.stalled ? '<span class="pill neutral">⏸ ' + pr.stalled + ' ' + t('p_stalled') + '</span>' : ''}
+        </div>
+        <div style="font-size:0.8rem;color:var(--muted)">${esc(pr.ex[S.lang])}</div>
+        ${pr.list ? '<button class="btn secondary" style="margin-top:0.55rem" onclick="VR.go(\'promises\')">' + t('full_record') + ' →</button>' : ''}
+      </div>`;
+  } else {
+    promises = `<div class="card"><h4>${t('promises_h')}</h4><div class="nopos">${t('promises_none')}</div></div>`;
+  }
+
+  let mandate;
+  if (S.race === 'atlarge') {
+    const blocks = Object.keys(MANDATES).map(mid => {
+      const md = MANDATES[mid];
+      const m = c.mandates[mid];
+      let stance;
+      if (m.s === 'commit') stance = '<span class="chip band b2">✓ ' + t('m_commit') + '</span> <div style="font-size:0.8rem;margin-top:0.35rem">' + t('committed_src') + ' ' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+      else if (m.s === 'decline') stance = '<span class="chip band bm2">' + t('m_decline') + '</span> <div style="font-size:0.8rem;margin-top:0.35rem">' + t('committed_src') + ' ' + esc(m[S.lang]) + '</div>' + citeChip(m.src);
+      else stance = '<span class="chip band bnull">' + t('m_nores') + '</span> <div class="nopos" style="margin-top:0.35rem">' + t('m_nores_note') + '</div>';
+      return `
+        <div class="serif" style="font-size:0.95rem;margin:0.6rem 0 0.2rem">${md['q_' + S.lang]}</div>
+        <div style="font-size:0.76rem;color:var(--muted)">${md['res_' + S.lang]}</div>
+        <div style="margin:0.45rem 0 0.2rem">${stance}</div>`;
+    }).join('<div style="border-top:1px solid var(--line);margin-top:0.6rem"></div>');
+    mandate = `
+      <div class="card" style="border-color:var(--adv)">
+        <div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.3rem">
+          <span class="chip adv">${t('unofficial')}</span>
+        </div>
+        <h4>${t('mandate_h')}</h4>
+        ${blocks}
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:0.6rem;border-top:1px solid var(--line);padding-top:0.45rem">${t('mandate_disc')}</div>
+      </div>`;
+  } else {
+    mandate = `<div class="card" style="border-color:var(--adv)"><span class="chip adv">${t('unofficial')}</span><div class="nopos" style="margin-top:0.4rem">${t('mandate_none')}</div></div>`;
+  }
+
+  let commentary = '';
+  const pieces = COMMENTARY[c.id];
+  if (pieces) {
+    const items = pieces.map(p => {
+      const cm = COMMENTATORS[p.c];
+      return `<div class="commitem">
+        <div class="ct">${esc(p['t_' + S.lang])}</div>
+        <div class="cb">${esc(cm.name)} · ${esc(cm.outlet)} · ${p.d} — ${esc(cm['aff_' + S.lang])}</div>
+      </div>`;
+    }).join('');
+    const cm0 = COMMENTATORS[pieces[0].c];
+    commentary = `
+      <div class="card analysis">
+        <div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:0.35rem;flex-wrap:wrap">
+          <h4 style="flex:1;margin:0">${t('comm_h')}</h4>
+          <span class="chip analysis">${t('comm_reg')}</span>
+        </div>
+        ${items}
+        <div style="font-size:0.7rem;color:var(--muted);border-top:1px solid var(--line);margin-top:0.4rem;padding-top:0.4rem">
+          ${esc(cm0['rule_' + S.lang])} ${t('comm_how')} ${t('comm_blackout')}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="row1" style="display:flex;align-items:baseline;gap:0.5rem">
+      <span class="serif" style="font-size:1.45rem;font-weight:700">${esc(c.name)}</span>
+      <span style="font-size:0.75rem;color:var(--muted)">(${c.party})</span>
+      ${c.inc ? '<span class="inc" style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ev);border:1px solid var(--ev);border-radius:4px;padding:0.05rem 0.3rem">' + t('incumbent') + '</span>' : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0 0.8rem;flex-wrap:wrap">
+      <span class="chip band ${OV_CLASS[r.band]}">${t(OV_LABEL[r.band])}</span>
+      <span style="font-size:0.72rem;color:var(--muted)">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
+    </div>
+    ${rows}
+    ${promises}
+    ${mandate}
+    ${commentary}
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.9rem">
+      <div>
+        <button class="btn secondary">${t('save_plan')}</button>
+        <div class="privnote private" style="margin-top:0.3rem"><span class="dot"></span><span>${t('save_priv')}</span></div>
+      </div>
+      <div>
+        <button class="btn secondary">${t('share_card')}</button>
+        <div class="privnote public" style="margin-top:0.3rem"><span class="dot"></span><span>${t('share_pub')}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderThread() {
+  const D = DEBATE;
+  const L = S.lang;
+
+  // proposal header + amendment history
+  const body = S.showOrig
+    ? '<div class="card raised"><div style="font-size:0.7rem;color:var(--adv);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.25rem">' + t('orig_lbl') + '</div><div style="font-size:0.86rem">' + esc(D['orig_' + L]) + '</div></div>'
+    : '<p style="font-size:0.88rem;margin:0.4rem 0">' + esc(D['body_' + L]) + '</p>';
+
+  // calling the question
+  const votes = D.ctq.votes + (S.ctq ? 1 : 0);
+  const pct = Math.round(votes / D.ctq.active * 1000) / 10;
+  const ctq = `
+    <div class="card">
+      <h4>${t('ctq_h')}</h4>
+      <div style="font-size:0.76rem;color:var(--muted)">${votes} ${t('of_active')} · ${pct}% / 66.7%</div>
+      <div class="ctqbar" role="img" aria-label="${pct}% of 66.7%"><i style="width:${Math.min(100, pct / 66.7 * 100)}%"></i></div>
+      <div style="font-size:0.72rem;color:var(--muted)">${t('ctq_note')}</div>
+      ${S.ctq
+        ? '<div class="privnote private" style="margin-top:0.5rem"><span class="dot"></span><span>' + t('ctq_voted') + '</span></div>'
+        : '<button class="btn secondary" style="margin-top:0.5rem" onclick="VR.ctqVote()">' + t('ctq_btn') + '</button>'}
+    </div>`;
+
+  const agrBtns = (id) => {
+    const v = S.agreeVotes[id];
+    return `<div class="agrrow">
+      <button aria-pressed="${v === 'agree'}" onclick="VR.agr('${id}','agree')">${t('agree')}</button>
+      <button aria-pressed="${v === 'disagree'}" onclick="VR.agr('${id}','disagree')">${t('disagree')}</button>
+      <button aria-pressed="${v === 'pass'}" onclick="VR.agr('${id}','pass')">${t('pass_b')}</button>
+    </div>`;
+  };
+
+  let main = '';
+  if (S.dv === 'clusters') {
+    const cards = D.clusters.map(cl => {
+      const open = S.openCluster === cl.id;
+      const member = open && cl.member ? `
+        <div class="repq" style="border-left-style:dotted">
+          <div style="font-size:0.82rem;font-style:italic">${esc(cl.member['t_' + L])}</div>
+          <div class="by">${esc(cl.member.by)}${cl.member.audio ? ' · 🎧 ' + t('audio_lbl') : ''}</div>
+        </div>` : '';
+      return `
+      <div class="card clcard">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <span class="sidechip ${cl.side}">${t(cl.side === 'for' ? 'side_for' : 'side_against')}</span>
+          <span class="cnum">${cl.n} ${t('made_point')} · ${cl.helpful} ${t('helpful_w')}</span>
+        </div>
+        <div style="font-weight:700;font-size:0.94rem;margin-top:0.35rem">${esc(cl['sum_' + L])}</div>
+        <div class="repq">
+          <div>${esc(cl.rep['t_' + L])}</div>
+          <div class="by">${esc(cl.rep.by)}</div>
+          <div style="margin-top:0.3rem;display:flex;gap:0.3rem;flex-wrap:wrap">${cl.rep.cites.map(c => '<span class="chip cite">▣ ' + esc(c) + ' · ' + t('archived') + ' ✓</span>').join('')}</div>
+        </div>
+        ${member}
+        ${agrBtns(cl.id)}
+        <div style="display:flex;gap:0.6rem;margin-top:0.45rem;flex-wrap:wrap">
+          <button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem" onclick="VR.noop()">${t('add_name')}</button>
+          ${cl.member ? '<button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem" onclick="VR.toggleCluster(\'' + cl.id + '\')">' + t(open ? 'hide_members' : 'show_members') + '</button>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    const ai = `
+      <div class="aicard">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <span class="sidechip against">${t('side_against')}</span>
+          <span class="chip analysis">${t('ai_tag')}</span>
+        </div>
+        <div style="font-size:0.88rem;margin-top:0.4rem">${esc(D.ai['t_' + L])}</div>
+        <div style="margin-top:0.35rem;display:flex;gap:0.3rem;flex-wrap:wrap">${D.ai.cites.map(c => '<span class="chip cite">▣ ' + esc(c) + ' · ' + t('archived') + ' ✓</span>').join('')}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.4rem">${t('ai_note')}</div>
+        ${agrBtns(D.ai.id)}
+        <button class="btn secondary" style="width:auto;padding:0.35rem 0.8rem;font-size:0.76rem;margin-top:0.45rem" onclick="VR.noop()">${t('rebut')}</button>
+      </div>`;
+
+    main = cards + ai + '<div class="privnote private" style="margin:0.2rem 0 0.6rem"><span class="dot"></span><span>' + t('agr_priv') + '</span></div>';
+  } else {
+    const camps = D.camps.map(cp => `
+      <div class="campcard">
+        <div style="display:flex;gap:0.5rem;align-items:baseline">
+          <span style="font-weight:750">${esc(cp['name_' + L])}</span>
+          <span style="font-size:0.7rem;color:var(--muted)">${cp.n} ${t('members_n')}</span>
+        </div>
+        <div style="font-size:0.66rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-top:0.35rem">${t('c_defining')}</div>
+        <ul style="margin:0.25rem 0 0;font-size:0.82rem">${cp['pts_' + L].map(p => '<li>' + esc(p) + '</li>').join('')}</ul>
+      </div>`).join('');
+    main = '<p style="font-size:0.78rem;color:var(--muted)">' + t('camps_p') + '</p>' + camps +
+      '<div class="bridge"><span class="bl">' + t('bridging_lbl') + '</span><div style="font-size:0.88rem">' + esc(D['bridging_' + L]) + '</div></div>';
+  }
+
+  // composer with claim-detection prompt
+  let composer;
+  if (S.claim === null || S.claim === 'prompt') {
+    composer = `
+      <div class="card">
+        <h4>${t('composer_h')}</h4>
+        <textarea class="statement" id="composer" aria-label="${t('composer_h')}">${esc(D['composer_' + L])}</textarea>
+        ${S.claim === 'prompt' ? `
+          <div class="claimprompt">
+            <strong>${t('claim_q')}</strong>
+            <div style="font-size:0.76rem;color:var(--muted);margin-top:0.2rem">“$12M …”</div>
+            <div class="row">
+              <button onclick="VR.claimAnswer('src')">${t('claim_add')}</button>
+              <button onclick="VR.claimAnswer('op')">${t('claim_op')}</button>
+              <button onclick="VR.claimAnswer('dis')">${t('claim_dismiss')}</button>
+            </div>
+          </div>` : ''}
+        ${S.claim === null ? '<button class="btn" style="margin-top:0.5rem" onclick="VR.tryPost()">' + t('post') + '</button>' : ''}
+        <div class="privnote public" style="margin-top:0.4rem"><span class="dot"></span><span>${t('post_pub')}</span></div>
+      </div>`;
+  } else {
+    const msg = S.claim === 'src' ? t('posted_src') : S.claim === 'op' ? t('posted_op') : t('posted_dis');
+    composer = `
+      <div class="card">
+        <h4>${t('composer_h')}</h4>
+        <div class="pill pending" style="margin-top:0.3rem">⟳ ${msg}</div>
+        ${S.claim === 'src' ? '<div style="margin-top:0.4rem"><span class="chip cite">▣ ' + (S.lang === 'es' ? 'Informe fiscal del condado · 2026' : 'County fiscal report · 2026') + ' · ' + t('archived') + ' ✓</span></div>' : ''}
+      </div>`;
+  }
+
+  const cm = COMMENTATORS[D.commentary.c];
+  const commentary = `
+    <div class="card analysis">
+      <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+        <h4 style="flex:1;margin:0">${t('comm_h')}</h4>
+        <span class="chip analysis">${t('comm_reg')}</span>
+      </div>
+      <div class="commitem"><div class="ct">${esc(D.commentary['t_' + L])}</div>
+      <div class="cb">${esc(cm.name)} · ${esc(cm.outlet)} · ${D.commentary.d}</div></div>
+      <div style="font-size:0.7rem;color:var(--muted);border-top:1px solid var(--line);margin-top:0.35rem;padding-top:0.35rem">${t('comm_blackout')}</div>
+    </div>`;
+
+  return `
+    <div style="display:flex;gap:0.45rem;align-items:center;flex-wrap:wrap">
+      <span class="chip adv">${t('unofficial')}</span>
+      <span class="chip band b1">${t('amended')}</span>
+    </div>
+    <div class="serif" style="font-size:1.3rem;font-weight:700;line-height:1.25;margin-top:0.4rem">${esc(D['title_' + L])}</div>
+    <div style="font-size:0.74rem;color:var(--muted);margin-top:0.2rem">${t('deb_status')} · ${t('deb_seconded')}</div>
+    ${body}
+    <button class="btn secondary" style="width:auto;padding:0.3rem 0.8rem;font-size:0.74rem" onclick="VR.toggleOrig()">${t(S.showOrig ? 'view_curr' : 'view_orig')}</button>
+    ${ctq}
+    <div class="seg" role="group" style="margin:0.8rem 0 0.4rem">
+      <button aria-pressed="${S.dv === 'clusters'}" onclick="VR.setDv('clusters')">${t('view_clusters')}</button>
+      <button aria-pressed="${S.dv === 'camps'}" onclick="VR.setDv('camps')">${t('view_camps')}</button>
+    </div>
+    ${main}
+    ${composer}
+    ${commentary}
+    <div class="disclosure"><span class="tag">${t('unofficial')}</span><span>${t('ref_next')} ${t('mandate_disc')}</span></div>`;
+}
+
+/* ─────────────────────────── shell & wiring ────────────────── */
+const TITLES = { welcome: 'app_title', ballot: 'ballot_title', prio: 'prio_title', results: 'results_title', detail: 'detail_title', mandates: 'm_grid_title', promises: 'promises_title', thread: 'thread_title' };
+function render() {
+  document.getElementById('app-title').textContent = t(TITLES[S.screen]);
+  document.getElementById('app-where').textContent = t('county');
+  document.getElementById('btn-back').classList.toggle('hidden', S.screen === 'welcome');
+  const app = document.getElementById('app');
+  app.innerHTML = S.screen === 'welcome' ? renderWelcome()
+    : S.screen === 'ballot' ? renderBallot()
+    : S.screen === 'prio' ? renderPrio()
+    : S.screen === 'results' ? renderResults()
+    : S.screen === 'mandates' ? renderMandates()
+    : S.screen === 'promises' ? renderPromises()
+    : S.screen === 'thread' ? renderThread()
+    : renderDetail();
+  app.scrollTop = 0;
+}
+
+window.VR = {
+  go(s) { S.screen = s; render(); },
+  back() {
+    S.screen = S.screen === 'thread' ? S.threadBack
+      : S.screen === 'promises' ? 'detail'
+      : S.screen === 'mandates' ? 'results'
+      : S.screen === 'detail' ? 'results'
+      : S.screen === 'results' ? 'prio'
+      : S.screen === 'prio' ? 'ballot'
+      : 'welcome';
+    render();
+  },
+  setAddr(a) { S.addr = a; render(); },
+  pickRace(r) {
+    S.race = r;
+    S.screen = Object.keys(S.prios).length >= 3 ? 'results' : 'prio';
+    render();
+  },
+  openGrid() { S.cell = null; S.screen = 'mandates'; render(); },
+  selCell(cid, mid) { S.cell = { cid, mid }; render(); },
+  openThread(from) { S.threadBack = from; S.screen = 'thread'; render(); },
+  setDv(v) { S.dv = v; render(); },
+  toggleOrig() { S.showOrig = !S.showOrig; render(); },
+  toggleCluster(id) { S.openCluster = S.openCluster === id ? null : id; render(); },
+  ctqVote() { S.ctq = true; render(); },
+  agr(id, v) { S.agreeVotes[id] = S.agreeVotes[id] === v ? undefined : v; render(); },
+  tryPost() { S.claim = 'prompt'; render(); },
+  claimAnswer(a) { S.claim = a; render(); },
+  noop() {},
+  toggleTopic(id) {
+    if (!S.prios[id]) {
+      const tp = TOPICS.find(x => x.id === id);
+      S.prios[id] = { statement: tp['p_' + S.lang], stance: 1, w: 3 };
+      S.open = id;
+    } else if (S.open === id) {
+      delete S.prios[id]; S.open = null;
+    } else {
+      S.open = id;
+    }
+    render();
+  },
+  setStmt(id, v) { S.prios[id].statement = v; },
+  setStance(id, v) { S.prios[id].stance = v; render(); },
+  setW(id, d) { S.prios[id].w = Math.max(1, Math.min(5, S.prios[id].w + d)); render(); },
+  setRace(r) { S.race = r; render(); },
+  openCand(id) { S.candId = id; S.screen = 'detail'; render(); },
+  setLang(l) {
+    const old = S.lang; S.lang = l;
+    document.getElementById('lang-en').setAttribute('aria-pressed', l === 'en');
+    document.getElementById('lang-es').setAttribute('aria-pressed', l === 'es');
+    for (const [tid, p] of Object.entries(S.prios)) {
+      const tp = TOPICS.find(x => x.id === tid);
+      if (p.statement === tp['p_' + old]) p.statement = tp['p_' + l];
+    }
+    render();
+  },
+  setView(v) {
+    S.view = v;
+    document.getElementById('view-proto').classList.toggle('hidden', v !== 'proto');
+    document.getElementById('view-sys').classList.toggle('hidden', v !== 'sys');
+    document.getElementById('tab-proto').setAttribute('aria-selected', v === 'proto');
+    document.getElementById('tab-sys').setAttribute('aria-selected', v === 'sys');
+  }
+};
+
+document.getElementById('btn-back').addEventListener('click', VR.back);
+document.getElementById('tab-proto').addEventListener('click', () => VR.setView('proto'));
+document.getElementById('tab-sys').addEventListener('click', () => VR.setView('sys'));
+document.getElementById('lang-en').addEventListener('click', () => VR.setLang('en'));
+document.getElementById('lang-es').addEventListener('click', () => VR.setLang('es'));
+render();
+</script>
