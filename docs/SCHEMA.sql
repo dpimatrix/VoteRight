@@ -310,7 +310,7 @@ CREATE TABLE accountability_pathways (
                        'impeachment','criminal_referral','municipal_recall','charter_amendment_petition',
                        'no_removal_mechanism_exists')),
     is_binding      BOOLEAN NOT NULL,
-    legal_citation  TEXT NOT NULL,                      -- e.g. 'Montgomery County Charter Section 201', 'Md. Const. Art. XI-A'
+    legal_citation  TEXT NOT NULL,                      -- e.g. 'Montgomery County Charter Section 118', 'Md. Const. Art. XI-A'
     signature_requirement_note TEXT,                    -- petition-type mechanisms only, e.g. '20% of registered voters, or 10,000 signatures, whichever is fewer'
     description     TEXT NOT NULL,
     -- every officeholder mechanism needs its office; only the jurisdiction-wide
