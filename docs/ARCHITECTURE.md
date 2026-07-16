@@ -94,6 +94,7 @@ A platform that scores candidates and can be used to organize pressure toward a 
 |---|---|
 | **Jurisdiction** | A governed geography (country → state → county → municipal → school district), keyed by [OCD-ID](https://github.com/opencivicdata/ocd-division-ids) so it interoperates with BallotReady/Ballotpedia/OpenStates data rather than inventing new geography IDs. |
 | **Office** | A specific elected seat — or multi-seat pool — within a jurisdiction (e.g., "Montgomery County Council, District 1"; the Council's four at-large seats are one office row with `seat_count = 4`). |
+| **Office term** | One politician's tenure in one office — start, end, elected vs. appointed. The standing officeholding record behind incumbency and the your-ballot view: `race_incumbents` is per-contest, `office_terms` is per-seat. |
 | **Election cycle / Race** | A dated election event; a race binds an office to a cycle. |
 | **Politician** | A person who has ever held or run for office — persists across multiple candidacies/terms. |
 | **Candidacy** | One politician's run for one race. |
@@ -132,6 +133,9 @@ erDiagram
     JURISDICTIONS ||--o{ OFFICES : contains
     JURISDICTIONS ||--o{ JURISDICTIONS : "parent of"
     OFFICES ||--o{ RACES : "contested in"
+    OFFICES ||--o{ OFFICE_TERMS : "held as"
+    POLITICIANS ||--o{ OFFICE_TERMS : serves
+    CITATIONS ||--o{ OFFICE_TERMS : evidences
     ELECTION_CYCLES ||--o{ RACES : schedules
     RACES ||--o{ CANDIDACIES : has
     RACES ||--o{ RACE_INCUMBENTS : "has sitting"
@@ -227,6 +231,7 @@ Full DDL lives in [`SCHEMA.sql`](./SCHEMA.sql). Key design decisions called out 
 - **`voter_mandates` cannot reach `overlay_status = 'published'` unless `meets_publish_threshold` is true** — enforced by a `CHECK`, not left to editorial judgment at publish time, so a low-turnout result can't accidentally get the same public presentation as a well-attended one.
 - **`call_the_question_min_agreement_votes` closes a cheap-manipulation path** — a single one-click agreement vote was enough to count as an "active participant" eligible to help force early closure; it now takes several distinct agreement votes (or one posted argument) to qualify.
 - **Multi-seat contests are modeled, not assumed away** — `offices.seat_count`, `races.seats_elected`, and a `race_incumbents` join table replace a singular incumbent column, because the pilot county itself elects 4 at-large Councilmembers from one countywide pool; a one-race-one-winner model breaks on 4 of the 11 seats it launches with.
+- **`office_terms` is the standing officeholding record** — who holds each seat, from when to when, elected or appointed at entry (`offices.is_elected` marks office types that are appointed in some jurisdictions). `race_incumbents` answers "who is sitting in this specific contest"; `office_terms` answers "who represents this address right now," which is what the your-ballot view reads (Section 7.1). `politicians.current_office_id` stays as a denormalized convenience over the current-term row.
 - **`mandate_commitments` closes the mandate → candidacy → promise loop** — a published mandate is put to every candidate in the next race for that office, on the record and citation-backed, before the election; a committed winner's mandate becomes a tracked `promises` row. This is the schema's direct answer to name-recognition politics: "will you carry out what the voters asked for?" gets asked, in public, while dodging it can still cost votes (Section 7.9).
 - **Publish gates are constraints in three more places** — `integrity_flags` (`CHECK (NOT published OR status <> 'open')`), `campaign_communications` (no verified finding without a citation, no `is_official_ballot` verdict while unverified), and a trigger validating `referendum_ballots.choice` against the referendum's declared options — closing the gap between "gated by CHECK" (the stated principle) and "gated by comment" (what three tables actually had).
 - **`accountability_pathways` is jurisdiction-scoped with an optional office** — the charter-amendment petition belongs to the county, not to any single office; forcing every pathway onto an office row would either duplicate it across every county office or pin it somewhere arbitrary.
@@ -254,6 +259,7 @@ CREATE TABLE offices (
     seat_count      SMALLINT NOT NULL DEFAULT 1,    -- >1 for multi-seat pools: Montgomery County Council elects 4 at-large members from one countywide contest
     term_length_years SMALLINT NOT NULL,
     is_partisan     BOOLEAN NOT NULL DEFAULT TRUE,
+    is_elected      BOOLEAN NOT NULL DEFAULT TRUE,      -- some office types flip elected/appointed across jurisdictions (e.g. clerks); only elected seats get races
     level           TEXT NOT NULL CHECK (level IN ('federal','state','county','municipal','school_board','judicial'))
 );
 
@@ -360,6 +366,21 @@ CREATE TABLE citations (
     published_at    DATE,
     retrieved_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     excerpt         TEXT
+);
+
+-- OFFICEHOLDING — who holds a seat, from when to when. race_incumbents covers "sitting
+-- incumbents in a specific contest"; this is the standing record behind it, and what the
+-- "your ballot / your representatives" view reads. politicians.current_office_id is a
+-- denormalized convenience over the row here with term_end IS NULL.
+CREATE TABLE office_terms (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    office_id       UUID NOT NULL REFERENCES offices(id),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    term_start      DATE NOT NULL,
+    term_end        DATE,                                 -- NULL = currently serving
+    how_obtained    TEXT NOT NULL DEFAULT 'elected' CHECK (how_obtained IN ('elected','appointed','succeeded')),
+    source_citation_id UUID REFERENCES citations(id),     -- swearing-in record / official roster
+    UNIQUE (office_id, politician_id, term_start)
 );
 
 CREATE TABLE politician_positions (
@@ -1028,6 +1049,8 @@ sequenceDiagram
     Scoring-->>App: Return ranked candidacies with sourced rationale per topic
     App-->>U: "Here's who matches what you told us, and why — with sources"
 ```
+
+Before any scoring, the same address resolution powers a **your-ballot view**: the address maps to its full jurisdiction stack (county → council district → municipality, if any → school district), and every `offices` row hanging off that stack is listed — grouped by level, with current holders from `office_terms` and the next race date. Two display rules keep the list honest: levels VoteRight doesn't score yet appear as "not yet tracked" rather than being silently omitted (an incomplete list must never look complete), and judicial seats get background-and-evaluations treatment instead of an alignment match, since judicial ethics rules limit issue campaigning.
 
 ### 7.2 Promise lifecycle
 

@@ -35,6 +35,7 @@ CREATE TABLE offices (
     seat_count      SMALLINT NOT NULL DEFAULT 1,    -- >1 for multi-seat pools: Montgomery County Council elects 4 at-large members from one countywide contest
     term_length_years SMALLINT NOT NULL,
     is_partisan     BOOLEAN NOT NULL DEFAULT TRUE,
+    is_elected      BOOLEAN NOT NULL DEFAULT TRUE,      -- some office types flip elected/appointed across jurisdictions (e.g. clerks); only elected seats get races
     level           TEXT NOT NULL CHECK (level IN ('federal','state','county','municipal','school_board','judicial'))
 );
 
@@ -129,6 +130,21 @@ CREATE TABLE citations (
     published_at    DATE,
     retrieved_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     excerpt         TEXT
+);
+
+-- OFFICEHOLDING — who holds a seat, from when to when. race_incumbents covers "sitting
+-- incumbents in a specific contest"; this is the standing record behind it, and what the
+-- "your ballot / your representatives" view reads. politicians.current_office_id is a
+-- denormalized convenience over the row here with term_end IS NULL.
+CREATE TABLE office_terms (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    office_id       UUID NOT NULL REFERENCES offices(id),
+    politician_id   UUID NOT NULL REFERENCES politicians(id),
+    term_start      DATE NOT NULL,
+    term_end        DATE,                                 -- NULL = currently serving
+    how_obtained    TEXT NOT NULL DEFAULT 'elected' CHECK (how_obtained IN ('elected','appointed','succeeded')),
+    source_citation_id UUID REFERENCES citations(id),     -- swearing-in record / official roster
+    UNIQUE (office_id, politician_id, term_start)
 );
 
 CREATE TABLE politician_positions (
@@ -760,3 +776,6 @@ CREATE INDEX idx_promises_topic ON promises(topic_id);
 CREATE INDEX idx_race_incumbents_politician ON race_incumbents(politician_id);
 CREATE INDEX idx_mandate_commitments_mandate ON mandate_commitments(voter_mandate_id);
 CREATE INDEX idx_mandate_commitments_candidacy ON mandate_commitments(candidacy_id);
+CREATE INDEX idx_office_terms_office ON office_terms(office_id);
+CREATE INDEX idx_office_terms_politician ON office_terms(politician_id);
+CREATE INDEX idx_office_terms_current ON office_terms(office_id) WHERE term_end IS NULL;
