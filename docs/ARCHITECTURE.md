@@ -123,6 +123,8 @@ A platform that scores candidates and can be used to organize pressure toward a 
 | **Endorsement** | A sourced record of an organization (union, trade group, editorial board, etc.) backing a candidacy — always citation-required, never a bare claim (Section 8.1). |
 | **Claim flag** | A prompt, at argument submission time, that a specific sentence reads as an unsourced factual assertion and could use a citation — deliberately not a judgment that the argument is "too opinionated" (Section 7.7). |
 | **AI debate run** | A one-shot, evidence-grounded argument generated for whichever side of a debate is thin, triggered only by imbalance, always disclosed as machine-authored — never a running AI-vs-AI debate loop (Section 7.8). |
+| **Commentator** | A local journalist or analyst whose commentary is surfaced by objective, disclosed rule (sustained beat coverage, real byline, disclosed affiliations) — never a staff editorial pick (Section 8.2). |
+| **Commentary link** | A specific piece of expert commentary linked to a topic, politician, race, or issue proposal — attributed opinion, kept structurally separate from the `citations` evidence ledger (Section 8.2). |
 
 ---
 
@@ -206,6 +208,12 @@ erDiagram
     ENDORSING_ORGANIZATIONS ||--o{ ENDORSEMENTS : gives
     CANDIDACIES ||--o{ ENDORSEMENTS : receives
     CITATIONS ||--o{ ENDORSEMENTS : evidences
+    JURISDICTIONS ||--o{ COMMENTATOR_INCLUSION_RULES : defines
+    COMMENTATOR_INCLUSION_RULES ||--o{ COMMENTATOR_QUALIFICATIONS : evaluates
+    COMMENTATORS ||--o{ COMMENTATOR_QUALIFICATIONS : "qualifies via"
+    COMMENTATORS ||--o{ COMMENTARY_LINKS : writes
+    POLITICIANS ||--o{ COMMENTARY_LINKS : "commentary about"
+    ISSUE_PROPOSALS ||--o{ COMMENTARY_LINKS : "commentary about"
 ```
 
 ---
@@ -236,6 +244,7 @@ Full DDL lives in [`SCHEMA.sql`](./SCHEMA.sql). Key design decisions called out 
 - **Publish gates are constraints in three more places** — `integrity_flags` (`CHECK (NOT published OR status <> 'open')`), `campaign_communications` (no verified finding without a citation, no `is_official_ballot` verdict while unverified), and a trigger validating `referendum_ballots.choice` against the referendum's declared options — closing the gap between "gated by CHECK" (the stated principle) and "gated by comment" (what three tables actually had).
 - **`accountability_pathways` is jurisdiction-scoped with an optional office** — the charter-amendment petition belongs to the county, not to any single office; forcing every pathway onto an office row would either duplicate it across every county office or pin it somewhere arbitrary.
 - **Per-user agreement votes are held, used, then deleted** — they exist to compute `opinion_clusters` and the denormalized per-argument tallies (`agree_count` / `disagree_count` / `pass_count`), not to accumulate a permanent per-person political-opinion ledger. Section 10.2 classifies every participation act as deliberately public (arguments, seconds, proposals) or private-with-retention (agreement votes, call-the-question votes, referendum ballots).
+- **Commentator inclusion is a computed fact, not a stored opinion** — `commentator_qualifications` re-evaluates against `commentator_inclusion_rules` the same way `alignment_scores` and `opinion_clusters` are recomputed, so nobody has to manually curate (or manually remove) a commentator as their publishing record changes. `commentary_links` never carries a `citation_id` role anywhere else in the schema — it is deliberately not part of the evidence ledger (Section 8.2).
 
 ```sql
 -- ══════════════════════════════════════════════════════════════
@@ -267,7 +276,9 @@ CREATE TABLE election_cycles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL,                  -- '2026 Maryland Primary'
     election_date   DATE NOT NULL,
-    election_type   TEXT NOT NULL CHECK (election_type IN ('primary','general','special','municipal'))
+    election_type   TEXT NOT NULL CHECK (election_type IN ('primary','general','special','municipal')),
+    commentary_promotion_blackout_days INTEGER NOT NULL DEFAULT 0,   -- see Section 8.2
+    CHECK (commentary_promotion_blackout_days >= 0)
 );
 
 CREATE TABLE races (
@@ -500,6 +511,59 @@ CREATE TABLE endorsements (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- EXPERT COMMENTARY — see Section 8.2. Inclusion is by objective, disclosed rule, never
+-- a staff pick. Kept structurally separate from `citations` — a commentary piece is
+-- someone's analysis, not evidentiary backing for a platform-asserted fact.
+CREATE TABLE commentator_inclusion_rules (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    min_pieces_count INTEGER NOT NULL DEFAULT 12,       -- tunable: sustained beat coverage, not a one-off op-ed
+    lookback_months INTEGER NOT NULL DEFAULT 12,        -- tunable window the count is measured over
+    requires_disclosed_affiliations BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_real_byline BOOLEAN NOT NULL DEFAULT TRUE, -- no anonymous accounts
+    effective_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE commentators (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    outlet          TEXT,
+    bio             TEXT,
+    disclosed_affiliations TEXT,                        -- mandatory self-disclosure
+    byline_verified BOOLEAN NOT NULL DEFAULT FALSE,      -- confirmed real, accountable identity
+    outreach_status TEXT NOT NULL DEFAULT 'not_contacted'
+                      CHECK (outreach_status IN ('not_contacted','invited','responded','declined','no_response')),
+    outreach_initiated_at TIMESTAMPTZ,
+    disqualified_reason TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- computed and re-evaluated, same pattern as alignment_scores/opinion_clusters
+CREATE TABLE commentator_qualifications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    rule_id         UUID NOT NULL REFERENCES commentator_inclusion_rules(id),
+    pieces_counted  INTEGER NOT NULL,
+    qualifies       BOOLEAN NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE commentary_links (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    url             TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    published_at    DATE,
+    excerpt         TEXT,
+    jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),
+    topic_id        UUID REFERENCES topics(id),
+    politician_id   UUID REFERENCES politicians(id),
+    race_id         UUID REFERENCES races(id),
+    issue_proposal_id UUID,                              -- FK added after issue_proposals exists
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- ALIGNMENT SCORING
 -- ══════════════════════════════════════════════════════════════
@@ -612,6 +676,10 @@ CREATE TABLE issue_proposals (
                       CHECK (status IN ('seconding','debating','referendum','closed','rejected')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE commentary_links
+    ADD CONSTRAINT fk_commentary_links_issue_proposal
+    FOREIGN KEY (issue_proposal_id) REFERENCES issue_proposals(id);
 
 CREATE TABLE seconds (
     proposal_id     UUID NOT NULL REFERENCES issue_proposals(id),
@@ -1233,6 +1301,15 @@ Local political reporting in Montgomery County — and coverage of comparable co
 
 All three feed the same evidence ledger (`citations`) and the same alignment-scoring and integrity-flag machinery already in place — they're new *inputs*, not a new trust model.
 
+### 8.2 Expert commentary: objective inclusion, not editorial picks
+
+Local journalists and analysts who've covered a jurisdiction for years — a Montgomery Perspective, an established statehouse reporter — carry real informational value that a strict "sourced fact vs. community opinion" model (Section 2.3) doesn't have room for: their work is neither a platform-verified fact nor an anonymous forum post, it's informed, attributed analysis. Surfacing it serves voters. But *how* it gets surfaced carries its own risk, distinct from anything else in this document: featuring specific named commentators, even ones who read as scrupulously non-partisan, makes an implicit editorial statement about whose analysis counts — unless inclusion is governed by a rule instead of a pick.
+
+- **Inclusion is computed, not curated.** `commentator_inclusion_rules` sets a tunable, disclosed bar per jurisdiction — sustained coverage (`min_pieces_count` over `lookback_months`, defaulting to 12 pieces in 12 months: enough to distinguish a beat reporter from a one-off op-ed writer), a real accountable byline, and mandatory disclosure of any financial or campaign ties. `commentator_qualifications` re-evaluates every commentator against that rule on a schedule, the same way `alignment_scores` and `opinion_clusters` are recomputed rather than hand-set — nobody at VoteRight decides Adam Pagnucco or anyone else "counts"; the rule decides, and it decides the same way for everyone.
+- **A neutral rule doesn't guarantee a balanced roster by itself.** If outreach is purely passive — wait for commentators to self-submit — the roster can still end up lopsided simply because of who happens to apply. The rule has to be paired with **active, even-handed outreach** to known local voices across the spectrum who'd likely qualify, tracked via `commentators.outreach_status`. A public "how commentators are included" methodology page matters here too: the platform isn't vouching for balance, it's showing the rule and letting users judge the roster themselves.
+- **Never part of the evidence ledger.** `commentary_links` has no relationship to `citations` and must never be used as the `citation_id` behind a `promise_status_events` row or an `integrity_flag` — a commentator's characterization of a fact isn't the same evidentiary weight as the primary source they're citing. If a commentary piece surfaces something worth citing on the platform, the platform cites the primary source underneath it, not the write-up.
+- **An election-proximity blackout on promotion, not on access.** `election_cycles.commentary_promotion_blackout_days` (tunable, default 0) suppresses push notifications and featured placement of commentary inside a window before an election, without removing it — the same "electioneering communication" concern already flagged for the platform's own content in Section 2.7 applies just as much to content VoteRight chooses to actively surface.
+
 ---
 
 ## 9. Trust, safety & anti-manipulation
@@ -1297,7 +1374,7 @@ Montgomery County is 34% foreign-born, well above state and national rates, and 
 | Phase | Scope | Legal risk | Rationale |
 |---|---|---|---|
 | **1** | Politician/candidate profiles, sourced positions, voter priorities, alignment scoring, plus independent-expenditure disclosure and endorsement tracking (Section 8.1) (read-heavy, no user-generated public claims) | Low | Same lane as BallotReady; delivers the personalization hook ("matched to *your* stated wishes," not just checkboxes) with the least exposure. Outside-money and endorsement data are as sourced and factual as voting records, so they belong in the same low-risk phase rather than waiting. |
-| **2** | Promise tracking + integrity flags, with mandatory dispute/right-of-reply workflow live before any flag is public, plus `campaign_communications` ballot-authenticity checks (shares the same verification/dispute workflow) | Medium-high — get counsel to review the methodology and dispute process before this phase ships | This is the "guardrail against deception" half of the brief; it's also the defamation-risk half. Ballot-authenticity checks are lower-risk than integrity flags (they verify documents, not character) but still need the same review-before-publish discipline, so they ship alongside it rather than in Phase 1. |
+| **2** | Promise tracking + integrity flags, with mandatory dispute/right-of-reply workflow live before any flag is public, plus `campaign_communications` ballot-authenticity checks and expert commentary (Section 8.2) (both share the same qualification/review-before-publish discipline) | Medium-high — get counsel to review the methodology and dispute process before this phase ships | This is the "guardrail against deception" half of the brief; it's also the defamation-risk half. Ballot-authenticity checks are lower-risk than integrity flags (they verify documents, not character); commentator inclusion is lower-risk still (it's not a claim about anyone, just an objective coverage-volume test) — but both need active human process (verification, outreach) before Phase 1's purely-ingested data model, so they ship here rather than in Phase 1. |
 | **3** | Issue proposals → seconding → debate forum (text, audio, local video, YouTube-linked video), with near-duplicate clustering and opinion mapping (Section 7.5), amendments, calling the question (Section 7.6), and claim-detection citation prompts (Section 7.7) | Medium — standard UGC moderation exposure, raised somewhat by video (deepfake risk, storage cost, YouTube ToS handling — Section 9.1) | Builds the direct-democracy muscle without yet publishing binding-sounding results. Consider shipping text + audio first within the phase, adding video once the moderation pipeline is proven, and treating clustering, amendments, calling the question, and claim detection as threshold- or volume-triggered features rather than all present on day one — each only earns its complexity once real usage exists to test it against. |
 | **4** | Referenda + voter mandates + mandate commitments (put standing mandates to every candidate in the next race, on the record — Section 7.9) + accountability pathways (including `charter_amendment_petition` for real reform campaigns like adding recall — Section 2.1.1) | Highest — manipulation target (Section 9), voter-confusion risk (Section 2.4), removal-mechanism accuracy (Section 2.1), candidate-stance attribution (Section 13) | Ship last, ship with the strongest verification tier gate, and only after Phase 2's dispute workflow has been proven in production. Mandate commitments depend on Phase 2's citation discipline (every attributed stance is sourced) and complete the loop the product exists for. |
 | **5** | AI debate agents (Section 7.8) — one-shot, evidence-grounded, imbalance-triggered arguments for thin-sided threads | Medium-high — Maryland's AI-election-content legislation is actively moving (Section 13, item 8); disclosure alone may not clear a bar that shifts before launch | Ships last and separately from Phase 3, not bundled with it, specifically so it can wait on the regulatory picture stabilizing without blocking the rest of the debate forum. Depends on Phase 3's moderation and clustering pipeline already being proven, since AI arguments flow through the same machinery. |
@@ -1317,3 +1394,4 @@ Montgomery County is 34% foreign-born, well above state and national rates, and 
 11. The alignment-scoring methodology (Section 5.1) needs its own design document — matching approach, handling of unscored topics, weight aggregation, and a bias-audit process — reviewed before Phase 1 ships, not treated as an implementation detail.
 12. **MODPA compliance review** (Section 10): confirm coverage thresholds, whether the platform's political-opinion data (priorities, agreement votes, ballots) triggers sensitive-data treatment, whether the retention rules in 10.1–10.2 satisfy data-minimization, and whether pseudonymize-and-keep satisfies the deletion right for public debate contributions.
 13. **Mandate commitments** (Section 7.9): does publicly tabulating candidates' commit / decline / no-response stances on voter mandates — especially close to an election — change the electioneering analysis in item 1? And confirm that displaying `no_response` as a bare fact (with the platform's outreach attempts documented) carries no defamation-adjacent risk of implying a stance the candidate never took.
+14. **Expert commentary** (Section 8.2): does actively recruiting specific named commentators to satisfy roster balance itself carry any campaign-finance or in-kind-support exposure if a commentator is later found to have undisclosed ties to a candidate? And confirm the `commentary_promotion_blackout_days` default (0, meaning no blackout unless configured) is actually set to a real value per jurisdiction before Phase 2 launch — an unset blackout window defeats the purpose of having one.

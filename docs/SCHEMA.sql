@@ -47,7 +47,9 @@ CREATE TABLE election_cycles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL,                  -- '2026 Maryland Primary'
     election_date   DATE NOT NULL,
-    election_type   TEXT NOT NULL CHECK (election_type IN ('primary','general','special','municipal'))
+    election_type   TEXT NOT NULL CHECK (election_type IN ('primary','general','special','municipal')),
+    commentary_promotion_blackout_days INTEGER NOT NULL DEFAULT 0,   -- see Section 8.2: commentary stays viewable, never pushed/featured, inside this window
+    CHECK (commentary_promotion_blackout_days >= 0)
 );
 
 CREATE TABLE races (
@@ -265,6 +267,63 @@ CREATE TABLE endorsements (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- EXPERT COMMENTARY — see Section 8.2. Inclusion is by objective, disclosed rule, never
+-- a staff pick: a commentator qualifies automatically by meeting a tunable coverage
+-- threshold, not because someone decided they count as an expert. Kept structurally
+-- separate from `citations` — a commentary piece is someone's analysis, not evidentiary
+-- backing for a platform-asserted fact, and must never be used as a promise/integrity_flag
+-- citation_id as if it carried the same evidentiary weight as a primary source.
+CREATE TABLE commentator_inclusion_rules (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    min_pieces_count INTEGER NOT NULL DEFAULT 12,       -- tunable: sustained beat coverage, not a one-off op-ed
+    lookback_months INTEGER NOT NULL DEFAULT 12,        -- tunable window the count is measured over
+    requires_disclosed_affiliations BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_real_byline BOOLEAN NOT NULL DEFAULT TRUE, -- no anonymous accounts
+    effective_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE commentators (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    outlet          TEXT,
+    bio             TEXT,
+    disclosed_affiliations TEXT,                        -- mandatory self-disclosure (paid newsletter, unpaid blog, campaign ties, etc.)
+    byline_verified BOOLEAN NOT NULL DEFAULT FALSE,      -- confirmed real, accountable identity — not anonymous
+    outreach_status TEXT NOT NULL DEFAULT 'not_contacted'
+                      CHECK (outreach_status IN ('not_contacted','invited','responded','declined','no_response')),
+    outreach_initiated_at TIMESTAMPTZ,
+    disqualified_reason TEXT,                           -- e.g. 'undisclosed campaign payment found'
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- a computed, re-evaluated fact (same pattern as alignment_scores/opinion_clusters),
+-- not a permanent flag — a commentator's qualification can change as they publish more or less
+CREATE TABLE commentator_qualifications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    rule_id         UUID NOT NULL REFERENCES commentator_inclusion_rules(id),
+    pieces_counted  INTEGER NOT NULL,
+    qualifies       BOOLEAN NOT NULL,
+    computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE commentary_links (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    url             TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    published_at    DATE,
+    excerpt         TEXT,
+    jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),
+    topic_id        UUID REFERENCES topics(id),
+    politician_id   UUID REFERENCES politicians(id),
+    race_id         UUID REFERENCES races(id),
+    issue_proposal_id UUID,                              -- FK to issue_proposals(id) added below, after that table exists
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- ALIGNMENT SCORING
 -- ══════════════════════════════════════════════════════════════
@@ -379,6 +438,10 @@ CREATE TABLE issue_proposals (
                       CHECK (status IN ('seconding','debating','referendum','closed','rejected')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE commentary_links
+    ADD CONSTRAINT fk_commentary_links_issue_proposal
+    FOREIGN KEY (issue_proposal_id) REFERENCES issue_proposals(id);
 
 CREATE TABLE seconds (
     proposal_id     UUID NOT NULL REFERENCES issue_proposals(id),
@@ -769,6 +832,10 @@ CREATE INDEX idx_campaign_communications_jurisdiction ON campaign_communications
 CREATE INDEX idx_endorsements_candidacy ON endorsements(candidacy_id);
 CREATE INDEX idx_endorsements_organization ON endorsements(organization_id);
 CREATE INDEX idx_argument_claim_flags_argument ON argument_claim_flags(argument_id);
+CREATE INDEX idx_commentary_links_commentator ON commentary_links(commentator_id);
+CREATE INDEX idx_commentary_links_politician ON commentary_links(politician_id) WHERE politician_id IS NOT NULL;
+CREATE INDEX idx_commentary_links_jurisdiction ON commentary_links(jurisdiction_id);
+CREATE INDEX idx_commentator_qualifications_commentator ON commentator_qualifications(commentator_id);
 CREATE INDEX idx_ai_debate_runs_thread ON ai_debate_runs(thread_id);
 CREATE INDEX idx_arguments_ai_debate_run ON arguments(ai_debate_run_id) WHERE ai_debate_run_id IS NOT NULL;
 CREATE INDEX idx_arguments_parent ON arguments(parent_argument_id) WHERE parent_argument_id IS NOT NULL;
