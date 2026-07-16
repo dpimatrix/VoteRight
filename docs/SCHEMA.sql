@@ -273,6 +273,9 @@ CREATE TABLE endorsements (
 -- separate from `citations` — a commentary piece is someone's analysis, not evidentiary
 -- backing for a platform-asserted fact, and must never be used as a promise/integrity_flag
 -- citation_id as if it carried the same evidentiary weight as a primary source.
+-- That wall is table-level, not URL-level: ingestion flags any new citations row whose
+-- domain matches a qualified commentator's outlet for human review before it may back
+-- a published flag or status change.
 CREATE TABLE commentator_inclusion_rules (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
@@ -292,9 +295,30 @@ CREATE TABLE commentators (
     byline_verified BOOLEAN NOT NULL DEFAULT FALSE,      -- confirmed real, accountable identity — not anonymous
     outreach_status TEXT NOT NULL DEFAULT 'not_contacted'
                       CHECK (outreach_status IN ('not_contacted','invited','responded','declined','no_response')),
+    -- 'declined' has defined behavior: the commentator is delisted from rail placement
+    -- (recorded as a 'delisted_by_request' status event); users citing their public
+    -- articles in debate arguments is unaffected
     outreach_initiated_at TIMESTAMPTZ,
-    disqualified_reason TEXT,                           -- e.g. 'undisclosed campaign payment found'
+    current_status  TEXT NOT NULL DEFAULT 'eligible'
+                      CHECK (current_status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),  -- see commentator_status_events for the append-only trail behind it
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A status change about a NAMED commentator — above all a disqualification ('undisclosed
+-- campaign payment found') — is a claim about a real person, and gets the same discipline
+-- Section 2.3 imposes everywhere else: sourced, disputable, append-only, with right of
+-- reply. The platform must not hold candidates to a higher evidentiary standard than it
+-- holds itself to when cutting a commentator.
+CREATE TABLE commentator_status_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    status          TEXT NOT NULL CHECK (status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),
+    reason          TEXT,
+    citation_id     UUID REFERENCES citations(id),       -- evidence for the change
+    reply_text      TEXT,                                -- the commentator's response (right of reply)
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- a disqualification without evidence is exactly the category of claim Section 2.3 forbids
+    CHECK (status <> 'disqualified' OR citation_id IS NOT NULL)
 );
 
 -- a computed, re-evaluated fact (same pattern as alignment_scores/opinion_clusters),
@@ -304,9 +328,25 @@ CREATE TABLE commentator_qualifications (
     commentator_id  UUID NOT NULL REFERENCES commentators(id),
     jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
     rule_id         UUID NOT NULL REFERENCES commentator_inclusion_rules(id),
-    pieces_counted  INTEGER NOT NULL,
+    pieces_counted  INTEGER NOT NULL,                   -- derived from commentator_pieces rows inside the rule window, never a bare hand-entered number
     qualifies       BOOLEAN NOT NULL,
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- The auditable ledger behind pieces_counted. The counting procedure is where selector
+-- power could sneak back in ("what counts as a piece about this jurisdiction?"), so every
+-- counted piece is a checkable row with its relevance basis, and the definition of a
+-- "piece" lives on the public methodology page. A qualification decision shows its work.
+CREATE TABLE commentator_pieces (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    url             TEXT NOT NULL,
+    title           TEXT,
+    published_at    DATE NOT NULL,
+    relevance_basis TEXT,                                -- why this piece counts as coverage of this jurisdiction
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (commentator_id, url)
 );
 
 CREATE TABLE commentary_links (
@@ -836,6 +876,8 @@ CREATE INDEX idx_commentary_links_commentator ON commentary_links(commentator_id
 CREATE INDEX idx_commentary_links_politician ON commentary_links(politician_id) WHERE politician_id IS NOT NULL;
 CREATE INDEX idx_commentary_links_jurisdiction ON commentary_links(jurisdiction_id);
 CREATE INDEX idx_commentator_qualifications_commentator ON commentator_qualifications(commentator_id);
+CREATE INDEX idx_commentator_pieces_commentator ON commentator_pieces(commentator_id);
+CREATE INDEX idx_commentator_status_events_commentator ON commentator_status_events(commentator_id);
 CREATE INDEX idx_ai_debate_runs_thread ON ai_debate_runs(thread_id);
 CREATE INDEX idx_arguments_ai_debate_run ON arguments(ai_debate_run_id) WHERE ai_debate_run_id IS NOT NULL;
 CREATE INDEX idx_arguments_parent ON arguments(parent_argument_id) WHERE parent_argument_id IS NOT NULL;

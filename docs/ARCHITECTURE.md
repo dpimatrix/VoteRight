@@ -212,6 +212,9 @@ erDiagram
     COMMENTATOR_INCLUSION_RULES ||--o{ COMMENTATOR_QUALIFICATIONS : evaluates
     COMMENTATORS ||--o{ COMMENTATOR_QUALIFICATIONS : "qualifies via"
     COMMENTATORS ||--o{ COMMENTARY_LINKS : writes
+    COMMENTATORS ||--o{ COMMENTATOR_PIECES : "coverage counted from"
+    COMMENTATORS ||--o{ COMMENTATOR_STATUS_EVENTS : has
+    CITATIONS ||--o{ COMMENTATOR_STATUS_EVENTS : evidences
     POLITICIANS ||--o{ COMMENTARY_LINKS : "commentary about"
     ISSUE_PROPOSALS ||--o{ COMMENTARY_LINKS : "commentary about"
 ```
@@ -244,7 +247,7 @@ Full DDL lives in [`SCHEMA.sql`](./SCHEMA.sql). Key design decisions called out 
 - **Publish gates are constraints in three more places** — `integrity_flags` (`CHECK (NOT published OR status <> 'open')`), `campaign_communications` (no verified finding without a citation, no `is_official_ballot` verdict while unverified), and a trigger validating `referendum_ballots.choice` against the referendum's declared options — closing the gap between "gated by CHECK" (the stated principle) and "gated by comment" (what three tables actually had).
 - **`accountability_pathways` is jurisdiction-scoped with an optional office** — the charter-amendment petition belongs to the county, not to any single office; forcing every pathway onto an office row would either duplicate it across every county office or pin it somewhere arbitrary.
 - **Per-user agreement votes are held, used, then deleted** — they exist to compute `opinion_clusters` and the denormalized per-argument tallies (`agree_count` / `disagree_count` / `pass_count`), not to accumulate a permanent per-person political-opinion ledger. Section 10.2 classifies every participation act as deliberately public (arguments, seconds, proposals) or private-with-retention (agreement votes, call-the-question votes, referendum ballots).
-- **Commentator inclusion is a computed fact, not a stored opinion** — `commentator_qualifications` re-evaluates against `commentator_inclusion_rules` the same way `alignment_scores` and `opinion_clusters` are recomputed, so nobody has to manually curate (or manually remove) a commentator as their publishing record changes. `commentary_links` never carries a `citation_id` role anywhere else in the schema — it is deliberately not part of the evidence ledger (Section 8.2).
+- **Commentator inclusion is a computed fact, not a stored opinion** — `commentator_qualifications` re-evaluates against `commentator_inclusion_rules` the same way `alignment_scores` and `opinion_clusters` are recomputed, so nobody has to manually curate (or manually remove) a commentator as their publishing record changes. `commentary_links` never carries a `citation_id` role anywhere else in the schema — it is deliberately not part of the evidence ledger (Section 8.2). Qualification counts trace to the `commentator_pieces` ledger, and commentator status changes go through append-only, evidence-gated `commentator_status_events` — disqualifying a named journalist gets the same due process as flagging a politician.
 
 ```sql
 -- ══════════════════════════════════════════════════════════════
@@ -533,9 +536,27 @@ CREATE TABLE commentators (
     byline_verified BOOLEAN NOT NULL DEFAULT FALSE,      -- confirmed real, accountable identity
     outreach_status TEXT NOT NULL DEFAULT 'not_contacted'
                       CHECK (outreach_status IN ('not_contacted','invited','responded','declined','no_response')),
+    -- 'declined' has defined behavior: delisted from rail placement ('delisted_by_request');
+    -- users citing their public articles in debate arguments is unaffected
     outreach_initiated_at TIMESTAMPTZ,
-    disqualified_reason TEXT,
+    current_status  TEXT NOT NULL DEFAULT 'eligible'
+                      CHECK (current_status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),  -- see commentator_status_events for the append-only trail behind it
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A status change about a NAMED commentator — above all a disqualification — is a claim
+-- about a real person, and gets the same discipline Section 2.3 imposes everywhere else:
+-- sourced, disputable, append-only, with right of reply.
+CREATE TABLE commentator_status_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    status          TEXT NOT NULL CHECK (status IN ('eligible','under_review','disqualified','reinstated','delisted_by_request')),
+    reason          TEXT,
+    citation_id     UUID REFERENCES citations(id),       -- evidence for the change
+    reply_text      TEXT,                                -- the commentator's response (right of reply)
+    recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- a disqualification without evidence is exactly the category of claim Section 2.3 forbids
+    CHECK (status <> 'disqualified' OR citation_id IS NOT NULL)
 );
 
 -- computed and re-evaluated, same pattern as alignment_scores/opinion_clusters
@@ -544,9 +565,25 @@ CREATE TABLE commentator_qualifications (
     commentator_id  UUID NOT NULL REFERENCES commentators(id),
     jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
     rule_id         UUID NOT NULL REFERENCES commentator_inclusion_rules(id),
-    pieces_counted  INTEGER NOT NULL,
+    pieces_counted  INTEGER NOT NULL,                   -- derived from commentator_pieces rows inside the rule window, never a bare hand-entered number
     qualifies       BOOLEAN NOT NULL,
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- The auditable ledger behind pieces_counted. The counting procedure is where selector
+-- power could sneak back in ("what counts as a piece about this jurisdiction?"), so every
+-- counted piece is a checkable row with its relevance basis, and the definition of a
+-- "piece" lives on the public methodology page. A qualification decision shows its work.
+CREATE TABLE commentator_pieces (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commentator_id  UUID NOT NULL REFERENCES commentators(id),
+    jurisdiction_id TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    url             TEXT NOT NULL,
+    title           TEXT,
+    published_at    DATE NOT NULL,
+    relevance_basis TEXT,                                -- why this piece counts as coverage of this jurisdiction
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (commentator_id, url)
 );
 
 CREATE TABLE commentary_links (
@@ -1305,9 +1342,10 @@ All three feed the same evidence ledger (`citations`) and the same alignment-sco
 
 Local journalists and analysts who've covered a jurisdiction for years — a Montgomery Perspective, an established statehouse reporter — carry real informational value that a strict "sourced fact vs. community opinion" model (Section 2.3) doesn't have room for: their work is neither a platform-verified fact nor an anonymous forum post, it's informed, attributed analysis. Surfacing it serves voters. But *how* it gets surfaced carries its own risk, distinct from anything else in this document: featuring specific named commentators, even ones who read as scrupulously non-partisan, makes an implicit editorial statement about whose analysis counts — unless inclusion is governed by a rule instead of a pick.
 
-- **Inclusion is computed, not curated.** `commentator_inclusion_rules` sets a tunable, disclosed bar per jurisdiction — sustained coverage (`min_pieces_count` over `lookback_months`, defaulting to 12 pieces in 12 months: enough to distinguish a beat reporter from a one-off op-ed writer), a real accountable byline, and mandatory disclosure of any financial or campaign ties. `commentator_qualifications` re-evaluates every commentator against that rule on a schedule, the same way `alignment_scores` and `opinion_clusters` are recomputed rather than hand-set — nobody at VoteRight decides Adam Pagnucco or anyone else "counts"; the rule decides, and it decides the same way for everyone.
-- **A neutral rule doesn't guarantee a balanced roster by itself.** If outreach is purely passive — wait for commentators to self-submit — the roster can still end up lopsided simply because of who happens to apply. The rule has to be paired with **active, even-handed outreach** to known local voices across the spectrum who'd likely qualify, tracked via `commentators.outreach_status`. A public "how commentators are included" methodology page matters here too: the platform isn't vouching for balance, it's showing the rule and letting users judge the roster themselves.
-- **Never part of the evidence ledger.** `commentary_links` has no relationship to `citations` and must never be used as the `citation_id` behind a `promise_status_events` row or an `integrity_flag` — a commentator's characterization of a fact isn't the same evidentiary weight as the primary source they're citing. If a commentary piece surfaces something worth citing on the platform, the platform cites the primary source underneath it, not the write-up.
+- **Inclusion is computed, not curated.** `commentator_inclusion_rules` sets a tunable, disclosed bar per jurisdiction — sustained coverage (`min_pieces_count` over `lookback_months`, defaulting to 12 pieces in 12 months: enough to distinguish a beat reporter from a one-off op-ed writer), a real accountable byline, and mandatory disclosure of any financial or campaign ties. `commentator_qualifications` re-evaluates every commentator against that rule on a schedule, the same way `alignment_scores` and `opinion_clusters` are recomputed rather than hand-set — nobody at VoteRight decides Adam Pagnucco or anyone else "counts"; the rule decides, and it decides the same way for everyone. The counting procedure is itself auditable: `commentator_pieces` is the per-piece ledger behind every `pieces_counted` figure — URL, date, and the relevance basis for why it counts — because "what counts as a piece about this jurisdiction" is where selector power would otherwise sneak back in, and the definition of a piece lives on the public methodology page.
+- **A neutral rule doesn't guarantee a balanced roster by itself.** If outreach is purely passive — wait for commentators to self-submit — the roster can still end up lopsided simply because of who happens to apply. The rule has to be paired with **active, even-handed outreach** to known local voices across the spectrum who'd likely qualify, tracked via `commentators.outreach_status`. A public "how commentators are included" methodology page matters here too: the platform isn't vouching for balance, it's showing the rule and letting users judge the roster themselves. Declining has defined behavior: a commentator who asks not to be featured is delisted from rail placement (recorded as `delisted_by_request`), while users citing their public articles in debate arguments is unaffected.
+- **Never part of the evidence ledger.** `commentary_links` has no relationship to `citations` and must never be used as the `citation_id` behind a `promise_status_events` row or an `integrity_flag` — a commentator's characterization of a fact isn't the same evidentiary weight as the primary source they're citing. If a commentary piece surfaces something worth citing on the platform, the platform cites the primary source underneath it, not the write-up. The wall is table-level, not URL-level — nothing structurally stops an ordinary `citations` row whose URL *is* a commentary piece — so ingestion flags any new citation whose domain matches a qualified commentator's outlet for human review before it can back a published flag or status change.
+- **Cutting a commentator gets the same due process as flagging a politician.** `commentator_status_events` is append-only: a disqualification requires a `citation_id` (enforced by `CHECK`), carries the commentator's right-of-reply text, and is never a silently edited free-text field. A platform that publicly disqualifies a named journalist for "undisclosed campaign ties" is making exactly the category of claim Section 2.3 governs — it cannot hold candidates to a higher evidentiary standard than it holds itself.
 - **An election-proximity blackout on promotion, not on access.** `election_cycles.commentary_promotion_blackout_days` (tunable, default 0) suppresses push notifications and featured placement of commentary inside a window before an election, without removing it — the same "electioneering communication" concern already flagged for the platform's own content in Section 2.7 applies just as much to content VoteRight chooses to actively surface.
 
 ---
