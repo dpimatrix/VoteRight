@@ -23,6 +23,7 @@ mitigations are already designed and, where noted, demonstrable in a working pro
 | Architecture & legal guardrails | `docs/ARCHITECTURE.md` (read §2 first) — rendered: architecture artifact page |
 | Database schema (constraints are load-bearing) | `docs/SCHEMA.sql` — validated on PostgreSQL 16 |
 | Scoring methodology | `docs/SCORING.md` |
+| Country expansion tiers (pilot → multi-country) | `docs/EXPANSION-READINESS.md` — rule-based market inclusion; per-country gates in its §3/§5 |
 | Working prototype (voter app + admin console) | prototype artifact — **Admin console tab demonstrates the dispute/right-of-reply workflow and the human-confirmation gate on scoring inputs** |
 
 All candidates, commentators, and sources in the prototype are fictional by design; the
