@@ -1450,6 +1450,8 @@ Montgomery County is 34% foreign-born, well above state and national rates, and 
 
 ## 13. Open questions for counsel before public launch
 
+These items are packaged for an attorney — grouped by legal domain, with phase gates, designed mitigations, and pointers to the working demos — as [`COUNSEL-REVIEW.md`](./COUNSEL-REVIEW.md). The canonical list:
+
 1. Does aggregating and publishing candidate integrity scores, especially near an election, trigger FEC/Maryland "electioneering communication" rules under any funding or promotion scenario we're planning?
 2. What nonprofit structure (if any — 501(c)(3), 501(c)(4), for-profit B-corp, or none) fits the intended funding model, and how does that constrain what the platform can say about specific candidates?
 3. Confirm, office-by-office, whether any *municipal* jurisdiction VoteRight expands into actually has a charter recall provision (some Maryland municipalities, unlike the county, may) — `accountability_pathways` must never default to assuming none exists; it must be verified per office.
