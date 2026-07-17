@@ -101,7 +101,8 @@ const I18N = {
     posted_src: 'Posted with source — pending moderation review.',
     posted_op: 'Posted, marked as your opinion — pending moderation review.',
     posted_dis: 'Posted — pending moderation review.',
-    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.'
+    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.',
+    deal_mark: 'Conflicts with one of your top priorities'
   },
   es: {
     app_title: 'VoteRight', county: 'Condado de Montgomery, MD',
@@ -200,7 +201,8 @@ const I18N = {
     posted_src: 'Publicado con fuente — pendiente de moderación.',
     posted_op: 'Publicado, marcado como tu opinión — pendiente de moderación.',
     posted_dis: 'Publicado — pendiente de moderación.',
-    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.'
+    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.',
+    deal_mark: 'Choca con una de tus prioridades principales'
   }
 };
 
@@ -331,6 +333,34 @@ const DEBATE = {
   composer_en: 'This will add 4,000 homes but cost the county $12M a year in services.',
   composer_es: 'Esto sumará 4,000 viviendas pero costará al condado $12M al año en servicios.',
   commentary: { c: 'marsh', d: '2026-07', t_en: 'The Metro-zoning debate is really about school capacity math', t_es: 'El debate de zonificación del Metro es, en el fondo, una cuestión de capacidad escolar' }
+};
+
+/* Admin console demo data (internal tool — English-only by design; the voter product is bilingual). */
+const ADMIN = {
+  focalFlag: {
+    who: 'Rafael Quintana', desc: 'Stated "no property-tax increase this term" (At-large forum, 2026-05) — voted YES on the FY27 levy adjustment (2026-06).',
+    origin: 'System — voting-record contradiction detected at ingestion',
+    evidence: 'FY27 levy adjustment · roll call · Legistar · archived ✓',
+    reply: '“The levy adjustment was revenue-neutral reindexing; my pledge was about the rate, and the rate did not rise.”'
+  },
+  otherFlags: [
+    { who: 'Maya Trent', desc: 'Claimed all 2023 district office hours held — one district session unverifiable', status: 'dismissed', note: 'Dismissed 2026-05: calendar archive located; claim verified.' },
+    { who: 'Colin Breuer', desc: 'Mailer claims "endorsed by county firefighters" — no endorsement on file', status: 'published', note: 'Upheld · published 2026-06 after reply window lapsed. 2 citations.' }
+  ],
+  queue: [
+    { id: 'q1', who: 'Dana Okafor', axis: 'climate / zero_emissions_schedule',
+      q: 'Should the county meet its zero-emissions targets on schedule?', neg: '−2 · Delay or relax targets', pos: '+2 · Keep or accelerate targets',
+      excerpt: '“We should hit the dates we promised, but small landlords need real help complying.”',
+      src: 'VoteRight questionnaire · 2026-04 · archived ✓', suggested: 1 },
+    { id: 'q2', who: 'Colin Breuer', axis: 'housing / rent_stabilization',
+      q: 'Should annual rent increases stay capped near the current limit?', neg: '−2 · Repeal the cap', pos: '+2 · Keep or tighten the cap',
+      excerpt: '“The cap has frozen new construction and should be repealed outright.”',
+      src: 'breuerforcouncil.example · 2026-02 · archived ✓', suggested: -2 },
+    { id: 'q3', who: 'Marcus Hollis', axis: 'transit / bus_network_expansion',
+      q: 'Should Ride On bus service expand countywide?', neg: '−2 · Hold current service', pos: '+2 · Expand countywide',
+      excerpt: '“BRT build-out is my first budget priority — full stop.”',
+      src: 'Executive debate · 2026-05 · archived ✓', suggested: 2 }
+  ]
 };
 
 // src.type: 'vote' | 'site' | 'quest' | 'debate'

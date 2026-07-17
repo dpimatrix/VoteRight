@@ -264,6 +264,25 @@
   .claimprompt .row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
   .claimprompt button { border: 1px solid var(--adv); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.76rem; font-weight: 700; }
 
+  /* ── Admin console (internal tool: dense, desktop-grade, deliberately plain) ── */
+  .adm { max-width: 920px; margin: 0 auto; }
+  .adm .banner { display: flex; gap: 0.6rem; align-items: center; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 1rem; }
+  .adm h2 { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-size: 1.25rem; margin: 1.2rem 0 0.4rem; }
+  .admtabs { display: flex; gap: 0.25rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 0.18rem; width: fit-content; }
+  .admtabs button { border: none; background: transparent; border-radius: 7px; padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 650; color: var(--muted); }
+  .admtabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .pill.open { color: var(--pending); background: color-mix(in srgb, var(--pending) 14%, transparent); }
+  .pill.published { color: var(--broken); background: color-mix(in srgb, var(--broken) 14%, transparent); }
+  .gatebtn { border: 1px dashed var(--line); background: transparent; color: var(--muted); border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.8rem; font-weight: 700; cursor: not-allowed; }
+  .gatebtn small { display: block; font-weight: 400; font-size: 0.66rem; font-family: ui-monospace, Consolas, monospace; }
+  .qmeta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: baseline; }
+  .qmeta .who { font-weight: 750; }
+  .qmeta .axis { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; color: var(--ev); }
+  .poles { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; }
+  .valrow { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+  .valrow button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; }
+  .valrow .vv { min-width: 3.5ch; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+
   .hidden { display: none !important; }
 </style>
 
@@ -272,6 +291,7 @@
   <div class="tabs" role="tablist">
     <button id="tab-proto" role="tab" aria-selected="true">Prototype</button>
     <button id="tab-sys" role="tab" aria-selected="false">Design system</button>
+    <button id="tab-admin" role="tab" aria-selected="false">Admin console</button>
   </div>
   <div class="langs" aria-label="Language">
     <button id="lang-en" aria-pressed="true">EN</button>
@@ -292,4 +312,6 @@
   </div>
 
   <div id="view-sys" class="sys hidden"></div>
+
+  <div id="view-admin" class="adm hidden"></div>
 </main>

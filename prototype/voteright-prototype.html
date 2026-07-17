@@ -264,6 +264,25 @@
   .claimprompt .row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
   .claimprompt button { border: 1px solid var(--adv); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.76rem; font-weight: 700; }
 
+  /* ── Admin console (internal tool: dense, desktop-grade, deliberately plain) ── */
+  .adm { max-width: 920px; margin: 0 auto; }
+  .adm .banner { display: flex; gap: 0.6rem; align-items: center; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 1rem; }
+  .adm h2 { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-size: 1.25rem; margin: 1.2rem 0 0.4rem; }
+  .admtabs { display: flex; gap: 0.25rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 0.18rem; width: fit-content; }
+  .admtabs button { border: none; background: transparent; border-radius: 7px; padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 650; color: var(--muted); }
+  .admtabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .pill.open { color: var(--pending); background: color-mix(in srgb, var(--pending) 14%, transparent); }
+  .pill.published { color: var(--broken); background: color-mix(in srgb, var(--broken) 14%, transparent); }
+  .gatebtn { border: 1px dashed var(--line); background: transparent; color: var(--muted); border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.8rem; font-weight: 700; cursor: not-allowed; }
+  .gatebtn small { display: block; font-weight: 400; font-size: 0.66rem; font-family: ui-monospace, Consolas, monospace; }
+  .qmeta { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: baseline; }
+  .qmeta .who { font-weight: 750; }
+  .qmeta .axis { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; color: var(--ev); }
+  .poles { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; }
+  .valrow { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+  .valrow button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; }
+  .valrow .vv { min-width: 3.5ch; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+
   .hidden { display: none !important; }
 </style>
 
@@ -272,6 +291,7 @@
   <div class="tabs" role="tablist">
     <button id="tab-proto" role="tab" aria-selected="true">Prototype</button>
     <button id="tab-sys" role="tab" aria-selected="false">Design system</button>
+    <button id="tab-admin" role="tab" aria-selected="false">Admin console</button>
   </div>
   <div class="langs" aria-label="Language">
     <button id="lang-en" aria-pressed="true">EN</button>
@@ -292,6 +312,8 @@
   </div>
 
   <div id="view-sys" class="sys hidden"></div>
+
+  <div id="view-admin" class="adm hidden"></div>
 </main>
 
 <script>
@@ -396,7 +418,8 @@ const I18N = {
     posted_src: 'Posted with source — pending moderation review.',
     posted_op: 'Posted, marked as your opinion — pending moderation review.',
     posted_dis: 'Posted — pending moderation review.',
-    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.'
+    ref_next: 'When the window ends (or the question is called), this proposal advances to an unofficial, advisory referendum.',
+    deal_mark: 'Conflicts with one of your top priorities'
   },
   es: {
     app_title: 'VoteRight', county: 'Condado de Montgomery, MD',
@@ -495,7 +518,8 @@ const I18N = {
     posted_src: 'Publicado con fuente — pendiente de moderación.',
     posted_op: 'Publicado, marcado como tu opinión — pendiente de moderación.',
     posted_dis: 'Publicado — pendiente de moderación.',
-    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.'
+    ref_next: 'Al terminar la ventana (o si se pide la votación), esta propuesta avanza a un referendo consultivo no oficial.',
+    deal_mark: 'Choca con una de tus prioridades principales'
   }
 };
 
@@ -626,6 +650,34 @@ const DEBATE = {
   composer_en: 'This will add 4,000 homes but cost the county $12M a year in services.',
   composer_es: 'Esto sumará 4,000 viviendas pero costará al condado $12M al año en servicios.',
   commentary: { c: 'marsh', d: '2026-07', t_en: 'The Metro-zoning debate is really about school capacity math', t_es: 'El debate de zonificación del Metro es, en el fondo, una cuestión de capacidad escolar' }
+};
+
+/* Admin console demo data (internal tool — English-only by design; the voter product is bilingual). */
+const ADMIN = {
+  focalFlag: {
+    who: 'Rafael Quintana', desc: 'Stated "no property-tax increase this term" (At-large forum, 2026-05) — voted YES on the FY27 levy adjustment (2026-06).',
+    origin: 'System — voting-record contradiction detected at ingestion',
+    evidence: 'FY27 levy adjustment · roll call · Legistar · archived ✓',
+    reply: '“The levy adjustment was revenue-neutral reindexing; my pledge was about the rate, and the rate did not rise.”'
+  },
+  otherFlags: [
+    { who: 'Maya Trent', desc: 'Claimed all 2023 district office hours held — one district session unverifiable', status: 'dismissed', note: 'Dismissed 2026-05: calendar archive located; claim verified.' },
+    { who: 'Colin Breuer', desc: 'Mailer claims "endorsed by county firefighters" — no endorsement on file', status: 'published', note: 'Upheld · published 2026-06 after reply window lapsed. 2 citations.' }
+  ],
+  queue: [
+    { id: 'q1', who: 'Dana Okafor', axis: 'climate / zero_emissions_schedule',
+      q: 'Should the county meet its zero-emissions targets on schedule?', neg: '−2 · Delay or relax targets', pos: '+2 · Keep or accelerate targets',
+      excerpt: '“We should hit the dates we promised, but small landlords need real help complying.”',
+      src: 'VoteRight questionnaire · 2026-04 · archived ✓', suggested: 1 },
+    { id: 'q2', who: 'Colin Breuer', axis: 'housing / rent_stabilization',
+      q: 'Should annual rent increases stay capped near the current limit?', neg: '−2 · Repeal the cap', pos: '+2 · Keep or tighten the cap',
+      excerpt: '“The cap has frozen new construction and should be repealed outright.”',
+      src: 'breuerforcouncil.example · 2026-02 · archived ✓', suggested: -2 },
+    { id: 'q3', who: 'Marcus Hollis', axis: 'transit / bus_network_expansion',
+      q: 'Should Ride On bus service expand countywide?', neg: '−2 · Hold current service', pos: '+2 · Expand countywide',
+      excerpt: '“BRT build-out is my first budget priority — full stop.”',
+      src: 'Executive debate · 2026-05 · archived ✓', suggested: 2 }
+  ]
 };
 
 // src.type: 'vote' | 'site' | 'quest' | 'debate'
@@ -922,6 +974,7 @@ const S = {
   race: 'atlarge', candId: null, open: null, addr: 'ss',
   dv: 'clusters', showOrig: false, openCluster: null, ctq: false, claim: null,
   agreeVotes: {}, threadBack: 'welcome',
+  adm: { tab: 'disputes', stage: 0, resolved: null, queue: { q1: 'pending', q2: 'pending', q3: 'pending' }, values: { q1: 1, q2: -2, q3: 2 } },
   prios: {} // topicId -> { statement, stance: 1|-1, w: 1..5 }
 };
 const t = (k) => (I18N[S.lang][k] !== undefined ? I18N[S.lang][k] : k);
@@ -947,13 +1000,16 @@ function scoreCand(cand) {
   }
   const coverage = wAll ? wAns / wAll : 0;
   const score = wAns ? num / (2 * wAns) : 0;        // -1..1
+  // dealbreaker rule (SCORING.md S5): a weight-5 priority at agreement <= -1 marks the
+  // card visibly but never changes the aggregate — the voter judges
+  const db = Object.entries(S.prios).some(([tid, p]) => p.w === 5 && perTopic[tid] !== null && perTopic[tid] !== undefined && perTopic[tid] <= -1);
   let band;
   if (coverage < 0.5) band = 'insuff';
   else if (score >= 0.55) band = 'strong';
   else if (score >= 0.2) band = 'good';
   else if (score > -0.2) band = 'mixed';
   else band = 'weak';
-  return { score, coverage, band, perTopic, nAns: Object.values(perTopic).filter(v => v !== null).length, nAll: Object.keys(perTopic).length };
+  return { score, coverage, band, db, perTopic, nAns: Object.values(perTopic).filter(v => v !== null).length, nAll: Object.keys(perTopic).length };
 }
 const OV_LABEL = { strong: 'ov_strong', good: 'ov_good', mixed: 'ov_mixed', weak: 'ov_weak', insuff: 'ov_insuff' };
 const OV_CLASS = { strong: 'b2', good: 'b1', mixed: 'b0', weak: 'bm1', insuff: 'bnull' };
@@ -1083,6 +1139,7 @@ function renderResults() {
           <span class="dots" aria-hidden="true">${dots}</span>
           <span class="cover">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
         </div>
+        ${r.db ? '<div style="margin-top:0.4rem"><span class="chip band bm1">⚠ ' + t('deal_mark') + '</span></div>' : ''}
         ${insuff ? '<div class="nopos" style="margin-top:0.4rem">' + t('insuff_note') + '</div>' : ''}
       </button>`;
   }).join('');
@@ -1277,6 +1334,7 @@ function renderDetail() {
     </div>
     <div style="display:flex;align-items:center;gap:0.5rem;margin:0.4rem 0 0.8rem;flex-wrap:wrap">
       <span class="chip band ${OV_CLASS[r.band]}">${t(OV_LABEL[r.band])}</span>
+      ${r.db ? '<span class="chip band bm1">⚠ ' + t('deal_mark') + '</span>' : ''}
       <span style="font-size:0.72rem;color:var(--muted)">${t('based_on')} ${r.nAns}/${r.nAll} ${t('of_your')} ${t('priorities_w')}</span>
     </div>
     ${rows}
@@ -1447,6 +1505,100 @@ function renderThread() {
     <div class="disclosure"><span class="tag">${t('unofficial')}</span><span>${t('ref_next')} ${t('mandate_disc')}</span></div>`;
 }
 
+/* ─────────────────────────── admin console (EN-only internal tool) ── */
+function renderAdmin() {
+  const A = S.adm;
+  let body = '';
+
+  if (A.tab === 'disputes') {
+    const F = ADMIN.focalFlag;
+    const events = [
+      { d: '07-10', who: 'System', txt: 'Flag opened — ' + F.origin, always: true },
+      { d: '07-16', who: 'Staff', txt: 'Evidence attached', cite: F.evidence, at: 1 },
+      { d: '07-16', who: 'System', txt: 'Right of reply sent to the campaign — 14-day window opens', at: 2 },
+      { d: '07-19', who: 'Candidate', txt: 'Reply received: ' + F.reply, at: 3 },
+    ].filter(e => e.always || A.stage >= e.at);
+    if (A.resolved) events.push({ d: '07-20', who: 'Staff', txt: A.resolved === 'upheld' ? 'Resolved: UPHELD — published with evidence and the candidate’s reply attached' : 'Resolved: DISMISSED — reply and evidence retained in the append-only record' });
+    const timeline = events.map(e =>
+      '<div class="histline"><span class="hd">' + e.d + '</span><span class="hl">' + esc(e.who) + '</span><span style="flex:1;min-width:14ch">' + esc(e.txt) + '</span>' + (e.cite ? '<span class="chip cite">▣ ' + esc(e.cite) + '</span>' : '') + '</div>').join('');
+
+    let actions = '';
+    if (A.resolved) {
+      actions = A.resolved === 'upheld'
+        ? '<span class="pill published">✗ Upheld · published</span>'
+        : '<span class="pill neutral">Dismissed — never published</span>';
+    } else if (A.stage === 0) {
+      actions = '<button class="btn secondary" style="width:auto" onclick="VR.admStage(1)">Attach evidence (citation)</button>';
+    } else if (A.stage === 1) {
+      actions = '<button class="btn secondary" style="width:auto" onclick="VR.admStage(2)">Send right of reply</button>';
+    } else if (A.stage === 2) {
+      actions = '<button class="btn secondary" style="width:auto" onclick="VR.admStage(3)">Simulate: reply received</button>';
+    } else {
+      actions = '<button class="btn secondary" style="width:auto" onclick="VR.admResolve(\'upheld\')">Uphold &amp; publish</button> <button class="btn secondary" style="width:auto" onclick="VR.admResolve(\'dismissed\')">Dismiss</button>';
+    }
+    const gate = A.resolved
+      ? ''
+      : '<button class="gatebtn" disabled>Publish flag — blocked<small>CHECK (NOT published OR status &lt;&gt; \'open\') — a flag in dispute can never go public</small></button>';
+
+    const others = ADMIN.otherFlags.map(f =>
+      '<tr><td class="cn">' + esc(f.who) + '</td><td style="text-align:left">' + esc(f.desc) + '</td><td>' +
+      (f.status === 'published' ? '<span class="pill published">✗ upheld · published</span>' : '<span class="pill neutral">dismissed</span>') +
+      '<div style="font-size:0.68rem;color:var(--muted);margin-top:0.2rem">' + esc(f.note) + '</div></td></tr>').join('');
+
+    body = `
+      <h2>Integrity-flag dispute queue</h2>
+      <p style="font-size:0.82rem;color:var(--muted);max-width:70ch">The §2.3 workflow, operable: evidence before publication, right of reply before resolution, append-only history throughout. The publish gate is a database constraint, not this console's good behavior.</p>
+      <div class="card">
+        <div class="qmeta"><span class="who">${esc(F.who)}</span><span class="pill ${A.resolved ? (A.resolved === 'upheld' ? 'published' : 'neutral') : 'open'}">${A.resolved ? A.resolved : (A.stage >= 2 ? 'awaiting reply' : 'open')}</span></div>
+        <div style="font-size:0.86rem;margin-top:0.3rem">${esc(F.desc)}</div>
+        <div style="margin-top:0.55rem">${timeline}</div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-top:0.6rem">${actions} ${gate}</div>
+      </div>
+      <h2>Recently resolved</h2>
+      <div class="mgridwrap"><table class="mgrid"><tr><th style="text-align:left;padding-left:0.6rem">Politician</th><th style="text-align:left">Flag</th><th style="text-align:left">Outcome</th></tr>${others}</table></div>`;
+  } else {
+    const usable = 1 + Object.values(A.queue).filter(v => v === 'confirmed').length;
+    const cards = ADMIN.queue.map(q => {
+      const st = A.queue[q.id];
+      const val = A.values[q.id];
+      let foot;
+      if (st === 'confirmed') foot = '<span class="pill kept">✓ confirmed · usable_for_scoring = TRUE</span>';
+      else if (st === 'rejected') foot = '<span class="pill neutral">rejected — never usable</span>';
+      else foot = `
+        <div class="valrow">
+          <button aria-label="decrease" onclick="VR.admVal('${q.id}',-1)">−</button>
+          <span class="vv">${val > 0 ? '+' + val : val}</span>
+          <button aria-label="increase" onclick="VR.admVal('${q.id}',1)">+</button>
+          <button class="btn secondary" style="width:auto;padding:0.4rem 0.9rem;font-size:0.8rem" onclick="VR.admCode('${q.id}','confirmed')">Confirm coding</button>
+          <button class="btn secondary" style="width:auto;padding:0.4rem 0.9rem;font-size:0.8rem" onclick="VR.admCode('${q.id}','rejected')">Reject</button>
+        </div>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:0.3rem">Model suggested ${q.suggested > 0 ? '+' + q.suggested : q.suggested} — a suggestion never scores anyone until a human confirms it (usable_for_scoring stays FALSE).</div>`;
+      return `
+      <div class="card">
+        <div class="qmeta"><span class="who">${esc(q.who)}</span><span class="axis">${esc(q.axis)}</span><span class="pill ${st === 'confirmed' ? 'kept' : st === 'rejected' ? 'neutral' : 'open'}">${st}</span></div>
+        <div style="font-weight:650;font-size:0.88rem;margin-top:0.35rem">${esc(q.q)}</div>
+        <div class="poles"><span>${esc(q.neg)}</span><span>${esc(q.pos)}</span></div>
+        <div class="repq"><div style="font-style:italic">${esc(q.excerpt)}</div></div>
+        <span class="chip cite">▣ ${esc(q.src)}</span>
+        <div style="margin-top:0.45rem">${foot}</div>
+      </div>`;
+    }).join('');
+    body = `
+      <h2>Position-coding queue</h2>
+      <p style="font-size:0.82rem;color:var(--muted);max-width:70ch">SCORING.md §S2, operable: the source excerpt, its citation, and the axis question side by side. Adjust the value if the model’s suggestion is off, then confirm — or reject. Only confirmed rows can ever score a candidate.</p>
+      <div class="card raised" style="font-size:0.82rem"><strong>${usable} of 4</strong> codings usable for scoring (1 staff-coded — usable immediately; 3 model-suggested — gated on confirmation).</div>
+      ${cards}`;
+  }
+
+  document.getElementById('view-admin').innerHTML = `
+    <div class="banner"><span>🔒</span><span>Internal tool — trusted, trained operators. Deliberately plain and dense; English-only by design (the voter product is bilingual). Every action lands in an append-only event log.</span></div>
+    <div class="admtabs" role="group">
+      <button aria-pressed="${A.tab === 'disputes'}" onclick="VR.admTab('disputes')">Integrity disputes</button>
+      <button aria-pressed="${A.tab === 'coding'}" onclick="VR.admTab('coding')">Position coding</button>
+    </div>
+    ${body}`;
+}
+
 /* ─────────────────────────── shell & wiring ────────────────── */
 const TITLES = { welcome: 'app_title', ballot: 'ballot_title', prio: 'prio_title', results: 'results_title', detail: 'detail_title', mandates: 'm_grid_title', promises: 'promises_title', thread: 'thread_title' };
 function render() {
@@ -1525,14 +1677,23 @@ window.VR = {
     S.view = v;
     document.getElementById('view-proto').classList.toggle('hidden', v !== 'proto');
     document.getElementById('view-sys').classList.toggle('hidden', v !== 'sys');
+    document.getElementById('view-admin').classList.toggle('hidden', v !== 'admin');
     document.getElementById('tab-proto').setAttribute('aria-selected', v === 'proto');
     document.getElementById('tab-sys').setAttribute('aria-selected', v === 'sys');
-  }
+    document.getElementById('tab-admin').setAttribute('aria-selected', v === 'admin');
+    if (v === 'admin') renderAdmin();
+  },
+  admTab(tb) { S.adm.tab = tb; renderAdmin(); },
+  admStage(n) { S.adm.stage = n; renderAdmin(); },
+  admResolve(r) { S.adm.resolved = r; renderAdmin(); },
+  admVal(id, d) { S.adm.values[id] = Math.max(-2, Math.min(2, S.adm.values[id] + d)); renderAdmin(); },
+  admCode(id, st) { S.adm.queue[id] = st; renderAdmin(); }
 };
 
 document.getElementById('btn-back').addEventListener('click', VR.back);
 document.getElementById('tab-proto').addEventListener('click', () => VR.setView('proto'));
 document.getElementById('tab-sys').addEventListener('click', () => VR.setView('sys'));
+document.getElementById('tab-admin').addEventListener('click', () => VR.setView('admin'));
 document.getElementById('lang-en').addEventListener('click', () => VR.setLang('en'));
 document.getElementById('lang-es').addEventListener('click', () => VR.setLang('es'));
 render();

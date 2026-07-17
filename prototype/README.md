@@ -37,6 +37,7 @@ node tests/smoke2.js                           # your-ballot
 node tests/smoke3.js                           # mandate grid + promise records
 node tests/smoke4.js                           # commentary rail
 node tests/smoke5.js                           # debate thread
+node tests/smoke6.js                           # admin console + dealbreaker marker
 ```
 
 `tests/consistency.js` is the three-way doc check (SCHEMA.sql ↔ ARCHITECTURE.md ↔
