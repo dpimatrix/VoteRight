@@ -5,6 +5,8 @@ import {
   evidenceForPoliticians,
   loadPriorities,
   politicianProfile,
+  promisesFor,
+  publishedFlagsFor,
   topicsWithAxes,
 } from "@/lib/queries";
 import { agreement, axisValue } from "@/lib/scoring/engine";
@@ -43,6 +45,15 @@ export default async function CandidatePage({
   const priorities = userId ? await loadPriorities(userId) : [];
   const prioByAxis = new Map(priorities.map((p) => [p.axisId, p]));
   const asOf = new Date();
+  const promises = await promisesFor(id);
+  const flags = await publishedFlagsFor(id);
+  const PILL: Record<string, string> = {
+    kept: "kept", broken: "broken", in_progress: "pending", compromised: "pending",
+    stalled: "neutral", pending: "neutral",
+  };
+  const ICON: Record<string, string> = {
+    kept: "✓", broken: "✗", in_progress: "⟳", compromised: "◑", stalled: "⏸", pending: "…",
+  };
 
   return (
     <>
@@ -96,6 +107,66 @@ export default async function CandidatePage({
           </div>
         );
       })}
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.promises_h}</div>
+        {promises.length === 0 ? (
+          <div className="nopos">{d.promises_none}</div>
+        ) : (
+          <>
+            {promises.map((p) => (
+              <div key={p.id} style={{ margin: "0.6rem 0", borderTop: "1px solid var(--line)", paddingTop: "0.6rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                  <strong style={{ flex: 1, fontSize: "0.92rem" }}>{p.statement}</strong>
+                  <span className={`pill ${PILL[p.current_status] ?? "neutral"}`}>
+                    {ICON[p.current_status]} {d.pstatus[p.current_status as keyof typeof d.pstatus] ?? p.current_status}
+                  </span>
+                </div>
+                {p.events.map((e, i) => (
+                  <div key={i} className="histline">
+                    <span className="hd">{e.date}</span>
+                    <span className="hl">{d.pstatus[e.status as keyof typeof d.pstatus] ?? e.status}</span>
+                    <span style={{ flex: 1, minWidth: "12ch" }}>{e.note}</span>
+                    {e.publisher && (
+                      <span className="chip cite">▣ {e.publisher}{e.archived ? ` · ${d.archived} ✓` : ""}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+            <p className="nopos" style={{ marginBottom: 0 }}>{d.hist_note}</p>
+          </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.flags_h}</div>
+        {flags.length === 0 ? (
+          <div className="nopos">{d.flags_none}</div>
+        ) : (
+          flags.map((f) => (
+            <div key={f.id} style={{ margin: "0.5rem 0" }}>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                <span style={{ flex: 1, fontSize: "0.92rem" }}>{f.description}</span>
+                <span className="pill broken">✗ {d.upheld}</span>
+              </div>
+              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.35rem" }}>
+                {f.citations.map((c, i) => (
+                  <span key={i} className="chip cite">▣ {c.publisher} · {c.title}</span>
+                ))}
+              </div>
+              {f.events.map((e, i) => (
+                <div key={i} className="histline">
+                  <span className="hd">{e.date}</span>
+                  <span className="hl">{e.status}</span>
+                  <span style={{ flex: 1, minWidth: "12ch" }}>{e.note}</span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+        <p className="nopos" style={{ marginBottom: 0 }}>{d.flag_note}</p>
+      </div>
 
       <div className="card">
         <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.money_h}</div>

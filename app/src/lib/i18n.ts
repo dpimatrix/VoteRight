@@ -71,6 +71,23 @@ const DICT = {
     nav_ballot: "Ballot",
     nav_prios: "Priorities",
     nav_matches: "Matches",
+    promises_h: "Promise record",
+    promises_none: "No prior term on record — promise tracking starts if elected.",
+    pstatus: {
+      pending: "Pledged",
+      in_progress: "In progress",
+      kept: "Kept",
+      broken: "Broken",
+      compromised: "Compromised",
+      stalled: "Stalled",
+    },
+    hist_note:
+      "Status history is append-only — every change shows its date and its source; corrections add a new entry rather than erasing the old one.",
+    flags_h: "Published integrity findings",
+    flags_none: "No published integrity findings.",
+    flag_note:
+      "A finding is published only after evidence review and a right-of-reply window — a database rule makes publishing an open dispute impossible.",
+    upheld: "Upheld",
   },
   es: {
     county: "Condado de Montgomery, MD",
@@ -137,6 +154,23 @@ const DICT = {
     nav_ballot: "Boleta",
     nav_prios: "Prioridades",
     nav_matches: "Coincidencias",
+    promises_h: "Historial de promesas",
+    promises_none: "Sin mandato previo — el seguimiento de promesas comienza si resulta electo.",
+    pstatus: {
+      pending: "Prometida",
+      in_progress: "En curso",
+      kept: "Cumplida",
+      broken: "Incumplida",
+      compromised: "Con concesiones",
+      stalled: "Estancada",
+    },
+    hist_note:
+      "El historial es de solo escritura — cada cambio muestra su fecha y su fuente; las correcciones agregan una entrada nueva en lugar de borrar la anterior.",
+    flags_h: "Hallazgos de integridad publicados",
+    flags_none: "No hay hallazgos de integridad publicados.",
+    flag_note:
+      "Un hallazgo se publica solo tras revisión de evidencia y una ventana de derecho de réplica — una regla de la base de datos hace imposible publicar una disputa abierta.",
+    upheld: "Confirmado",
   },
 } as const;
 

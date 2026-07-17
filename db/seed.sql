@@ -159,3 +159,102 @@ INSERT INTO independent_expenditure_committees (id, name, committee_type, regist
 INSERT INTO independent_expenditures (committee_id, race_id, benefits_politician_id, direction, amount_usd, expenditure_date, purpose, citation_id) VALUES
  ('00000000-0000-4000-8000-000000000701', '00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000204', 'supporting', 48000.00, '2026-06-01', 'digital ads', '00000000-0000-4000-8000-000000000803'),
  ('00000000-0000-4000-8000-000000000701', '00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000201', 'opposing', 22500.00, '2026-06-10', 'mailers', '00000000-0000-4000-8000-000000000804');
+
+-- ═══════════════════════════ PHASE 2 SEED ═══════════════════════════
+-- Promises with append-only histories, integrity flags in three states,
+-- and a model-suggested coding queue. All fictional by design (§2.3).
+
+-- ── Promises (Trent ×4, Quintana ×2) ──
+DO $$
+DECLARE r jsonb; ev jsonb; top uuid; pid uuid; cit uuid;
+BEGIN
+FOR r IN SELECT * FROM jsonb_array_elements($J$[
+ {"pol":"201","topic":"Housing affordability","stmt":"Pass rent stabilization","made":"2022-11-01","status":"kept","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"mayatrent.example"},
+   {"st":"in_progress","d":"2023-03-14","note":"Co-sponsored Bill 15-23.","pub":"Legistar"},
+   {"st":"kept","d":"2023-07-18","note":"Enacted — voted YES on final passage.","pub":"Legistar"}]},
+ {"pol":"201","topic":"Housing affordability","stmt":"Office hours in every district, every year","made":"2022-11-01","status":"broken","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"mayatrent.example"},
+   {"st":"kept","d":"2023-12-15","note":"Held in all seven districts in 2023.","pub":"Council calendar"},
+   {"st":"broken","d":"2026-01-10","note":"None held in 2025, per the public calendar. REPLY (right of reply): \"2025 sessions were canceled during the budget emergency; a make-up schedule is posted.\"","pub":"Council calendar"}]},
+ {"pol":"201","topic":"Housing affordability","stmt":"Quadruple the housing acquisition fund","made":"2022-11-01","status":"in_progress","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"mayatrent.example"},
+   {"st":"in_progress","d":"2024-05-20","note":"Fund doubled in the FY25 budget — halfway there.","pub":"Legistar"}]},
+ {"pol":"201","topic":"Climate & environment","stmt":"All-electric county vehicle purchases by 2025","made":"2022-11-01","status":"compromised","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"mayatrent.example"},
+   {"st":"compromised","d":"2025-09-30","note":"60% electric by the deadline; supported a revised 2027 target.","pub":"Legistar"}]},
+ {"pol":"202","topic":"Transit & roads","stmt":"Weekend bus frequency on the busiest routes","made":"2022-11-01","status":"kept","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"quintanaforcouncil.example"},
+   {"st":"kept","d":"2025-05-15","note":"FY26 amendment funded the expansion.","pub":"Legistar"}]},
+ {"pol":"202","topic":"Housing affordability","stmt":"Public inventory of county land for affordable housing","made":"2022-11-01","status":"stalled","hist":[
+   {"st":"pending","d":"2022-11-01","note":"Campaign pledge.","pub":"quintanaforcouncil.example"},
+   {"st":"in_progress","d":"2024-02-01","note":"Pilot list published for two districts.","pub":"Council staff report"},
+   {"st":"stalled","d":"2025-06-01","note":"No update in 12+ months.","pub":"Council staff report"}]}
+]$J$::jsonb)
+LOOP
+  SELECT id INTO top FROM topics WHERE name = r->>'topic';
+  INSERT INTO citations (url, archive_url, title, publisher, published_at)
+   VALUES ('https://' || (r->'hist'->0->>'pub') || '/pledge', 'https://web.archive.org/web/0/pledge', 'Pledge: ' || (r->>'stmt'), r->'hist'->0->>'pub', (r->>'made')::date)
+   RETURNING id INTO cit;
+  INSERT INTO promises (politician_id, topic_id, statement, made_at, origin_citation_id, current_status)
+   VALUES (('00000000-0000-4000-8000-000000000' || (r->>'pol'))::uuid, top, r->>'stmt', (r->>'made')::date, cit, r->>'status')
+   RETURNING id INTO pid;
+  FOR ev IN SELECT * FROM jsonb_array_elements(r->'hist') LOOP
+    INSERT INTO citations (url, archive_url, title, publisher, published_at)
+     VALUES ('https://' || (ev->>'pub') || '/evt', 'https://web.archive.org/web/0/evt', ev->>'note', ev->>'pub', (ev->>'d')::date)
+     RETURNING id INTO cit;
+    INSERT INTO promise_status_events (promise_id, status, citation_id, note, recorded_at)
+     VALUES (pid, ev->>'st', cit, ev->>'note', (ev->>'d')::timestamptz);
+  END LOOP;
+END LOOP;
+END $$;
+
+-- ── Integrity flags: one OPEN (admin demo), one UPHELD·published, one DISMISSED ──
+INSERT INTO citations (id, url, archive_url, title, publisher, published_at) VALUES
+ ('00000000-0000-4000-8000-000000000811', 'https://legistar.example/fy27-levy', 'https://web.archive.org/web/0/fy27', 'FY27 levy adjustment · roll call', 'Legistar', '2026-06-20'),
+ ('00000000-0000-4000-8000-000000000812', 'https://mailer-archive.example/breuer-ff', 'https://web.archive.org/web/0/breuer-ff', 'Mailer scan: "endorsed by county firefighters"', 'VoteRight archive', '2026-05-15'),
+ ('00000000-0000-4000-8000-000000000813', 'https://iaff-local.example/endorsements', 'https://web.archive.org/web/0/iaff', 'Firefighters 2026 endorsement list (Breuer absent)', 'iaff-local.example', '2026-05-01'),
+ ('00000000-0000-4000-8000-000000000814', 'https://council-archive.example/2023-hours', 'https://web.archive.org/web/0/hours', '2023 office-hours calendar archive', 'Council calendar', '2026-04-12');
+
+INSERT INTO integrity_flags (id, politician_id, description, status, published) VALUES
+ ('00000000-0000-4000-8000-000000000901', '00000000-0000-4000-8000-000000000202',
+  'Stated "no property-tax increase this term" (At-large forum, 2026-05) — voted YES on the FY27 levy adjustment (2026-06).', 'open', FALSE),
+ ('00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000204',
+  'Mailer claims "endorsed by county firefighters" — no such endorsement on file.', 'upheld', TRUE),
+ ('00000000-0000-4000-8000-000000000903', '00000000-0000-4000-8000-000000000201',
+  'Claimed all 2023 district office hours were held — one district session was unverifiable.', 'dismissed', FALSE);
+
+INSERT INTO integrity_flag_citations (integrity_flag_id, citation_id) VALUES
+ ('00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000812'),
+ ('00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000813'),
+ ('00000000-0000-4000-8000-000000000903', '00000000-0000-4000-8000-000000000814');
+
+INSERT INTO integrity_flag_status_events (integrity_flag_id, status, citation_id, note, recorded_at) VALUES
+ ('00000000-0000-4000-8000-000000000901', 'open', '00000000-0000-4000-8000-000000000811', 'System: voting-record contradiction detected at ingestion.', '2026-07-10'),
+ ('00000000-0000-4000-8000-000000000902', 'open', '00000000-0000-4000-8000-000000000812', 'User report with mailer scan.', '2026-05-16'),
+ ('00000000-0000-4000-8000-000000000902', 'upheld', '00000000-0000-4000-8000-000000000813', 'Upheld after reply window lapsed with no response. Published with evidence attached.', '2026-06-05'),
+ ('00000000-0000-4000-8000-000000000903', 'open', NULL, 'User report: one 2023 session unverifiable.', '2026-04-01'),
+ ('00000000-0000-4000-8000-000000000903', 'dismissed', '00000000-0000-4000-8000-000000000814', 'Calendar archive located; claim verified. REPLY: "Thank you for checking the record."', '2026-04-12');
+
+-- ── Coding queue: model-suggested, UNCONFIRMED (usable_for_scoring = FALSE) ──
+DO $$
+DECLARE r jsonb; top uuid; ax uuid; cit uuid; pos uuid;
+BEGIN
+FOR r IN SELECT * FROM jsonb_array_elements($J$[
+ {"pol":"203","topic":"Climate & environment","val":1,"src":"questionnaire","date":"2026-06-15","pub":"VoteRight questionnaire","title":"Late climate answers","stmt":"We should hit the dates we promised, but small landlords need real help complying."},
+ {"pol":"204","topic":"Housing affordability","val":-2,"src":"debate_transcript","date":"2026-06-20","pub":"At-large forum 2","title":"Second forum transcript","stmt":"I would repeal the cap outright — full stop."},
+ {"pol":"208","topic":"Transit & roads","val":2,"src":"interview","date":"2026-06-25","pub":"Local radio interview","title":"Transit interview","stmt":"BRT build-out is my first budget priority, and I will fund it in year one."}
+]$J$::jsonb)
+LOOP
+  SELECT id INTO top FROM topics WHERE name = r->>'topic';
+  SELECT id INTO ax FROM topic_axes WHERE topic_id = top;
+  INSERT INTO citations (url, archive_url, title, publisher, published_at)
+   VALUES ('https://' || (r->>'pub') || '/p2', 'https://web.archive.org/web/0/p2', r->>'title', r->>'pub', (r->>'date')::date)
+   RETURNING id INTO cit;
+  INSERT INTO politician_positions (politician_id, topic_id, statement, source_type, citation_id, recorded_at)
+   VALUES (('00000000-0000-4000-8000-000000000' || (r->>'pol'))::uuid, top, r->>'stmt', r->>'src', cit, (r->>'date')::timestamptz)
+   RETURNING id INTO pos;
+  INSERT INTO position_codings (position_id, axis_id, value, coding_method, confirmed_by_human, coder_note)
+   VALUES (pos, ax, (r->>'val')::int, 'model_suggested', FALSE, 'model suggestion — awaiting human confirmation');
+END LOOP;
+END $$;

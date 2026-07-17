@@ -251,3 +251,22 @@ textarea.statement { width: 100%; border: 1px solid var(--line); border-radius: 
 .weight { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.55rem; }
 .weight button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.1rem; }
 .weight .wval { flex: 1; text-align: center; font-size: 0.8rem; font-weight: 750; color: var(--ev); letter-spacing: 0.15em; }
+
+/* ── Status pills & append-only timelines (Phase 2) ── */
+.pill { font-size: 0.74rem; font-weight: 750; padding: 0.14rem 0.55rem; border-radius: 999px; display: inline-flex; gap: 0.3rem; align-items: center; white-space: nowrap; }
+.pill.kept { color: var(--kept); background: color-mix(in srgb, var(--kept) 14%, transparent); }
+.pill.broken { color: var(--broken); background: color-mix(in srgb, var(--broken) 14%, transparent); }
+.pill.pending { color: var(--pending); background: color-mix(in srgb, var(--pending) 14%, transparent); }
+.pill.neutral { color: var(--muted); background: var(--chip-neutral); }
+.histline { display: flex; gap: 0.5rem; align-items: baseline; font-size: 0.8rem; padding: 0.24rem 0 0.24rem 0.6rem; border-left: 2px solid var(--line); margin: 0.15rem 0 0.15rem 0.2rem; flex-wrap: wrap; }
+.histline .hd { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: 0.7rem; min-width: 7ch; }
+.histline .hl { font-weight: 750; min-width: 7ch; }
+
+/* ── Admin console (internal tool: dense, plain, EN-only) ── */
+.admbanner { display: flex; gap: 0.6rem; align-items: center; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 0.5rem 0.8rem; font-size: 0.8rem; color: var(--muted); margin: 0.8rem 0; }
+.gatebtn { border: 1px dashed var(--line); background: transparent; color: var(--muted); border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.82rem; font-weight: 700; cursor: not-allowed; }
+.gatebtn small { display: block; font-weight: 400; font-size: 0.68rem; font-family: ui-monospace, Consolas, monospace; }
+.admform { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.5rem 0; }
+.admform input[type="text"], .admform input[type="password"] { flex: 1; min-width: 12ch; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.88rem; padding: 0.5rem 0.6rem; }
+.admform button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.84rem; font-weight: 700; }
+.poles-note { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }

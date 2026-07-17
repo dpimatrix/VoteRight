@@ -196,3 +196,168 @@ export async function politicianProfile(politicianId: string) {
     endorsements: endorsements.rows,
   };
 }
+
+/* ── Phase 2: promises & integrity flags (voter-facing) ── */
+export async function promisesFor(politicianId: string) {
+  const { rows } = await db().query(
+    `SELECT p.id, p.statement, p.current_status, t.name AS topic,
+            COALESCE(json_agg(json_build_object(
+              'status', e.status, 'note', e.note, 'date', e.recorded_at::date::text,
+              'publisher', c.publisher, 'archived', c.archive_url IS NOT NULL
+            ) ORDER BY e.recorded_at) FILTER (WHERE e.id IS NOT NULL), '[]') AS events
+       FROM promises p
+       JOIN topics t ON t.id = p.topic_id
+       LEFT JOIN promise_status_events e ON e.promise_id = p.id
+       LEFT JOIN citations c ON c.id = e.citation_id
+      WHERE p.politician_id = $1
+      GROUP BY p.id, t.name
+      ORDER BY p.made_at, p.statement`,
+    [politicianId],
+  );
+  return rows as {
+    id: string;
+    statement: string;
+    current_status: string;
+    topic: string;
+    events: { status: string; note: string | null; date: string; publisher: string | null; archived: boolean }[];
+  }[];
+}
+
+/** Only published flags ever reach a voter (the CHECK guarantees none are open). */
+export async function publishedFlagsFor(politicianId: string) {
+  const { rows } = await db().query(
+    `SELECT f.id, f.description, f.status,
+            COALESCE((SELECT json_agg(json_build_object('publisher', c.publisher, 'title', c.title, 'date', c.published_at::text))
+               FROM integrity_flag_citations fc JOIN citations c ON c.id = fc.citation_id
+              WHERE fc.integrity_flag_id = f.id), '[]') AS citations,
+            COALESCE((SELECT json_agg(json_build_object('status', e.status, 'note', e.note, 'date', e.recorded_at::date::text) ORDER BY e.recorded_at)
+               FROM integrity_flag_status_events e WHERE e.integrity_flag_id = f.id), '[]') AS events
+       FROM integrity_flags f
+      WHERE f.politician_id = $1 AND f.published`,
+    [politicianId],
+  );
+  return rows as {
+    id: string;
+    description: string;
+    status: string;
+    citations: { publisher: string; title: string; date: string }[];
+    events: { status: string; note: string | null; date: string }[];
+  }[];
+}
+
+/* ── Phase 2: admin console ── */
+export async function adminFlags() {
+  const { rows } = await db().query(
+    `SELECT f.id, f.description, f.status, f.published, p.full_name
+       FROM integrity_flags f JOIN politicians p ON p.id = f.politician_id
+      ORDER BY (f.status = 'open') DESC, f.created_at DESC`,
+  );
+  return rows as { id: string; description: string; status: string; published: boolean; full_name: string }[];
+}
+
+export async function adminFlagDetail(id: string) {
+  const flag = await db().query(
+    `SELECT f.id, f.description, f.status, f.published, p.full_name
+       FROM integrity_flags f JOIN politicians p ON p.id = f.politician_id WHERE f.id = $1`,
+    [id],
+  );
+  if (flag.rowCount === 0) return null;
+  const events = await db().query(
+    `SELECT e.status, e.note, e.recorded_at::date::text AS date, c.publisher, c.title
+       FROM integrity_flag_status_events e LEFT JOIN citations c ON c.id = e.citation_id
+      WHERE e.integrity_flag_id = $1 ORDER BY e.recorded_at`,
+    [id],
+  );
+  return { ...flag.rows[0], events: events.rows };
+}
+
+/** Attach evidence: create a citation, link it, record an append-only event. */
+export async function adminAttachEvidence(flagId: string, url: string, title: string, publisher: string) {
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    const cit = await client.query(
+      `INSERT INTO citations (url, archive_url, title, publisher, published_at)
+       VALUES ($1, 'https://web.archive.org/web/0/' || $1, $2, $3, CURRENT_DATE) RETURNING id`,
+      [url, title, publisher],
+    );
+    await client.query(
+      `INSERT INTO integrity_flag_citations (integrity_flag_id, citation_id) VALUES ($1, $2)`,
+      [flagId, cit.rows[0].id],
+    );
+    await client.query(
+      `INSERT INTO integrity_flag_status_events (integrity_flag_id, status, citation_id, note)
+       SELECT $1, status, $2, 'Evidence attached: ' || $3 FROM integrity_flags WHERE id = $1`,
+      [flagId, cit.rows[0].id, title],
+    );
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function adminFlagEvent(flagId: string, note: string) {
+  await db().query(
+    `INSERT INTO integrity_flag_status_events (integrity_flag_id, status, note)
+     SELECT $1, status, $2 FROM integrity_flags WHERE id = $1`,
+    [flagId, note],
+  );
+}
+
+/** Resolve: status + published move together, satisfying CHECK (NOT published OR status <> 'open'). */
+export async function adminResolveFlag(flagId: string, outcome: "upheld" | "dismissed", note: string) {
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE integrity_flags SET status = $2, published = $3, resolved_at = now() WHERE id = $1`,
+      [flagId, outcome, outcome === "upheld"],
+    );
+    await client.query(
+      `INSERT INTO integrity_flag_status_events (integrity_flag_id, status, note) VALUES ($1, $2, $3)`,
+      [flagId, outcome, note],
+    );
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function adminCodingQueue() {
+  const { rows } = await db().query(
+    `SELECT pc.id, pc.value, pc.coder_note, po.full_name, pp.statement, pp.source_type,
+            a.key AS axis_key, a.question, a.negative_pole, a.positive_pole,
+            c.publisher, c.title, c.published_at::text AS date
+       FROM position_codings pc
+       JOIN politician_positions pp ON pp.id = pc.position_id
+       JOIN politicians po ON po.id = pp.politician_id
+       JOIN topic_axes a ON a.id = pc.axis_id
+       LEFT JOIN citations c ON c.id = pp.citation_id
+      WHERE NOT pc.usable_for_scoring
+      ORDER BY pc.coded_at`,
+  );
+  return rows as {
+    id: string; value: number; coder_note: string | null; full_name: string; statement: string;
+    source_type: string; axis_key: string; question: string; negative_pole: string;
+    positive_pole: string; publisher: string | null; title: string | null; date: string | null;
+  }[];
+}
+
+export async function adminCodingAction(id: string, action: "confirm" | "reject" | "up" | "down") {
+  if (action === "confirm") {
+    await db().query(`UPDATE position_codings SET confirmed_by_human = TRUE WHERE id = $1`, [id]);
+  } else if (action === "reject") {
+    await db().query(`DELETE FROM position_codings WHERE id = $1 AND NOT usable_for_scoring`, [id]);
+  } else {
+    await db().query(
+      `UPDATE position_codings SET value = GREATEST(-2, LEAST(2, value + $2)) WHERE id = $1 AND NOT usable_for_scoring`,
+      [id, action === "up" ? 1 : -1],
+    );
+  }
+}

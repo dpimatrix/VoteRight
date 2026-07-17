@@ -42,4 +42,7 @@ npm run build   # typecheck + production build
 - No auth/verification tiers yet — the anonymous cookie voter is the Phase 1 posture
   (unverified users may draft priorities privately; §9). Identity service comes with
   Phase 4 gating.
-- Promise tracking, integrity flags, commentary, debates, referenda: Phases 2–5.
+- Phase 2 built: promise records with append-only histories, the integrity dispute
+  workflow (evidence → right of reply → resolve; publish gated by a DB CHECK), and the
+  admin console (/admin — dev token gate via ADMIN_TOKEN, default dev-admin) with the
+  dispute queue and the position-coding queue. Commentary, debates, referenda: Phases 2b–5.
