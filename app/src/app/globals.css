@@ -14,15 +14,23 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #161717; --surface: #1e201f; --surface-2: #282a29;
-    --ink: #efefee; --muted: #b5b8b6; --line: #3b3d3c;
-    --ev: #7cc2bc; --ev-soft: #7cc2bc1c;
-    --adv: #e2b05c; --adv-soft: #e2b05c1a;
-    --agree: #7cc2bc; --agree-mid: #2b3b3a;
-    --differ: #de9276; --differ-mid: #443029;
+    /* Pure-neutral greys (equal RGB) — no green cast anywhere in a surface. */
+    --ground: #171717; --surface: #202020; --surface-2: #2a2a2a;
+    --ink: #f0f0ef; --muted: #b7b7b6; --line: #3e3e3e;
+    --ev: #7cc2bc; --ev-soft: transparent;
+    --adv: #e2b05c; --adv-soft: transparent;
+    --agree: #7cc2bc; --agree-mid: transparent;
+    --differ: #de9276; --differ-mid: transparent;
     --kept: #79c48c; --broken: #e08b82; --pending: #e2b05c;
-    --chip-neutral: #2e302f;
+    --chip-neutral: #2e2e2e;
   }
+  /* In dark mode the registers ride on borders + text, never tinted fills —
+     tinted dark boxes are exactly the "green-blackish" murk to avoid. */
+  .band.b1 { color: var(--agree); border-color: var(--agree); }
+  .band.bm1 { color: var(--differ); border-color: var(--differ); }
+  .band.b2 { background: var(--agree); color: #101413; }
+  .band.bm2 { background: var(--differ); color: #171110; }
+  .evrow { background: transparent; }
 }
 
 * { box-sizing: border-box; }
