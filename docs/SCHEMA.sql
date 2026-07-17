@@ -159,6 +159,34 @@ CREATE TABLE politician_positions (
     recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- SCORING SUBSTRATE — see docs/SCORING.md. Alignment is computed over structured,
+-- human-confirmed stance codings on per-topic axes, never over raw embedding similarity:
+-- an opaque matcher can't satisfy Section 2.3's promise that a score is reproducible and
+-- appealable. A model may SUGGEST a coding; a human confirms it before it scores anyone.
+CREATE TABLE topic_axes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    key             TEXT NOT NULL,                       -- 'rent_stabilization'
+    question        TEXT NOT NULL,                       -- the axis phrased as a neutral question
+    negative_pole   TEXT NOT NULL,                       -- what -2 means, in words
+    positive_pole   TEXT NOT NULL,                       -- what +2 means, in words
+    UNIQUE (topic_id, key)
+);
+
+CREATE TABLE position_codings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    position_id     UUID NOT NULL REFERENCES politician_positions(id),
+    axis_id         UUID NOT NULL REFERENCES topic_axes(id),
+    value           SMALLINT NOT NULL CHECK (value BETWEEN -2 AND 2),
+    coding_method   TEXT NOT NULL DEFAULT 'staff' CHECK (coding_method IN ('staff','model_suggested')),
+    confirmed_by_human BOOLEAN NOT NULL DEFAULT FALSE,
+    -- scoring reads ONLY rows where this is TRUE — a generated column, not a convention
+    usable_for_scoring BOOLEAN GENERATED ALWAYS AS (coding_method = 'staff' OR confirmed_by_human) STORED,
+    coder_note      TEXT,
+    coded_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (position_id, axis_id)
+);
+
 CREATE TABLE promises (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     politician_id   UUID NOT NULL REFERENCES politicians(id),
@@ -878,6 +906,9 @@ CREATE INDEX idx_commentary_links_jurisdiction ON commentary_links(jurisdiction_
 CREATE INDEX idx_commentator_qualifications_commentator ON commentator_qualifications(commentator_id);
 CREATE INDEX idx_commentator_pieces_commentator ON commentator_pieces(commentator_id);
 CREATE INDEX idx_commentator_status_events_commentator ON commentator_status_events(commentator_id);
+CREATE INDEX idx_topic_axes_topic ON topic_axes(topic_id);
+CREATE INDEX idx_position_codings_position ON position_codings(position_id);
+CREATE INDEX idx_position_codings_axis ON position_codings(axis_id) WHERE usable_for_scoring;
 CREATE INDEX idx_ai_debate_runs_thread ON ai_debate_runs(thread_id);
 CREATE INDEX idx_arguments_ai_debate_run ON arguments(ai_debate_run_id) WHERE ai_debate_run_id IS NOT NULL;
 CREATE INDEX idx_arguments_parent ON arguments(parent_argument_id) WHERE parent_argument_id IS NOT NULL;

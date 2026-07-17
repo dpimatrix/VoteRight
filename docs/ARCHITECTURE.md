@@ -101,6 +101,8 @@ A platform that scores candidates and can be used to organize pressure toward a 
 | **Topic** | A node in a hierarchical issue taxonomy (e.g., Housing → Zoning Reform). |
 | **Voter priority** | A voter's own stated wish/objective on a topic, weighted by importance to them — the input side of matching. |
 | **Politician position** | A sourced, citable platform plank on a topic. |
+| **Topic axis** | A neutral, per-topic policy question with named −2…+2 poles — the structured substrate alignment is computed on (docs/SCORING.md). |
+| **Position coding** | A human-confirmed placement of one sourced position onto one axis; a model suggestion never scores anyone until a human confirms it (docs/SCORING.md). |
 | **Promise** | A specific, checkable commitment tied to a topic, with a status that evolves as evidence arrives. |
 | **Voting record** | An actual recorded legislative vote, ingested from an authoritative feed, not self-reported. |
 | **Alignment score** | Computed fit between one voter's priorities and one candidacy/politician, topic-by-topic and overall. |
@@ -151,6 +153,9 @@ erDiagram
     TOPICS ||--o{ VOTER_PRIORITIES : categorizes
     TOPICS ||--o{ POLITICIAN_POSITIONS : categorizes
     TOPICS ||--o{ PROMISES : categorizes
+    TOPICS ||--o{ TOPIC_AXES : "measured along"
+    TOPIC_AXES ||--o{ POSITION_CODINGS : "codes onto"
+    POLITICIAN_POSITIONS ||--o{ POSITION_CODINGS : "coded as"
     USERS ||--o{ VOTER_PRIORITIES : states
     USERS ||--o{ ALIGNMENT_SCORES : receives
     CANDIDACIES ||--o{ ALIGNMENT_SCORES : scored
@@ -248,6 +253,7 @@ Full DDL lives in [`SCHEMA.sql`](./SCHEMA.sql). Key design decisions called out 
 - **`accountability_pathways` is jurisdiction-scoped with an optional office** — the charter-amendment petition belongs to the county, not to any single office; forcing every pathway onto an office row would either duplicate it across every county office or pin it somewhere arbitrary.
 - **Per-user agreement votes are held, used, then deleted** — they exist to compute `opinion_clusters` and the denormalized per-argument tallies (`agree_count` / `disagree_count` / `pass_count`), not to accumulate a permanent per-person political-opinion ledger. Section 10.2 classifies every participation act as deliberately public (arguments, seconds, proposals) or private-with-retention (agreement votes, call-the-question votes, referendum ballots).
 - **Commentator inclusion is a computed fact, not a stored opinion** — `commentator_qualifications` re-evaluates against `commentator_inclusion_rules` the same way `alignment_scores` and `opinion_clusters` are recomputed, so nobody has to manually curate (or manually remove) a commentator as their publishing record changes. `commentary_links` never carries a `citation_id` role anywhere else in the schema — it is deliberately not part of the evidence ledger (Section 8.2). Qualification counts trace to the `commentator_pieces` ledger, and commentator status changes go through append-only, evidence-gated `commentator_status_events` — disqualifying a named journalist gets the same due process as flagging a politician.
+- **Scoring runs on human-confirmed codings, never raw embeddings** — `topic_axes` (a neutral question with named −2…+2 poles per topic) and `position_codings` (a sourced position placed on an axis) are the substrate `alignment_scores` is computed from; `usable_for_scoring` is a generated column that is TRUE only for staff-coded or human-confirmed rows, so a model suggestion can never score anyone by itself (Section 5.1, docs/SCORING.md).
 
 ```sql
 -- ══════════════════════════════════════════════════════════════
@@ -405,6 +411,34 @@ CREATE TABLE politician_positions (
     source_type     TEXT NOT NULL CHECK (source_type IN ('campaign_site','questionnaire','debate_transcript','voting_record_inferred','interview')),
     citation_id     UUID REFERENCES citations(id),
     recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- SCORING SUBSTRATE — see docs/SCORING.md. Alignment is computed over structured,
+-- human-confirmed stance codings on per-topic axes, never over raw embedding similarity:
+-- an opaque matcher can't satisfy Section 2.3's promise that a score is reproducible and
+-- appealable. A model may SUGGEST a coding; a human confirms it before it scores anyone.
+CREATE TABLE topic_axes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic_id        UUID NOT NULL REFERENCES topics(id),
+    key             TEXT NOT NULL,                       -- 'rent_stabilization'
+    question        TEXT NOT NULL,                       -- the axis phrased as a neutral question
+    negative_pole   TEXT NOT NULL,                       -- what -2 means, in words
+    positive_pole   TEXT NOT NULL,                       -- what +2 means, in words
+    UNIQUE (topic_id, key)
+);
+
+CREATE TABLE position_codings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    position_id     UUID NOT NULL REFERENCES politician_positions(id),
+    axis_id         UUID NOT NULL REFERENCES topic_axes(id),
+    value           SMALLINT NOT NULL CHECK (value BETWEEN -2 AND 2),
+    coding_method   TEXT NOT NULL DEFAULT 'staff' CHECK (coding_method IN ('staff','model_suggested')),
+    confirmed_by_human BOOLEAN NOT NULL DEFAULT FALSE,
+    -- scoring reads ONLY rows where this is TRUE — a generated column, not a convention
+    usable_for_scoring BOOLEAN GENERATED ALWAYS AS (coding_method = 'staff' OR confirmed_by_human) STORED,
+    coder_note      TEXT,
+    coded_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (position_id, axis_id)
 );
 
 CREATE TABLE promises (
@@ -1024,18 +1058,15 @@ CREATE TABLE verification_records (
 );
 ```
 
-### 5.1 The alignment-scoring methodology is the biggest open design gap in this document
+### 5.1 Alignment-scoring methodology (decided — see [`SCORING.md`](./SCORING.md))
 
-Everything else in this schema is either a data-storage decision (how a table is shaped) or a policy decision (what's disclosed, what's binding). Alignment scoring is different: matching a voter's free-text `voter_priorities.statement` and optional `stance` JSONB against a candidacy's `politician_positions` and `voting_records` to produce `alignment_scores.overall_score` is where the actual product value lives — "matched to *your* stated wishes," not a generic issue checklist — and it's also where all of the bias risk lives. It gets one sequence diagram (7.1) and an `algorithm_version` column; it does not yet have a methodology. Section 2.3 already promises this will be "published and versioned" — that promise isn't satisfied by a version string with nothing behind it.
+An earlier draft called this the biggest open design gap in the document. It is now designed, versioned, and published as [`SCORING.md`](./SCORING.md); counsel and bias review before Phase 1 remains open (Section 13, item 11). The five decisions, in brief:
 
-Open questions this needs before Phase 1 ships, not after:
-
-- **Matching approach.** Free-text semantic similarity (embeddings, same `pgvector` infrastructure as Section 7.5) versus structured taxonomy tagging (mapping both the voter's statement and the politician's position onto the same `topics` tree) versus a hybrid — each has a different bias profile and a different explainability story to the voter.
-- **Handling silence.** What happens when a candidacy has no recorded `politician_positions` or `voting_records` on a topic the voter cares about — scored as neutral, scored as a penalty for not taking a position, or excluded from that voter's `topic_breakdown` entirely? Each choice is a substantive editorial stance dressed up as a scoring default.
-- **Weighting conflicts.** A voter's `importance_weight` (1–5) has to combine with however many topics a race actually touches — the aggregation function (weighted average, worst-topic-dominates, something else) determines whether a single strongly-felt disagreement can sink an otherwise well-matched candidacy, which is exactly the kind of design choice that needs to be disclosed alongside the score, not buried in code.
-- **Bias auditing.** Once a matching approach is chosen, it needs a standing audit process (does it systematically favor incumbents, particular parties, or particular phrasing styles?) before the score is trusted as a "nonpartisan" product feature — the same standard the rest of this document already holds every other subjective judgment to.
-
-This deserves its own design document before Phase 1 implementation starts, not a paragraph here — flagged accordingly in Section 13.
+- **Structured axes, not embeddings.** Fit is computed over `topic_axes` (a neutral policy question with named −2…+2 poles) and human-confirmed `position_codings` — a model may *suggest* a coding, never decide one (`usable_for_scoring` is a generated column, not a convention). Embedding-only matching can't satisfy Section 2.3: it isn't reproducible, explainable, or appealable.
+- **Evidence hierarchy with disclosed weights.** Recorded votes (1.0) outweigh questionnaires (0.7), campaign sites (0.6), and debate statements (0.5), with a six-year recency half-life. A ≥3-unit vote-vs-statement conflict scores by the vote, displays both, and routes to the Section 7.2 integrity pipeline — the scorer itself never asserts hypocrisy.
+- **Silence is excluded and displayed, never scored.** Coverage below 50% of a voter's weighted priorities yields "Not enough information" and no fit band — scoring silence as neutral invents a centrist; penalizing it builds in incumbency bias.
+- **Weighted mean plus a dealbreaker marker.** One strongly-felt disagreement doesn't silently sink an aggregate; a weight-5 topic at agreement ≤ −1 puts a visible "conflicts with a top priority" marker on the candidate card and lets the voter judge.
+- **Bands, not numbers, and versioned constants.** Five labeled bands (thresholds in SCORING.md §S5, identical to the prototype's), every constant folded into `algorithm_version`, and a standing bias-audit program — incumbency, partisan symmetry, coverage, suggestion-aid robustness, coder agreement — run per release and quarterly, with published results.
 
 ---
 
@@ -1429,7 +1460,7 @@ Montgomery County is 34% foreign-born, well above state and national rates, and 
 8. Confirm the AI debate agent feature (Section 7.8) against Maryland's **enacted** AI-election-content law (SB 141, effective June 1, 2026) as interpreted at launch, and monitor future sessions for prohibition-style successors (the SB 361 approach passed the Senate in 2025 without becoming law) — the feature appears to clear the current bar, but that judgment belongs to counsel, and the bar may move.
 9. **Sybil resistance vs. equity of access are in tension, and this document only prices the manipulation side.** `address_verified` is self-attested and format-checked, which makes it trivially farmable — the tier that actually resists coordinated manipulation is `govt_id_verified`. That tier has a real per-check vendor cost (who pays — the platform, or a fee passed to the user?) and a well-documented skew in who reliably possesses and will submit government ID, which cuts directly against "the people's voice" as a premise and against the 34%-foreign-born population Section 11 highlights. This needs a product decision, not just a technical one, before referenda (Phase 4) gate on verification tier.
 10. **Ballot secrecy (Section 10.1) is structural, not cryptographic** — confirm whether that level of guarantee is sufficient for the intended use, or whether a stronger e-voting-grade protocol (split trust between independently operated services, mix-nets, zero-knowledge proofs) is warranted before referendum results carry real political weight.
-11. The alignment-scoring methodology (Section 5.1) needs its own design document — matching approach, handling of unscored topics, weight aggregation, and a bias-audit process — reviewed before Phase 1 ships, not treated as an implementation detail.
+11. The alignment-scoring methodology is now designed and published (Section 5.1, `docs/SCORING.md`) — counsel and bias review of it (matching substrate, silence handling, weight aggregation, conflict-routing to the integrity pipeline, audit program and its acceptance gates) before Phase 1 ships.
 12. **MODPA compliance review** (Section 10): confirm coverage thresholds, whether the platform's political-opinion data (priorities, agreement votes, ballots) triggers sensitive-data treatment, whether the retention rules in 10.1–10.2 satisfy data-minimization, and whether pseudonymize-and-keep satisfies the deletion right for public debate contributions.
 13. **Mandate commitments** (Section 7.9): does publicly tabulating candidates' commit / decline / no-response stances on voter mandates — especially close to an election — change the electioneering analysis in item 1? And confirm that displaying `no_response` as a bare fact (with the platform's outreach attempts documented) carries no defamation-adjacent risk of implying a stance the candidate never took.
 14. **Expert commentary** (Section 8.2): does actively recruiting specific named commentators to satisfy roster balance itself carry any campaign-finance or in-kind-support exposure if a commentator is later found to have undisclosed ties to a candidate? And confirm the `commentary_promotion_blackout_days` default (0, meaning no blackout unless configured) is actually set to a real value per jurisdiction before Phase 2 launch — an unset blackout window defeats the purpose of having one.
