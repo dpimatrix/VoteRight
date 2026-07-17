@@ -1,51 +1,71 @@
 <title>VoteRight — Design System &amp; Scorecard Prototype</title>
 <style>
+  /* Owner-approved app palette (2026-07, shipped in app/): surfaces and text are
+     TRUE NEUTRALS — hue lives only in the registers. Dark mode is true-black OLED:
+     ground AND cards #000, hairline edges, registers via border + text, never tinted
+     fills; gold is border/label-only, never running text. */
   :root {
-    --ground: #F2F4F0; --surface: #FBFCFA; --surface-2: #ECEFEA;
-    --ink: #1A1F1C; --muted: #5C665F; --line: #D8DED7;
-    --ev: #1D6069; --ev-soft: #1D60691A;
-    --adv: #8F6410; --adv-soft: #8F641016;
-    --agree: #1D6069; --agree-mid: #DEEBEA;
-    --differ: #A24A33; --differ-mid: #F0DFD9;
-    --kept: #2E6B3F; --broken: #99372F; --pending: #A06A1A;
-    --chip-neutral: #E4E8E2;
-    --shadow: 0 10px 30px rgba(20,25,22,0.10), 0 1px 3px rgba(20,25,22,0.08);
+    --ground: #F4F4F3; --surface: #FFFFFF; --surface-2: #EDEDEB;
+    --ink: #1C1D1D; --muted: #575A59; --line: #E4E4E2;
+    --ev: #19606A; --ev-soft: #19606A10;
+    --adv: #77530A; --adv-soft: #8F641010;
+    --agree: #19606A; --agree-mid: #E3EDEC;
+    --differ: #A24A33; --differ-mid: #F3E2DC;
+    --kept: #2E6B3F; --broken: #99372F; --pending: #8A5C0E;
+    --chip-neutral: #ECECEA;
+    --shadow: 0 1px 2px rgba(25,25,25,0.05), 0 4px 16px rgba(25,25,25,0.07);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --ground: #121614; --surface: #1B211E; --surface-2: #232A26;
-      --ink: #E9EDE9; --muted: #9CA79F; --line: #353D38;
-      --ev: #74BDB7; --ev-soft: #74BDB71F;
-      --adv: #E2B05C; --adv-soft: #E2B05C1C;
-      --agree: #74BDB7; --agree-mid: #2A3E3C;
-      --differ: #DE9276; --differ-mid: #43302A;
+      --ground: #000000; --surface: #000000; --surface-2: #161616;
+      --ink: #FFFFFF; --muted: #C9C9C8; --line: #2F2F2F;
+      --ev: #7CC2BC; --ev-soft: transparent;
+      --adv: #E2B05C; --adv-soft: transparent;
+      --agree: #7CC2BC; --agree-mid: transparent;
+      --differ: #DE9276; --differ-mid: transparent;
       --kept: #79C48C; --broken: #E08B82; --pending: #E2B05C;
-      --chip-neutral: #2A312C;
-      --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.4);
+      --chip-neutral: #232323;
+      --shadow: none;
     }
+    html .band.b1 { color: var(--agree); border-color: var(--agree); }
+    html .band.bm1 { color: var(--differ); border-color: var(--differ); }
+    html .band.b2 { color: #101413; }
+    html .band.bm2 { color: #171110; }
+    html .evrow { background: transparent; }
+  }
+  @media (prefers-color-scheme: light) {
+    html .band.b1 { color: #14535C; }
+    html .band.bm1 { color: #8C3F2B; }
   }
   :root[data-theme="dark"] {
-    --ground: #121614; --surface: #1B211E; --surface-2: #232A26;
-    --ink: #E9EDE9; --muted: #9CA79F; --line: #353D38;
-    --ev: #74BDB7; --ev-soft: #74BDB71F;
-    --adv: #E2B05C; --adv-soft: #E2B05C1C;
-    --agree: #74BDB7; --agree-mid: #2A3E3C;
-    --differ: #DE9276; --differ-mid: #43302A;
+    --ground: #000000; --surface: #000000; --surface-2: #161616;
+    --ink: #FFFFFF; --muted: #C9C9C8; --line: #2F2F2F;
+    --ev: #7CC2BC; --ev-soft: transparent;
+    --adv: #E2B05C; --adv-soft: transparent;
+    --agree: #7CC2BC; --agree-mid: transparent;
+    --differ: #DE9276; --differ-mid: transparent;
     --kept: #79C48C; --broken: #E08B82; --pending: #E2B05C;
-    --chip-neutral: #2A312C;
-    --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.4);
+    --chip-neutral: #232323;
+    --shadow: none;
   }
+  :root[data-theme="dark"] .band.b1 { color: var(--agree) !important; border-color: var(--agree); }
+  :root[data-theme="dark"] .band.bm1 { color: var(--differ) !important; border-color: var(--differ); }
+  :root[data-theme="dark"] .band.b2 { color: #101413 !important; }
+  :root[data-theme="dark"] .band.bm2 { color: #171110 !important; }
+  :root[data-theme="dark"] .evrow { background: transparent !important; }
   :root[data-theme="light"] {
-    --ground: #F2F4F0; --surface: #FBFCFA; --surface-2: #ECEFEA;
-    --ink: #1A1F1C; --muted: #5C665F; --line: #D8DED7;
-    --ev: #1D6069; --ev-soft: #1D60691A;
-    --adv: #8F6410; --adv-soft: #8F641016;
-    --agree: #1D6069; --agree-mid: #DEEBEA;
-    --differ: #A24A33; --differ-mid: #F0DFD9;
-    --kept: #2E6B3F; --broken: #99372F; --pending: #A06A1A;
-    --chip-neutral: #E4E8E2;
-    --shadow: 0 10px 30px rgba(20,25,22,0.10), 0 1px 3px rgba(20,25,22,0.08);
+    --ground: #F4F4F3; --surface: #FFFFFF; --surface-2: #EDEDEB;
+    --ink: #1C1D1D; --muted: #575A59; --line: #E4E4E2;
+    --ev: #19606A; --ev-soft: #19606A10;
+    --adv: #77530A; --adv-soft: #8F641010;
+    --agree: #19606A; --agree-mid: #E3EDEC;
+    --differ: #A24A33; --differ-mid: #F3E2DC;
+    --kept: #2E6B3F; --broken: #99372F; --pending: #8A5C0E;
+    --chip-neutral: #ECECEA;
+    --shadow: 0 1px 2px rgba(25,25,25,0.05), 0 4px 16px rgba(25,25,25,0.07);
   }
+  :root[data-theme="light"] .band.b1 { color: #14535C !important; border-color: var(--agree); }
+  :root[data-theme="light"] .band.bm1 { color: #8C3F2B !important; border-color: var(--differ); }
 
   * { box-sizing: border-box; }
   body {

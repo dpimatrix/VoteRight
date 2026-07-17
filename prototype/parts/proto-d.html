@@ -46,23 +46,26 @@ document.getElementById('view-sys').innerHTML = `
   </div>
 
   <h2>Color tokens</h2>
-  <p style="font-size:0.85rem;color:var(--muted)">Sage-tinted neutrals (chosen, not defaulted); teal and gold
-  registers; a validated diverging pair for agreement. The diverging poles pass CVD separation (ΔE 8.3 light /
-  9.0 dark), the normal-vision floor (20.0 / 16.9), and ≥3:1 contrast on both surfaces — checked with a
-  validator, not by eye. Status colors always ship with icon + label, never color alone.</p>
+  <p style="font-size:0.85rem;color:var(--muted)">Owner-approved app palette (shipped, 2026-07). Surfaces and
+  text are <strong>true neutrals</strong> — hue lives only in the registers, so color always carries meaning.
+  Dark mode is true-black OLED: ground <em>and</em> cards #000000 with hairline edges, pure white ink, and
+  registers carried by <strong>border + text, never tinted fills</strong>; gold is border/label-only, never
+  running text. The diverging poles pass CVD separation (ΔE 8.4 light on white / 9.3 dark on black), the
+  normal-vision floor (20.2 / 16.9), and ≥3:1 contrast — checked with a validator, not by eye. Status colors
+  always ship with icon + label, never color alone.</p>
   <div class="sysgrid">
     <div class="card">
       <h4>Ground &amp; ink</h4>
-      <div class="sw"><i style="background:var(--ground)"></i><code>--ground</code> #F2F4F0 / #121614</div>
-      <div class="sw"><i style="background:var(--surface)"></i><code>--surface</code> #FBFCFA / #1B211E</div>
-      <div class="sw"><i style="background:var(--surface-2)"></i><code>--surface-2</code> #ECEFEA / #232A26</div>
-      <div class="sw"><i style="background:var(--ink)"></i><code>--ink</code> #1A1F1C / #E9EDE9</div>
-      <div class="sw"><i style="background:var(--muted)"></i><code>--muted</code> #5C665F / #9CA79F</div>
+      <div class="sw"><i style="background:var(--ground)"></i><code>--ground</code> #F4F4F3 / #000000</div>
+      <div class="sw"><i style="background:var(--surface)"></i><code>--surface</code> #FFFFFF / #000000 (hairline edges)</div>
+      <div class="sw"><i style="background:var(--surface-2)"></i><code>--surface-2</code> #EDEDEB / #161616</div>
+      <div class="sw"><i style="background:var(--ink)"></i><code>--ink</code> #1C1D1D / #FFFFFF</div>
+      <div class="sw"><i style="background:var(--muted)"></i><code>--muted</code> #575A59 / #C9C9C8</div>
     </div>
     <div class="card">
       <h4>Registers</h4>
-      <div class="sw"><i style="background:var(--ev)"></i><code>--ev</code> evidence · #1D6069 / #74BDB7</div>
-      <div class="sw"><i style="background:var(--adv)"></i><code>--adv</code> advisory · #8F6410 / #E2B05C</div>
+      <div class="sw"><i style="background:var(--ev)"></i><code>--ev</code> evidence · #19606A / #7CC2BC</div>
+      <div class="sw"><i style="background:var(--adv)"></i><code>--adv</code> advisory · #77530A / #E2B05C — border/label only, never running text</div>
       <h4 style="margin-top:0.8rem">Diverging agreement pair</h4>
       <div class="sw"><i style="background:var(--agree)"></i><code>--agree</code> aligns · = evidence teal</div>
       <div class="sw"><i style="background:var(--chip-neutral)"></i>neutral midpoint (gray, never a hue)</div>
@@ -72,7 +75,7 @@ document.getElementById('view-sys').innerHTML = `
       <h4>Status (reserved, icon + label always)</h4>
       <div class="sw"><i style="background:var(--kept)"></i><code>--kept</code> #2E6B3F / #79C48C</div>
       <div class="sw"><i style="background:var(--broken)"></i><code>--broken</code> #99372F / #E08B82</div>
-      <div class="sw"><i style="background:var(--pending)"></i><code>--pending</code> #A06A1A / #E2B05C</div>
+      <div class="sw"><i style="background:var(--pending)"></i><code>--pending</code> #8A5C0E / #E2B05C</div>
       <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem">
         <span class="pill kept">✓ 2 kept</span><span class="pill broken">✗ 1 broken</span>
         <span class="pill pending">⟳ 1 in progress</span><span class="pill neutral">⏸ 1 stalled</span>
