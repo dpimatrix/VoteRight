@@ -258,3 +258,82 @@ LOOP
    VALUES (pos, ax, (r->>'val')::int, 'model_suggested', FALSE, 'model suggestion — awaiting human confirmation');
 END LOOP;
 END $$;
+
+-- ═══════════════════════════ PHASE 3 SEED ═══════════════════════════
+-- One live debate thread (past its seconding threshold) and one proposal still
+-- gathering seconds. Seed participants are fictional verified residents.
+
+INSERT INTO users (id, auth_id, display_name, residence_jurisdiction_id, verification_tier) VALUES
+ ('00000000-0000-4000-8000-000000000a01', 'seed:a01', 'Marcus J.', 'ocd-division/country:us/state:md/county:montgomery', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000a02', 'seed:a02', 'Lena P.', 'ocd-division/country:us/state:md/county:montgomery', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000a03', 'seed:a03', 'Sofia R.', 'ocd-division/country:us/state:md/county:montgomery', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000a04', 'seed:a04', 'Ted W.', 'ocd-division/country:us/state:md/county:montgomery', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000a05', 'seed:a05', 'Ana G.', 'ocd-division/country:us/state:md/county:montgomery', 'address_verified');
+
+INSERT INTO issue_proposals (id, created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold, status) VALUES
+ ('00000000-0000-4000-8000-000000000b01', '00000000-0000-4000-8000-000000000a01',
+  'ocd-division/country:us/state:md/county:montgomery', '00000000-0000-4000-8000-000000000101',
+  'Allow duplexes and triplexes within a half-mile of Metro stations',
+  'Amend county zoning so that lots currently restricted to single-family homes within a half-mile of a Metro station may also build duplexes and triplexes, subject to existing height limits.',
+  3, 'debating'),
+ ('00000000-0000-4000-8000-000000000b02', '00000000-0000-4000-8000-000000000a03',
+  'ocd-division/country:us/state:md/county:montgomery', '00000000-0000-4000-8000-000000000101',
+  'Extend rent stabilization to buildings completed after 2010',
+  'Apply the county rent stabilization law to rental buildings that received their use-and-occupancy permit after 2010, closing the newer-building exemption.',
+  3, 'seconding');
+
+INSERT INTO seconds (proposal_id, user_id, verification_tier_at_second) VALUES
+ ('00000000-0000-4000-8000-000000000b01', '00000000-0000-4000-8000-000000000a02', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b01', '00000000-0000-4000-8000-000000000a03', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b01', '00000000-0000-4000-8000-000000000a04', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b02', '00000000-0000-4000-8000-000000000a05', 'address_verified');
+
+INSERT INTO forum_threads (id, proposal_id, opened_at, closes_at) VALUES
+ ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000b01', now() - interval '3 days', now() + interval '7 days');
+
+INSERT INTO arguments (id, thread_id, user_id, side, format, body_text, moderation_status, created_at, agree_count, disagree_count, pass_count) VALUES
+ ('00000000-0000-4000-8000-000000000d01', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a01', 'for', 'text',
+  'The Planning Board''s own corridor study shows station areas can absorb gentle density without new road load — that''s the whole point of having Metro.', 'approved', now() - interval '3 days', 96, 21, 6),
+ ('00000000-0000-4000-8000-000000000d02', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a02', 'for', 'text',
+  'I teach at a school two blocks from a station and can''t afford to live within ten miles of it. Housing near transit is who gets to work here.', 'approved', now() - interval '2 days', 71, 15, 4),
+ ('00000000-0000-4000-8000-000000000d03', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a03', 'for', 'text',
+  'Median first-home prices near stations doubled in a decade while starter-home construction fell to almost nothing.', 'approved', now() - interval '2 days', 41, 12, 3),
+ ('00000000-0000-4000-8000-000000000d04', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a04', 'against', 'text',
+  'Three of the five school clusters closest to a station are over 120% capacity today. Approve the review money first, then the zoning.', 'approved', now() - interval '1 day', 52, 18, 5),
+ ('00000000-0000-4000-8000-000000000d05', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a05', 'neutral_info', 'text',
+  'For reference: the current overlay applies to 11 station areas; the Planning Board study covered 8 of them.', 'approved', now() - interval '1 day', 33, 2, 9),
+ ('00000000-0000-4000-8000-000000000d06', '00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a02', 'against', 'text',
+  'Property taxes near my station went up 30% already — this will price out the seniors on my street.', 'pending', now() - interval '2 hours', 0, 0, 0);
+
+-- citations on the two evidence-backed arguments
+DO $$
+DECLARE c1 uuid; c2 uuid; c3 uuid;
+BEGIN
+  INSERT INTO citations (url, archive_url, title, publisher, published_at)
+   VALUES ('https://planning.example/corridor-study', 'https://web.archive.org/web/0/corridor', 'Corridor capacity study', 'Planning Board', '2025-10-01') RETURNING id INTO c1;
+  INSERT INTO citations (url, archive_url, title, publisher, published_at)
+   VALUES ('https://census.example/acs-commute', 'https://web.archive.org/web/0/acs', 'ACS commute data', 'U.S. Census', '2024-09-01') RETURNING id INTO c2;
+  INSERT INTO citations (url, archive_url, title, publisher, published_at)
+   VALUES ('https://mcps.example/capacity-2026', 'https://web.archive.org/web/0/mcps', 'School capacity report', 'MCPS', '2026-02-01') RETURNING id INTO c3;
+  INSERT INTO argument_citations (argument_id, citation_id) VALUES
+   ('00000000-0000-4000-8000-000000000d01', c1),
+   ('00000000-0000-4000-8000-000000000d01', c2),
+   ('00000000-0000-4000-8000-000000000d04', c3);
+END $$;
+
+-- agreement votes (private signals) from seed users — enough to make CTQ eligibility real
+INSERT INTO argument_agreement_votes (argument_id, user_id, response) VALUES
+ ('00000000-0000-4000-8000-000000000d01', '00000000-0000-4000-8000-000000000a05', 'agree'),
+ ('00000000-0000-4000-8000-000000000d02', '00000000-0000-4000-8000-000000000a05', 'agree'),
+ ('00000000-0000-4000-8000-000000000d04', '00000000-0000-4000-8000-000000000a05', 'disagree'),
+ ('00000000-0000-4000-8000-000000000d01', '00000000-0000-4000-8000-000000000a04', 'disagree'),
+ ('00000000-0000-4000-8000-000000000d03', '00000000-0000-4000-8000-000000000a04', 'pass');
+
+-- two of the five active participants have called the question
+INSERT INTO call_the_question_votes (thread_id, user_id) VALUES
+ ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a01'),
+ ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a04');
+
+-- one resolved claim flag for history (the pending argument's tax claim, author marked as opinion)
+INSERT INTO argument_claim_flags (argument_id, claim_text, detection_method, algorithm_version, author_response) VALUES
+ ('00000000-0000-4000-8000-000000000d06', 'Property taxes near my station went up 30% already', 'model', 'claims-heuristic-v0.1', 'marked_as_opinion');

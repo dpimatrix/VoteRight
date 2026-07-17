@@ -12,6 +12,14 @@ export async function currentUserId(): Promise<string | null> {
   return ensureUser(anon);
 }
 
+/** §9 gate: returns the user id only if address-verified (or better); null otherwise. */
+export async function verifiedUserId(): Promise<string | null> {
+  const { userTier } = await import("./debates");
+  const userId = await currentOrNewUserId();
+  const tier = await userTier(userId);
+  return tier === "unverified" ? null : userId;
+}
+
 /** Route-handler variant: mint the cookie if missing (cookies are writable there). */
 export async function currentOrNewUserId(): Promise<string> {
   const store = await cookies();

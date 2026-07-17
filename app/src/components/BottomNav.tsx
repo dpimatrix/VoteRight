@@ -25,6 +25,12 @@ const ICONS = {
       <path d="M8 12.5l2.6 2.6L16 9.5" />
     </svg>
   ),
+  debates: (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M4 5h16v11H9l-5 4z" />
+      <path d="M8 9h8M8 12.5h5" />
+    </svg>
+  ),
 };
 
 export function BottomNav() {
@@ -40,6 +46,12 @@ export function BottomNav() {
       label: d.nav_matches,
       icon: ICONS.matches,
       match: (p: string) => p.startsWith("/matches") || p.startsWith("/candidates"),
+    },
+    {
+      href: `/debates?lang=${lang}`,
+      label: d.nav_debates,
+      icon: ICONS.debates,
+      match: (p: string) => p.startsWith("/debates") || p.startsWith("/verify"),
     },
   ];
   return (

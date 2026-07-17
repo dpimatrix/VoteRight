@@ -45,4 +45,10 @@ npm run build   # typecheck + production build
 - Phase 2 built: promise records with append-only histories, the integrity dispute
   workflow (evidence → right of reply → resolve; publish gated by a DB CHECK), and the
   admin console (/admin — dev token gate via ADMIN_TOKEN, default dev-admin) with the
-  dispute queue and the position-coding queue. Commentary, debates, referenda: Phases 2b–5.
+  dispute queue and the position-coding queue.
+- Phase 3 built (text-first): issue proposals → seconding (auto-transition at threshold) →
+  debate threads with agreement votes (§10.2 private), claim-detection citation prompts
+  (§7.7 heuristic), calling-the-question (§7.6), the §9 address-verification gate
+  (/verify, self-attested + format-checked per §2.6), and the admin moderation queue.
+  Clustering, amendments, and audio/video are volume-triggered later (§12).
+  Commentary, referenda: Phases 2b/4–5.
