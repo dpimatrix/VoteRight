@@ -20,7 +20,8 @@ export default async function PrioritiesPage({
   return (
     <>
       <SiteHeader lang={lang} path={`/priorities`} />
-      <h1>{d.prio_h}</h1>
+      <div className="pagepad">
+      <div className="pagetitle">{d.prio_h}</div>
       <PriorityForm
         topics={topics}
         lang={lang}
@@ -33,6 +34,7 @@ export default async function PrioritiesPage({
           need_more: d.need_more,
         }}
       />
+      </div>
     </>
   );
 }

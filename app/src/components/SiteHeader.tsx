@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { t, type Lang } from "@/lib/i18n";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function SiteHeader({ lang, path }: { lang: Lang; path: string }) {
   const other = lang === "en" ? "es" : "en";
   const d = t(lang);
   return (
-    <header className="site">
+    <div className="topbar">
       <Link href={`/?lang=${lang}`} className="wordmark">
         VoteRight<small>{d.county}</small>
       </Link>
-      <Link className="lang" href={`${path}${path.includes("?") ? "&" : "?"}lang=${other}`}>
-        {d.lang_other}
+      <span className="spacer" />
+      <Link
+        className="iconbtn"
+        href={`${path}${path.includes("?") ? "&" : "?"}lang=${other}`}
+        aria-label={d.lang_other}
+      >
+        {other.toUpperCase()}
       </Link>
-    </header>
+      <ThemeToggle />
+    </div>
   );
 }

@@ -68,6 +68,9 @@ const DICT = {
     method:
       "How scoring works: published methodology, human-confirmed evidence, bands not numbers.",
     lang_other: "Español",
+    nav_ballot: "Ballot",
+    nav_prios: "Priorities",
+    nav_matches: "Matches",
   },
   es: {
     county: "Condado de Montgomery, MD",
@@ -131,6 +134,9 @@ const DICT = {
     method:
       "Cómo funciona la puntuación: metodología publicada, evidencia confirmada por humanos, bandas en lugar de números.",
     lang_other: "English",
+    nav_ballot: "Boleta",
+    nav_prios: "Prioridades",
+    nav_matches: "Coincidencias",
   },
 } as const;
 

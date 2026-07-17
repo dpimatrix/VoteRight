@@ -47,7 +47,9 @@ export default async function CandidatePage({
   return (
     <>
       <SiteHeader lang={lang} path={`/candidates/${id}`} />
-      <div className="row1">
+      <div className="pagepad">
+      <div className="row1" style={{ alignItems: "center", marginTop: "0.9rem" }}>
+        <span className="mono-av" aria-hidden>{profile.full_name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()}</span>
         <span className="cname serif" style={{ fontSize: "1.4rem" }}>
           {profile.full_name}
         </span>
@@ -139,6 +141,7 @@ export default async function CandidatePage({
             ),
           )
         )}
+      </div>
       </div>
     </>
   );
