@@ -1,0 +1,12 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: voteright-db
+    environment:
+      POSTGRES_PASSWORD: vr
+      POSTGRES_DB: voteright
+    ports:
+      - "5433:5432"
+    volumes:
+      - ../docs/SCHEMA.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro

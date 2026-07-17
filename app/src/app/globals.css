@@ -1,0 +1,135 @@
+/* VoteRight design tokens — ported from the prototype design system.
+   Two registers: teal = evidence-linked, gold = advisory. Never interchangeable. */
+:root {
+  --ground: #f2f4f0; --surface: #fbfcfa; --surface-2: #ecefea;
+  --ink: #1a1f1c; --muted: #5c665f; --line: #d8ded7;
+  --ev: #1d6069; --ev-soft: #1d60691a;
+  --adv: #8f6410; --adv-soft: #8f641016;
+  --agree: #1d6069; --agree-mid: #deebea;
+  --differ: #a24a33; --differ-mid: #f0dfd9;
+  --kept: #2e6b3f; --broken: #99372f; --pending: #a06a1a;
+  --chip-neutral: #e4e8e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #121614; --surface: #1b211e; --surface-2: #232a26;
+    --ink: #e9ede9; --muted: #9ca79f; --line: #353d38;
+    --ev: #74bdb7; --ev-soft: #74bdb71f;
+    --adv: #e2b05c; --adv-soft: #e2b05c1c;
+    --agree: #74bdb7; --agree-mid: #2a3e3c;
+    --differ: #de9276; --differ-mid: #43302a;
+    --kept: #79c48c; --broken: #e08b82; --pending: #e2b05c;
+    --chip-neutral: #2a312c;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px; line-height: 1.55;
+}
+a { color: var(--ev); text-underline-offset: 2px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--ev); outline-offset: 2px; border-radius: 4px;
+}
+.serif { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; }
+
+.shell { max-width: 640px; margin: 0 auto; padding: 1rem 1.1rem 4rem; }
+header.site {
+  display: flex; align-items: baseline; gap: 0.75rem;
+  padding: 0.9rem 0 0.6rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
+}
+.wordmark { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-weight: 700; font-size: 1.2rem; text-decoration: none; color: var(--ink); }
+.wordmark small { display: block; font-size: 0.65rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-weight: 500; }
+header.site .lang { margin-left: auto; font-size: 0.8rem; font-weight: 700; }
+
+h1 { font-family: "Iowan Old Style", "Sitka Text", Charter, Georgia, serif; font-size: 1.5rem; margin: 0.4rem 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 0.86rem; margin: 0.2rem 0 0.8rem; }
+
+.card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0.85rem 0.95rem; margin: 0.6rem 0; }
+.card.raised { background: var(--surface-2); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  border: none; border-radius: 10px; padding: 0.7rem 1.1rem; font-weight: 700; font-size: 0.95rem;
+  background: var(--ev); color: var(--surface); width: 100%; text-decoration: none;
+}
+.btn.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;
+  font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; border: 1px solid transparent;
+}
+.chip.cite {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 600;
+  font-size: 0.68rem; color: var(--ev); border-color: var(--ev); background: var(--ev-soft);
+  border-radius: 5px; white-space: normal;
+}
+.band { border-radius: 6px; }
+.band.b2 { background: var(--agree); color: var(--surface); }
+.band.b1 { background: var(--agree-mid); color: var(--ink); border-color: var(--agree); }
+.band.b0 { background: var(--chip-neutral); color: var(--ink); border-color: var(--line); }
+.band.bm1 { background: var(--differ-mid); color: var(--ink); border-color: var(--differ); }
+.band.bm2 { background: var(--differ); color: var(--surface); }
+.band.bnull { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
+
+.disclosure {
+  display: flex; gap: 0.55rem; align-items: flex-start;
+  border: 1.5px solid var(--adv); background: var(--adv-soft);
+  border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.78rem; margin: 0.75rem 0;
+}
+.disclosure .tag {
+  flex: 0 0 auto; font-family: ui-monospace, Consolas, monospace; font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--adv);
+  border: 1.5px solid var(--adv); border-radius: 4px; padding: 0.1rem 0.35rem; transform: rotate(-1.5deg);
+}
+.privnote { display: flex; gap: 0.45rem; align-items: center; font-size: 0.74rem; color: var(--muted); margin: 0.5rem 0; }
+.privnote .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ev); flex: 0 0 auto; }
+
+.grouph { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 0.25rem; }
+.seat { display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 0.55rem 0.7rem; margin: 0.35rem 0; text-decoration: none; color: var(--ink); }
+.seat .sname { font-weight: 650; font-size: 0.88rem; flex: 1; }
+.seat .smeta { font-size: 0.66rem; color: var(--muted); display: block; font-weight: 400; }
+a.seat:hover { border-color: var(--ev); }
+.seat.wrap { flex-wrap: wrap; }
+.seat .snote { flex-basis: 100%; font-size: 0.72rem; color: var(--muted); font-style: italic; }
+
+.cand { display: block; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0.8rem 0.9rem; margin: 0.55rem 0; text-decoration: none; color: var(--ink); }
+a.cand:hover { border-color: var(--ev); }
+.cand.insuff { border-style: dashed; }
+.row1 { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.cname { font-weight: 750; font-size: 1.02rem; }
+.cparty { font-size: 0.7rem; color: var(--muted); }
+.inc { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ev); border: 1px solid var(--ev); border-radius: 4px; padding: 0.05rem 0.3rem; }
+.row2 { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.45rem; flex-wrap: wrap; }
+.cover { font-size: 0.7rem; color: var(--muted); }
+.dots { display: inline-flex; gap: 4px; }
+.dots i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); }
+.dots i.d2 { background: var(--agree); border-color: var(--agree); }
+.dots i.d1 { background: var(--agree-mid); border-color: var(--agree); }
+.dots i.d0 { background: var(--chip-neutral); }
+.dots i.dm1 { background: var(--differ-mid); border-color: var(--differ); }
+.dots i.dm2 { background: var(--differ); border-color: var(--differ); }
+.dots i.dnull { background: transparent; border-style: dashed; }
+.nopos { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+
+.topicrow { border-top: 1px solid var(--line); padding: 0.75rem 0; }
+.trhead { display: flex; align-items: center; gap: 0.5rem; }
+.trhead .tn { font-weight: 700; font-size: 0.9rem; flex: 1; }
+.yours { font-size: 0.78rem; color: var(--muted); margin: 0.15rem 0 0.4rem; }
+.theirs { font-size: 0.88rem; margin: 0.2rem 0 0.4rem; }
+.evrow { font-family: ui-monospace, Consolas, monospace; font-size: 0.68rem; color: var(--ev); background: var(--ev-soft); border-left: 3px solid var(--ev); border-radius: 0 5px 5px 0; padding: 0.35rem 0.55rem; margin-top: 0.35rem; }
+
+.seg { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 0.15rem; gap: 0.15rem; margin: 0.5rem 0; }
+.seg a, .seg button { flex: 1; border: none; background: transparent; border-radius: 7px; padding: 0.4rem 0.5rem; font-size: 0.8rem; font-weight: 650; color: var(--muted); text-align: center; text-decoration: none; }
+.seg .on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); }
+
+textarea.statement { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.88rem; padding: 0.5rem 0.6rem; resize: vertical; min-height: 2.6em; }
+.poles { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
+.poles button { flex: 1; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0.45rem 0.5rem; font-size: 0.78rem; font-weight: 650; color: var(--muted); }
+.poles button.on { border-color: var(--ev); color: var(--ev); background: var(--ev-soft); }
+.weight { display: flex; gap: 0.3rem; align-items: center; margin-top: 0.45rem; }
+.weight button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; }
+.weight .wval { min-width: 10ch; text-align: center; font-size: 0.76rem; font-weight: 700; color: var(--ev); }
