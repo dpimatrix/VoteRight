@@ -89,11 +89,38 @@ geocoder call at submit, replacing the dev city-matcher — same contract, real 
    obligations on a real person's reputation — one operator must be able to meet them, or
    D5 waits.
 
-## 6. Standing cadences once live
+## 6. Ingestion scheduling (decided)
+
+**Mechanism: GitHub Actions scheduled workflows**, not in-app cron. Ingest scripts run in
+the repo's CI with `DATABASE_URL` as a repo secret, writing directly to Neon — visible
+logs, automatic failure email, a manual re-run button, no duration limits, zero new
+vendors. (Vercel serverless is the wrong shape for ingestion: function duration limits,
+Hobby-plan cron restrictions, and ingestion should never share the request path with
+voters.) Cadence follows each source's real change rate, not the calendar:
+
+| Source | Cadence | Why |
+|---|---|---|
+| Legistar votes | Weekly (after session day) | The Council votes on session days, not continuously |
+| MDCRIS filings | Weekly → **daily inside the 30 days before an election** | Filing deadlines are lumpy; 48-hour notices cluster pre-election |
+| SBE candidate list | Weekly diff | Withdrawals are rare events |
+| SBE registration counts · roster diff | Monthly | Slow-moving |
+
+Three rules that outrank frequency:
+
+1. **Idempotent by construction** — re-running any ingest is always safe (the schema's
+   UNIQUE constraints make duplicates impossible), so missed or doubled runs are non-events.
+2. **Ingestion is never publication** — scheduled jobs may write *facts with citations*
+   (votes, filings); anything interpretive lands in the human coding queue. No cron ever
+   auto-publishes a §2.3-sensitive claim about a real person.
+3. **Show staleness honestly** — an `ingestion_runs` ledger (source, run time, rows,
+   status) drives an admin freshness panel and voter-facing "data current through {date}"
+   stamps. Built in D2 alongside the first ingester.
+
+## 7. Standing cadences once live
 
 | When | What |
 |---|---|
-| Weekly | Legistar vote ingestion; MDCRIS sweep |
-| Monthly | SBE registration-count refresh; roster diff check |
+| Per §6 schedule | Automated ingestion (GitHub Actions) |
+| Monthly | Review ingestion_runs for silent failures; roster diff check |
 | Per SCORING.md | Bias-audit sampling + acceptance gates |
 | Per COUNSEL-REVIEW | Post-launch legal cadences already tabled there |
