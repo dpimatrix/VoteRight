@@ -182,6 +182,10 @@ const DICT = {
     cand_man_none: "No published mandates apply to this candidate's races yet.",
     became_promise: "Now a tracked promise",
     deb_ref_live: "The debate closed and this proposal went to an advisory referendum.",
+    ballot_stack: "Your address elects seats in",
+    ballot_addr_note:
+      "City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.",
+    no_race_this_cycle: "No election for this seat in 2026",
     acct_h: "Accountability pathways",
     acct_sub:
       "What voters can actually do, seat by seat — real mechanisms with real citations, never a button that pretends to a power that doesn't exist.",
@@ -402,6 +406,10 @@ const DICT = {
     cand_man_none: "Aún no hay mandatos publicados que apliquen a las contiendas de esta persona.",
     became_promise: "Ahora es una promesa con seguimiento",
     deb_ref_live: "El debate cerró y esta propuesta pasó a un referendo consultivo.",
+    ballot_stack: "Tu dirección elige escaños en",
+    ballot_addr_note:
+      "Las direcciones de ciudad (p. ej., Rockville) añaden los escaños de esa ciudad. Verifica tu dirección para ver tu lista completa.",
+    no_race_this_cycle: "Sin elección para este escaño en 2026",
     acct_h: "Vías de rendición de cuentas",
     acct_sub:
       "Lo que los votantes realmente pueden hacer, asiento por asiento — mecanismos reales con citas reales, nunca un botón que finja un poder que no existe.",

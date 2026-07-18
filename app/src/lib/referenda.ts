@@ -129,9 +129,20 @@ export async function issueBallot(refId: string, userId: string, tier: string): 
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // Eligibility walks UP the jurisdiction stack: a City of Rockville resident
+    // is inside the county, so county referenda include them; the reverse
+    // (county resident in a city-only referendum) correctly fails.
     const chk = await client.query(
-      `SELECT r.status, r.eligibility_jurisdiction_id, u.residence_jurisdiction_id
-         FROM referenda r, users u WHERE r.id = $1 AND u.id = $2`,
+      `WITH RECURSIVE up AS (
+         SELECT j.ocd_id, j.parent_ocd_id
+           FROM users u JOIN jurisdictions j ON j.ocd_id = u.residence_jurisdiction_id
+          WHERE u.id = $2
+         UNION ALL
+         SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN up ON j.ocd_id = up.parent_ocd_id
+       )
+       SELECT r.status,
+              EXISTS (SELECT 1 FROM up WHERE up.ocd_id = r.eligibility_jurisdiction_id) AS eligible
+         FROM referenda r WHERE r.id = $1`,
       [refId, userId],
     );
     const c = chk.rows[0];
@@ -139,7 +150,7 @@ export async function issueBallot(refId: string, userId: string, tier: string): 
       await client.query("ROLLBACK");
       return "not_open";
     }
-    if (c.residence_jurisdiction_id !== c.eligibility_jurisdiction_id) {
+    if (!c.eligible) {
       await client.query("ROLLBACK");
       return "not_eligible";
     }

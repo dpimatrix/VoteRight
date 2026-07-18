@@ -489,3 +489,23 @@ INSERT INTO accountability_campaign_supports (campaign_id, user_id, verification
  ('00000000-0000-4000-8000-000000000f11', '00000000-0000-4000-8000-000000000a03', 'address_verified'),
  ('00000000-0000-4000-8000-000000000f12', '00000000-0000-4000-8000-000000000a04', 'address_verified'),
  ('00000000-0000-4000-8000-000000000f12', '00000000-0000-4000-8000-000000000a05', 'address_verified');
+
+-- ═══════════════ JURISDICTION STACK SEED: CITY OF ROCKVILLE ═══════════════
+-- First municipal layer for the address-driven resolver: a Rockville address
+-- adds these seats on top of the county stack. Office structure is real
+-- (Mayor + 6-member Council, at-large, nonpartisan, 4-year terms since the
+-- Nov 2023 election; odd-year city elections — next in 2027, so no 2026 race
+-- rows, and the ballot honestly says so). Re-verify roster facts at data-ops
+-- time (§2 discipline). The officeholder below is fictional by design (§2.3).
+INSERT INTO jurisdictions (ocd_id, name, level, parent_ocd_id, registered_voter_count, registered_voter_count_as_of) VALUES
+ ('ocd-division/country:us/state:md/place:rockville', 'City of Rockville', 'municipal',
+  'ocd-division/country:us/state:md/county:montgomery', NULL, NULL);
+
+INSERT INTO offices (id, jurisdiction_id, title, seat_type, seat_count, term_length_years, is_partisan, is_elected, level) VALUES
+ ('00000000-0000-4000-8000-000000000411', 'ocd-division/country:us/state:md/place:rockville', 'Mayor', 'single', 1, 4, FALSE, TRUE, 'municipal'),
+ ('00000000-0000-4000-8000-000000000412', 'ocd-division/country:us/state:md/place:rockville', 'City Council', 'at_large', 6, 4, FALSE, TRUE, 'municipal');
+
+INSERT INTO politicians (id, full_name, party, current_office_id, bio) VALUES
+ ('00000000-0000-4000-8000-000000000221', 'Alicia Fontaine', NULL, '00000000-0000-4000-8000-000000000411', 'Fictional sample officeholder.');
+INSERT INTO office_terms (office_id, politician_id, term_start, how_obtained) VALUES
+ ('00000000-0000-4000-8000-000000000411', '00000000-0000-4000-8000-000000000221', '2023-11-20', 'elected');

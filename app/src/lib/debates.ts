@@ -22,19 +22,24 @@ export function addressLooksValid(address: string): boolean {
 
 export async function verifyAddress(userId: string, address: string): Promise<boolean> {
   if (!addressLooksValid(address)) return false;
+  const { resolveJurisdictionFromAddress, RESOLVER_VERSION } = await import("./jurisdictions");
+  const residence = resolveJurisdictionFromAddress(address);
   const client = await db().connect();
   try {
     await client.query("BEGIN");
     await client.query(
       `INSERT INTO verification_records (user_id, method, provider_reference, expires_at)
-       VALUES ($1, 'address_attestation', 'format-check-v0.1', now() + interval '1 year')`,
-      [userId],
+       VALUES ($1, 'address_attestation', $2, now() + interval '1 year')`,
+      [userId, `format-check-v0.1+${RESOLVER_VERSION}`],
     );
     await client.query(
       `UPDATE users SET verification_tier = 'address_verified'
         WHERE id = $1 AND verification_tier IN ('unverified', 'email_verified')`,
       [userId],
     );
+    // The resolved jurisdiction always follows the latest verified address —
+    // moving from Silver Spring to Rockville changes what your address elects.
+    await client.query(`UPDATE users SET residence_jurisdiction_id = $2 WHERE id = $1`, [userId, residence]);
     await client.query("COMMIT");
     return true;
   } catch (e) {
