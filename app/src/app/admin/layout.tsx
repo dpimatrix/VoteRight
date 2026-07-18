@@ -14,6 +14,11 @@ export default async function AdminLayout({
           VoteRight<small>Admin console</small>
         </Link>
         <span className="spacer" />
+        {ok && (
+          <form method="post" action="/api/admin/logout" style={{ display: "inline" }}>
+            <button className="iconbtn" type="submit">Sign out</button>
+          </form>
+        )}
         <Link className="iconbtn" href="/">
           Exit
         </Link>
@@ -31,10 +36,20 @@ export default async function AdminLayout({
         <div className="card">
           <div className="pagetitle" style={{ marginTop: 0 }}>Sign in</div>
           <form className="admform" method="post" action="/api/admin/login">
-            <input type="password" name="token" placeholder="Admin token" aria-label="Admin token" />
+            <input
+              type="password"
+              name="token"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="Authenticator code"
+              aria-label="Authenticator code"
+            />
             <button type="submit">Enter</button>
           </form>
-          <p className="nopos">Dev gate only — token from ADMIN_TOKEN (default: dev-admin).</p>
+          <p className="nopos">
+            Six-digit code from the enrolled authenticator app (TOTP). Sessions last 12 hours.
+            Local dev without ADMIN_TOTP_SECRET falls back to the ADMIN_TOKEN value.
+          </p>
         </div>
       )}
     </div>

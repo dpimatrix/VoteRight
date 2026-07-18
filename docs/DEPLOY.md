@@ -58,7 +58,7 @@ operations begin:
 | Gate | Where |
 |---|---|
 | Counsel items for Phases 1–2 | docs/COUNSEL-REVIEW.md (A1 initial, A2, B1, B2, C1) |
-| Real admin auth replacing `ADMIN_TOKEN` | app/src/lib/adminAuth.ts is the seam |
+| ~~Real admin auth replacing `ADMIN_TOKEN`~~ **DONE** — TOTP (authenticator app) + signed 12 h sessions; production fails closed unless `ADMIN_TOTP_SECRET`/`ADMIN_SESSION_SECRET` are set (generate: `node app/scripts/gen-admin-secret.mjs`) | app/src/lib/adminAuth.ts |
 | Real data operations replacing the fictional seed | db/seed.sql structural parts survive |
 | MODPA notice/retention pages | ARCHITECTURE.md §10 |
 
