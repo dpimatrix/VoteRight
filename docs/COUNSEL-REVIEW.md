@@ -179,6 +179,14 @@ serve (34% foreign-born county). This is a product decision, but counsel input i
 on: liability exposure of each verification tier, vendor data-handling terms, and any
 discrimination-adjacent risk in tier-gating civic features.
 
+**F2. Candidate questionnaire instrument** *(item 15 — before DATA-OPS.md phase D4)*
+Before VoteRight sends its questionnaire to real campaigns (the platform's first direct
+outreach to the people it scores), counsel should review the instrument itself: identical
+questions to every candidate in a race (fairness), neutral axis phrasing (the topic_axes
+text doubles as the published methodology), how non-response is displayed (silence shown
+as silence — same rule as mandate commitments), and whether anything in the cover
+communication could be construed as coordination or as soliciting a thing of value.
+
 ---
 
 ## Phase-gate summary
@@ -190,6 +198,8 @@ discrimination-adjacent risk in tier-gating civic features.
 | Phase 3 (debate forum) | C1 (full), E1 |
 | Phase 4 (referenda + mandates + campaigns) | A3, A4, B3, C2, C3, D1, F1 |
 | Phase 5 (AI debate agents) | A6 |
+| Real-data phase D4 (questionnaire + live scoring — see docs/DATA-OPS.md) | B2 (re-confirm on real data), F2 |
+| Real-data phase D5 (integrity flags on real people) | B1, B4 (operational readiness, not just design) |
 
 ## Standing items after launch
 
