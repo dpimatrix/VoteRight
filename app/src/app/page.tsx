@@ -1,9 +1,16 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Chev } from "@/components/Chev";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
-import { ballotForJurisdiction, COUNTY, userResidence, type StackedOffice } from "@/lib/jurisdictions";
+import {
+  ballotForJurisdiction,
+  COUNTY,
+  listBrowsableJurisdictions,
+  userResidence,
+  type StackedOffice,
+} from "@/lib/jurisdictions";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +91,15 @@ export default async function BallotPage({
   const userId = await currentUserId();
   const residence = (userId && (await userResidence(userId))) || null;
   const residenceId = residence?.ocd_id ?? COUNTY;
-  const offices = await ballotForJurisdiction(residenceId);
+
+  // Visitor mode: a display-only lens. Participation rights always follow
+  // users.residence_jurisdiction_id in the database, never this cookie.
+  const browsable = await listBrowsableJurisdictions();
+  const visitCookie = (await cookies()).get("vr_visit")?.value;
+  const visited = browsable.find((j) => j.ocd_id === visitCookie && j.ocd_id !== residenceId) ?? null;
+  const displayId = visited ? visited.ocd_id : residenceId;
+
+  const offices = await ballotForJurisdiction(displayId);
 
   // Jurisdictions in stack order (deepest first), from the rows themselves.
   const jurisdictions: { id: string; name: string }[] = [];
@@ -102,7 +117,22 @@ export default async function BallotPage({
         <p>{d.tagline}</p>
       </div>
       <div className="pagepad">
-        {jurisdictions.length > 1 && (
+        {visited && (
+          <div className="disclosure" style={{ marginTop: "0.7rem" }}>
+            <span className="tag">{lang === "es" ? "Visitante" : "Visitor"}</span>
+            <span>
+              {d.visit_note.replace("%s", visited.name)}{" "}
+            </span>
+            <form method="post" action="/api/visit" style={{ display: "inline" }}>
+              <input type="hidden" name="lang" value={lang} />
+              <input type="hidden" name="jurisdiction" value="" />
+              <button className="btn secondary" type="submit" style={{ marginTop: "0.4rem" }}>
+                {d.visit_return}
+              </button>
+            </form>
+          </div>
+        )}
+        {!visited && jurisdictions.length > 1 && (
           <p className="nopos" style={{ marginTop: "0.7rem" }}>
             {d.ballot_stack}: {jurisdictions.map((j) => j.name).join(" → ")}
           </p>
@@ -138,6 +168,22 @@ export default async function BallotPage({
         <Link className="btn" href={`/priorities?lang=${lang}`}>
           {d.set_prios}
         </Link>
+
+        <div className="card" style={{ marginTop: "0.9rem" }}>
+          <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.visit_h}</div>
+          <p className="nopos" style={{ margin: "0 0 0.45rem" }}>{d.visit_sub}</p>
+          <form method="post" action="/api/visit" className="admform" style={{ marginTop: 0 }}>
+            <input type="hidden" name="lang" value={lang} />
+            <select name="jurisdiction" required style={{ flex: 1 }}>
+              {browsable
+                .filter((j) => j.ocd_id !== displayId)
+                .map((j) => (
+                  <option key={j.ocd_id} value={j.ocd_id}>{j.name}</option>
+                ))}
+            </select>
+            <button type="submit">{d.visit_go}</button>
+          </form>
+        </div>
       </div>
     </>
   );
