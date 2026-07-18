@@ -509,3 +509,9 @@ INSERT INTO politicians (id, full_name, party, current_office_id, bio) VALUES
  ('00000000-0000-4000-8000-000000000221', 'Alicia Fontaine', NULL, '00000000-0000-4000-8000-000000000411', 'Fictional sample officeholder.');
 INSERT INTO office_terms (office_id, politician_id, term_start, how_obtained) VALUES
  ('00000000-0000-4000-8000-000000000411', '00000000-0000-4000-8000-000000000221', '2023-11-20', 'elected');
+
+-- ═══════════════════ PRIVACY (MODPA) SEED: one open request ═══════════════════
+INSERT INTO privacy_requests (id, user_id, request_type, details, status, received_at, due_at) VALUES
+ ('00000000-0000-4000-8000-000000000fa1', '00000000-0000-4000-8000-000000000a02', 'access',
+  'Please send me everything you hold about my participation.', 'received',
+  now() - interval '3 days', now() + interval '42 days');

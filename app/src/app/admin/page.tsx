@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/adminAuth";
 import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
+import { adminPrivacyQueue } from "@/lib/privacy";
 import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,9 @@ export default async function AdminHome() {
   const mods = await moderationQueue();
   const pipeline = await adminMandatePipeline();
   const campaigns = await adminCampaigns();
+  const privacy = await adminPrivacyQueue();
+  const privacyOpen = privacy.filter((p) => p.status === "received" || p.status === "in_progress").length;
+  const privacyOverdue = privacy.some((p) => p.overdue);
   const mandateWork =
     pipeline.ready.length +
     pipeline.referenda.filter((r: { status: string; certified: boolean }) => r.status === "closed" && !r.certified).length +
@@ -61,6 +65,16 @@ export default async function AdminHome() {
           <span className="smeta">in-app status vs. real petition status — tracked separately</span>
         </span>
         <span className="chip band b0">{campaigns.length} total</span>
+      </Link>
+      <Link className="seat" href="/admin/privacy">
+        <span className="seat-ic">PR</span>
+        <span className="sname">
+          Privacy requests (MODPA)
+          <span className="smeta">45-day statutory clock · appeals 60 · deletion executes §10</span>
+        </span>
+        <span className={`chip band ${privacyOverdue ? "bm2" : privacyOpen > 0 ? "bm1" : "b0"}`}>
+          {privacyOpen} open{privacyOverdue ? " · OVERDUE" : ""}
+        </span>
       </Link>
     </>
   );

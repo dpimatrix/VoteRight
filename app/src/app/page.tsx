@@ -184,6 +184,10 @@ export default async function BallotPage({
             <button type="submit">{d.visit_go}</button>
           </form>
         </div>
+
+        <p className="nopos" style={{ marginTop: "0.9rem" }}>
+          <Link href={`/privacy?lang=${lang}`}>{d.priv_link}</Link>
+        </p>
       </div>
     </>
   );

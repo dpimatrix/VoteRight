@@ -866,6 +866,29 @@ CREATE TABLE mandate_commitments (
 );
 
 -- ══════════════════════════════════════════════════════════════
+-- PRIVACY RIGHTS (MODPA — Md. Code, Com. Law §14-4601 et seq.)
+-- In-app request mechanism: the consumer files from their cookie identity,
+-- the admin console works the queue against the statutory clock (45 days,
+-- one 45-day extension; appeals decided within 60). Deletion executes the
+-- Section 10 pseudonymization, never a physical row purge of public acts.
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE privacy_requests (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    request_type    TEXT NOT NULL CHECK (request_type IN ('access','correction','deletion','portability','appeal')),
+    details         TEXT,
+    response_contact TEXT,                              -- volunteered by the requester for the reply; nothing else uses it
+    appeal_of       UUID REFERENCES privacy_requests(id),
+    status          TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received','in_progress','completed','denied')),
+    received_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    due_at          TIMESTAMPTZ NOT NULL,               -- computed at intake: +45 days (+60 for appeals)
+    resolved_at     TIMESTAMPTZ,
+    resolution_note TEXT,
+    CHECK ((request_type = 'appeal') = (appeal_of IS NOT NULL))
+);
+
+-- ══════════════════════════════════════════════════════════════
 -- TRUST & IDENTITY
 -- ══════════════════════════════════════════════════════════════
 
@@ -933,3 +956,5 @@ CREATE INDEX idx_mandate_commitments_candidacy ON mandate_commitments(candidacy_
 CREATE INDEX idx_office_terms_office ON office_terms(office_id);
 CREATE INDEX idx_office_terms_politician ON office_terms(politician_id);
 CREATE INDEX idx_office_terms_current ON office_terms(office_id) WHERE term_end IS NULL;
+CREATE INDEX idx_privacy_requests_user ON privacy_requests(user_id);
+CREATE INDEX idx_privacy_requests_open ON privacy_requests(due_at) WHERE status IN ('received','in_progress');
