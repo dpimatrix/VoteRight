@@ -3,6 +3,7 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   evidenceForPoliticians,
+  isSampleData,
   loadPriorities,
   politicianProfile,
   promisesFor,
@@ -53,6 +54,7 @@ export default async function CandidatePage({
   const commitments = await commitmentsFor(id);
   const { pathways, holds_office } = await pathwaysForPolitician(id);
   const campaigns = await campaignsForPolitician(id);
+  const sample = await isSampleData();
   const STANCE: Record<string, { label: string; cls: string; ic: string }> = {
     commit: { label: d.stance_commit, cls: "b2", ic: "✓" },
     decline: { label: d.stance_decline, cls: "bm2", ic: "✗" },
@@ -79,8 +81,8 @@ export default async function CandidatePage({
         {profile.current_office && <span className="inc">{d.incumbent}</span>}
       </div>
       <div className="disclosure">
-        <span className="tag">{lang === "es" ? "Muestra" : "Sample"}</span>
-        <span>{d.sample}</span>
+        <span className="tag">{sample ? (lang === "es" ? "Muestra" : "Sample") : lang === "es" ? "Datos" : "Data"}</span>
+        <span>{sample ? d.sample : d.realdata_note}</span>
       </div>
 
       {topics.map((tp) => {

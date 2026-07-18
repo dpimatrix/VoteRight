@@ -139,6 +139,12 @@ const DICT = {
     verify_ph: "Street address, city, MD",
     verify_btn: "Verify address",
     verify_bad: "That doesn’t look like a Maryland street address — include a street number, street, and MD.",
+    verify_outside:
+      "That address is outside Montgomery County. The pilot covers county residents only.",
+    realdata_note:
+      "Early real-data phase: positions are being ingested from sourced records. A candidate is scored only once enough sourced positions exist — silence is shown as silence, never guessed.",
+    ballot_districts_note:
+      "Council district seats: which one is yours depends on your exact address — district-level lookup arrives in a later update, so all seven are shown.",
     verify_need: "Verify your address to participate in debates.",
     verify_done: "✓ Address verified — you can now propose, second, argue, and vote.",
     nav_mandates: "Mandates",
@@ -392,6 +398,12 @@ const DICT = {
     verify_ph: "Dirección, ciudad, MD",
     verify_btn: "Verificar dirección",
     verify_bad: "No parece una dirección de Maryland — incluye número, calle y MD.",
+    verify_outside:
+      "Esa dirección está fuera del condado de Montgomery. El piloto cubre solo a residentes del condado.",
+    realdata_note:
+      "Fase temprana de datos reales: las posturas se ingieren de registros con fuente. Un candidato solo se puntúa cuando existen suficientes posturas con fuente — el silencio se muestra como silencio, nunca se adivina.",
+    ballot_districts_note:
+      "Escaños de distrito del Concejo: el tuyo depende de tu dirección exacta — la búsqueda por distrito llegará en una actualización posterior, así que se muestran los siete.",
     verify_need: "Verifica tu dirección para participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes proponer, apoyar, argumentar y votar.",
     nav_mandates: "Mandatos",

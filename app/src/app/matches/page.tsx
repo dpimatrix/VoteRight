@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import { matchesForRace } from "@/lib/matches";
-import { races } from "@/lib/queries";
+import { isSampleData, races } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,7 @@ export default async function MatchesPage({
   const lang = langFrom(sp.lang);
   const d = t(lang);
   const allRaces = await races();
+  const sample = await isSampleData();
   const raceId = sp.race ?? allRaces[0]?.id;
   const race = allRaces.find((r) => r.id === raceId);
 
@@ -53,8 +54,8 @@ export default async function MatchesPage({
         </div>
         {race && <p className="sub">{race.seats_elected > 1 ? d.seats4 : d.open_seat}</p>}
         <div className="disclosure">
-          <span className="tag">{lang === "es" ? "Muestra" : "Sample"}</span>
-          <span>{d.sample}</span>
+          <span className="tag">{sample ? (lang === "es" ? "Muestra" : "Sample") : lang === "es" ? "Datos" : "Data"}</span>
+          <span>{sample ? d.sample : d.realdata_note}</span>
         </div>
 
         {!hasPriorities ? (

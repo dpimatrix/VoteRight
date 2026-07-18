@@ -20,17 +20,22 @@ export function addressLooksValid(address: string): boolean {
   return /\d+\s+\S+.*\s+(md|maryland)\b/i.test(address.trim()) && address.trim().length >= 12;
 }
 
-export async function verifyAddress(userId: string, address: string): Promise<boolean> {
-  if (!addressLooksValid(address)) return false;
-  const { resolveJurisdictionFromAddress, RESOLVER_VERSION } = await import("./jurisdictions");
-  const residence = resolveJurisdictionFromAddress(address);
+export async function verifyAddress(
+  userId: string,
+  address: string,
+): Promise<"ok" | "bad_format" | "no_match" | "outside"> {
+  if (!addressLooksValid(address)) return "bad_format";
+  const { resolveJurisdiction } = await import("./jurisdictions");
+  const res = await resolveJurisdiction(address);
+  if (res.outcome !== "ok") return res.outcome;
+  const residence = res.jurisdiction;
   const client = await db().connect();
   try {
     await client.query("BEGIN");
     await client.query(
       `INSERT INTO verification_records (user_id, method, provider_reference, expires_at)
        VALUES ($1, 'address_attestation', $2, now() + interval '1 year')`,
-      [userId, `format-check-v0.1+${RESOLVER_VERSION}`],
+      [userId, `format-check-v0.1+${res.method}`],
     );
     await client.query(
       `UPDATE users SET verification_tier = 'address_verified'
@@ -41,7 +46,7 @@ export async function verifyAddress(userId: string, address: string): Promise<bo
     // moving from Silver Spring to Rockville changes what your address elects.
     await client.query(`UPDATE users SET residence_jurisdiction_id = $2 WHERE id = $1`, [userId, residence]);
     await client.query("COMMIT");
-    return true;
+    return "ok";
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

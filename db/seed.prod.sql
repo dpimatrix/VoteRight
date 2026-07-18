@@ -17,7 +17,13 @@ INSERT INTO jurisdictions (ocd_id, name, level, parent_ocd_id, registered_voter_
 INSERT INTO offices (id, jurisdiction_id, title, seat_type, seat_count, term_length_years, is_partisan, is_elected, level) VALUES
  ('00000000-0000-4000-8000-000000000401', 'ocd-division/country:us/state:md/county:montgomery', 'County Executive', 'single', 1, 4, TRUE, TRUE, 'county'),
  ('00000000-0000-4000-8000-000000000402', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — At-Large', 'at_large', 4, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000421', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 1', 'district', 1, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000422', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 2', 'district', 1, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000423', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 3', 'district', 1, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000424', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 4', 'district', 1, 4, TRUE, TRUE, 'county'),
  ('00000000-0000-4000-8000-000000000403', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 5', 'district', 1, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000425', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 6', 'district', 1, 4, TRUE, TRUE, 'county'),
+ ('00000000-0000-4000-8000-000000000426', 'ocd-division/country:us/state:md/county:montgomery', 'County Council — District 7', 'district', 1, 4, TRUE, TRUE, 'county'),
  ('00000000-0000-4000-8000-000000000404', 'ocd-division/country:us/state:md/county:montgomery', 'Sheriff', 'single', 1, 4, TRUE, TRUE, 'county'),
  ('00000000-0000-4000-8000-000000000405', 'ocd-division/country:us/state:md/county:montgomery', 'State''s Attorney', 'single', 1, 4, TRUE, TRUE, 'county'),
  ('00000000-0000-4000-8000-000000000406', 'ocd-division/country:us/state:md/county:montgomery', 'Clerk of the Circuit Court', 'single', 1, 4, TRUE, TRUE, 'county'),

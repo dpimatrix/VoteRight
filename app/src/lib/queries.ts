@@ -24,6 +24,17 @@ export async function ballot() {
   }[];
 }
 
+/* ── data-mode detection ──
+   True while the database still carries the fictional dev seed; drives which
+   disclosure the scoring surfaces show. After the D1 cutover this returns
+   false in production and the real-data disclosure renders instead. */
+export async function isSampleData(): Promise<boolean> {
+  const { rows } = await db().query(
+    `SELECT EXISTS (SELECT 1 FROM politicians WHERE bio LIKE 'Fictional sample%') AS sample`,
+  );
+  return rows[0]?.sample ?? false;
+}
+
 /* ── topics + axes ── */
 export async function topicsWithAxes() {
   const { rows } = await db().query(

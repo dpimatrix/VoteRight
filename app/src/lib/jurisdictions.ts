@@ -9,14 +9,67 @@ export const COUNTY = "ocd-division/country:us/state:md/county:montgomery";
 export const ROCKVILLE = "ocd-division/country:us/state:md/place:rockville";
 export const RESOLVER_VERSION = "address-city-match-v0.1";
 
-/** Dev-grade city resolver standing in for the geocoding vendor (§2.6 — the
-    address is self-attested and format-checked, never matched against any
-    voter file). Production replaces this with point-in-polygon against
-    municipal boundaries; the contract (address in → deepest OCD id out) and
-    everything downstream stay identical. */
+/** Dev/offline fallback resolver (§2.6 — the address is self-attested, never
+    matched against any voter file). Production path is the Census geocoder
+    below; this regex matcher remains for local dev and network failure. */
 export function resolveJurisdictionFromAddress(address: string): string {
   if (/\brockville\b/i.test(address)) return ROCKVILLE;
   return COUNTY;
+}
+
+/* ── production resolver: U.S. Census Bureau geocoder (DATA-OPS D1) ──
+   Official, free, no API key, called ONCE server-side at submit — never
+   keystroke-by-keystroke, and never from the browser (the §10 decision
+   recorded on the /verify form). Returns county + incorporated-place
+   geographies directly. The raw address is still never stored. */
+export const CENSUS_RESOLVER = "census-geocoder-v1";
+export const FALLBACK_RESOLVER = "address-city-match-v0.1-fallback";
+
+export type Resolution =
+  | { outcome: "ok"; jurisdiction: string; method: string }
+  | { outcome: "outside"; method: string } // real address, wrong county — not eligible
+  | { outcome: "no_match"; method: string }; // geocoder couldn't find the address
+
+interface CensusGeography {
+  STATE?: string;
+  COUNTY?: string;
+  NAME?: string;
+}
+export interface CensusResponse {
+  result?: { addressMatches?: { geographies?: Record<string, CensusGeography[]> }[] };
+}
+
+/** Pure mapping (unit-tested): Census geographies → pilot jurisdiction. */
+export function mapCensusToJurisdiction(data: CensusResponse): "no_match" | "outside" | string {
+  const match = data?.result?.addressMatches?.[0];
+  if (!match) return "no_match";
+  const county = (match.geographies?.["Counties"] ?? [])[0];
+  // Montgomery County, MD = state FIPS 24, county FIPS 031
+  if (!county || county.STATE !== "24" || county.COUNTY !== "031") return "outside";
+  const place = (match.geographies?.["Incorporated Places"] ?? [])[0];
+  if (place?.NAME && /^rockville\b/i.test(place.NAME)) return ROCKVILLE;
+  return COUNTY;
+}
+
+export async function resolveJurisdiction(address: string): Promise<Resolution> {
+  try {
+    const u = new URL("https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress");
+    u.searchParams.set("address", address);
+    u.searchParams.set("benchmark", "Public_AR_Current");
+    u.searchParams.set("vintage", "Current_Current");
+    u.searchParams.set("layers", "Counties,Incorporated Places");
+    u.searchParams.set("format", "json");
+    const res = await fetch(u, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error(`census ${res.status}`);
+    const mapped = mapCensusToJurisdiction((await res.json()) as CensusResponse);
+    if (mapped === "no_match") return { outcome: "no_match", method: CENSUS_RESOLVER };
+    if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
+    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER };
+  } catch {
+    // Offline/dev: the format check already passed upstream; fall back to the
+    // city matcher so local development keeps working without network.
+    return { outcome: "ok", jurisdiction: resolveJurisdictionFromAddress(address), method: FALLBACK_RESOLVER };
+  }
 }
 
 export interface StackedOffice {
