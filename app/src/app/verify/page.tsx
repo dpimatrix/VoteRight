@@ -46,6 +46,9 @@ export default async function VerifyPage({
               <span className="dot" />
               <span>{d.prio_priv}</span>
             </div>
+            <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
+              <a href={`/privacy?lang=${lang}`}>{d.priv_link}</a>
+            </p>
           </div>
         )}
       </div>

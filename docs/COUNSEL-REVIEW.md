@@ -24,6 +24,7 @@ mitigations are already designed and, where noted, demonstrable in a working pro
 | Database schema (constraints are load-bearing) | `docs/SCHEMA.sql` — validated on PostgreSQL 16 |
 | Scoring methodology | `docs/SCORING.md` |
 | Country expansion tiers (pilot → multi-country) | `docs/EXPANSION-READINESS.md` — rule-based market inclusion; per-country gates in its §3/§5 |
+| MODPA privacy notice + rights mechanism (DRAFT for category C review) | `/privacy` and `/privacy/request` in the app; queue with statutory clock in the admin console; deletion executes ARCHITECTURE.md §10 pseudonymization |
 | Working prototype (voter app + admin console) | prototype artifact — **Admin console tab demonstrates the dispute/right-of-reply workflow and the human-confirmation gate on scoring inputs** |
 
 All candidates, commentators, and sources in the prototype are fictional by design; the
