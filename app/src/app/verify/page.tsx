@@ -28,7 +28,11 @@ export default async function VerifyPage({
           </div>
         ) : (
           <div className="card">
-            {sp.bad && <p className="nopos">{d.verify_bad}</p>}
+            {sp.bad === "outside" ? (
+              <p className="nopos">{d.verify_outside}</p>
+            ) : sp.bad ? (
+              <p className="nopos">{d.verify_bad}</p>
+            ) : null}
             <form className="admform" method="post" action="/api/verify">
               <input type="hidden" name="lang" value={lang} />
               {/* Browser-native autofill only — deliberately NO third-party

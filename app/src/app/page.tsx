@@ -164,6 +164,9 @@ export default async function BallotPage({
           );
         })}
         <p className="nopos">{d.ballot_note}</p>
+        {offices.some((o) => o.title.includes("District")) && (
+          <p className="nopos">{d.ballot_districts_note}</p>
+        )}
         <p className="nopos">{d.ballot_addr_note}</p>
         <Link className="btn" href={`/priorities?lang=${lang}`}>
           {d.set_prios}
