@@ -490,6 +490,18 @@ CREATE TABLE accountability_campaigns (
     )
 );
 
+-- One support per verified user, attributed — supporting a campaign is a public
+-- act in the Section 10.2 sense (like signing a public petition or seconding a
+-- proposal), labeled as such at the moment of action. support_count on the
+-- campaign is a denormalized tally recomputed from these rows.
+CREATE TABLE accountability_campaign_supports (
+    campaign_id     UUID NOT NULL REFERENCES accountability_campaigns(id),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    verification_tier_at_support TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (campaign_id, user_id)
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- DIRECT DEMOCRACY LAYER
 -- ══════════════════════════════════════════════════════════════
@@ -887,6 +899,8 @@ CREATE INDEX idx_referendum_ballot_tokens_referendum ON referendum_ballot_tokens
 CREATE INDEX idx_referendum_ballots_referendum ON referendum_ballots(referendum_id);
 CREATE INDEX idx_accountability_campaigns_politician ON accountability_campaigns(politician_id) WHERE politician_id IS NOT NULL;
 CREATE INDEX idx_accountability_campaigns_pathway ON accountability_campaigns(pathway_id);
+CREATE INDEX idx_accountability_campaign_supports_campaign ON accountability_campaign_supports(campaign_id);
+CREATE INDEX idx_accountability_pathways_office ON accountability_pathways(office_id) WHERE office_id IS NOT NULL;
 CREATE INDEX idx_arguments_cluster ON arguments(cluster_id) WHERE cluster_id IS NOT NULL;
 CREATE INDEX idx_argument_clusters_thread ON argument_clusters(thread_id);
 CREATE INDEX idx_argument_agreement_votes_argument ON argument_agreement_votes(argument_id);

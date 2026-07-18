@@ -432,3 +432,60 @@ INSERT INTO mandate_commitments (id, voter_mandate_id, candidacy_id, stance, sta
   'commit', 'Yes — and every contract amendment should be published within 30 days.', '00000000-0000-4000-8000-000000000e64', now() - interval '28 days'),
  ('00000000-0000-4000-8000-000000000e76', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000216',
   'no_response', NULL, NULL, now() - interval '40 days');
+
+-- ═══════════════════════ PHASE 4b SEED: ACCOUNTABILITY ═══════════════════════
+-- Pathways are LEGAL FACTS (§2.1/§2.1.1 — verified against primary sources; the
+-- mechanisms and citations below are real). Campaigns and supporters are
+-- fictional by design (§2.3), like every politician in this seed.
+
+INSERT INTO accountability_pathways (id, jurisdiction_id, office_id, mechanism_type, is_binding, legal_citation, signature_requirement_note, description) VALUES
+ ('00000000-0000-4000-8000-000000000f01', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000402', 'supermajority_council_removal', TRUE,
+  'Montgomery County Charter §118', NULL,
+  'A councilmember can be removed only by a 7-of-11 Council vote, after a public hearing, and only on a finding of physical or mental disability preventing service — not for policy disagreement or broken promises. Appealable de novo to the Circuit Court.'),
+ ('00000000-0000-4000-8000-000000000f02', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000402', 'next_election_defeat', TRUE,
+  'Md. Election Law — regular county election (2026 general)', NULL,
+  'All four at-large Council seats are on the ballot at the regular county election. The ordinary, guaranteed lever — no petition required.'),
+ ('00000000-0000-4000-8000-000000000f03', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000402', 'primary_challenge_support', FALSE,
+  'Md. Election Law Title 5 (candidacy filing)', NULL,
+  'Organize support for a primary challenger in the next cycle. Not a legal mechanism — ordinary electoral politics, done early.'),
+ ('00000000-0000-4000-8000-000000000f04', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000401', 'no_removal_mechanism_exists', FALSE,
+  'Montgomery County Charter (no recall or removal provision for the Executive)', NULL,
+  'No mechanism removes a sitting County Executive before the next election, short of criminal conviction. The County''s own 2022 Charter Review Commission considered adding recall and voted against it.'),
+ ('00000000-0000-4000-8000-000000000f05', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000401', 'criminal_referral', TRUE,
+  'Md. Constitution (removal upon conviction of certain crimes)', NULL,
+  'Conviction of certain crimes triggers removal under the Maryland Constitution — a matter for prosecutors and courts, never for petitions or apps.'),
+ ('00000000-0000-4000-8000-000000000f06', 'ocd-division/country:us/state:md/county:montgomery',
+  '00000000-0000-4000-8000-000000000401', 'next_election_defeat', TRUE,
+  'Md. Election Law — regular county election (2026 general)', NULL,
+  'The Executive''s seat is on the ballot at the regular county election (2026: open seat — the incumbent is term-limited).'),
+ ('00000000-0000-4000-8000-000000000f07', 'ocd-division/country:us/state:md/county:montgomery',
+  NULL, 'charter_amendment_petition', TRUE,
+  'Md. Const. Art. XI-A, Sec. 5; Local Government Article',
+  '20% of registered voters, or 10,000 signatures, whichever is FEWER (the 2024 term-limit petition qualified with 15,956 certified signatures)',
+  'Voters can amend the County Charter directly by petition — the binding path that could, for example, create the recall provision that does not exist today. Used successfully in 2008, 2016, and 2024.');
+
+INSERT INTO accountability_campaigns (id, pathway_id, target_type, politician_id, reform_title, initiated_by_user_id, description, support_count, status, external_petition_status, disclosure_text, created_at) VALUES
+ ('00000000-0000-4000-8000-000000000f11', '00000000-0000-4000-8000-000000000f07', 'charter_or_law_change',
+  NULL, 'Add a recall provision to the Montgomery County Charter', '00000000-0000-4000-8000-000000000a03',
+  'The county has no recall for any office — the Charter Review Commission said no in 2022, but voters never got to. Petition to amend the charter and create one, with clear grounds and thresholds.',
+  3, 'gathering_support', 'not_started',
+  'This is a citizen-organized campaign on VoteRight — not a legal petition, not an official proceeding, and not affiliated with any election authority. In-app support is not a petition signature and has no legal effect. The underlying mechanism — the voter-initiated charter amendment (Md. Const. Art. XI-A, Sec. 5; Local Government Article) — is a real, binding legal process, but a real signature drive has its own legal form, circulators, and Board of Elections verification, entirely outside this app.',
+  now() - interval '12 days'),
+ ('00000000-0000-4000-8000-000000000f12', '00000000-0000-4000-8000-000000000f03', 'politician',
+  '00000000-0000-4000-8000-000000000201', NULL, '00000000-0000-4000-8000-000000000a04',
+  'Councilmember Trent''s district office-hours pledge is marked broken on her public record. Support a primary challenger for the at-large seat in 2026.',
+  2, 'gathering_support', 'not_applicable',
+  'This is a citizen-organized campaign on VoteRight — not a legal petition, not an official proceeding, and not affiliated with any election authority. In-app support is not a petition signature and has no legal effect. No petition-based recall exists for this office. This campaign organizes voters within the ordinary electoral process (Md. Election Law Title 5 (candidacy filing)); it does not and cannot remove anyone from office.',
+  now() - interval '5 days');
+
+INSERT INTO accountability_campaign_supports (campaign_id, user_id, verification_tier_at_support) VALUES
+ ('00000000-0000-4000-8000-000000000f11', '00000000-0000-4000-8000-000000000a01', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000f11', '00000000-0000-4000-8000-000000000a02', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000f11', '00000000-0000-4000-8000-000000000a03', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000f12', '00000000-0000-4000-8000-000000000a04', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000f12', '00000000-0000-4000-8000-000000000a05', 'address_verified');

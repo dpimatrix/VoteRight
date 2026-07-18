@@ -63,7 +63,7 @@ export function BottomNav() {
       href: `/mandates?lang=${lang}`,
       label: d.nav_mandates,
       icon: ICONS.mandates,
-      match: (p: string) => p.startsWith("/mandates") || p.startsWith("/referenda"),
+      match: (p: string) => p.startsWith("/mandates") || p.startsWith("/referenda") || p.startsWith("/accountability"),
     },
   ];
   return (
