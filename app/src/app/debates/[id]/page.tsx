@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { debateDetail, userTier } from "@/lib/debates";
 import { langFrom, t } from "@/lib/i18n";
+import { referendumForProposal } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +74,23 @@ export default async function DebatePage({
           </div>
         )}
 
-        {detail.status === "referendum" && (
-          <div className="disclosure">
-            <span className="tag">{lang === "es" ? "Consultivo" : "Advisory"}</span>
-            <span>{d.deb_await_ref}</span>
-          </div>
-        )}
+        {(detail.status === "referendum" || detail.status === "closed") &&
+          (await (async () => {
+            const ref = await referendumForProposal(id);
+            return (
+              <div className="disclosure">
+                <span className="tag">{lang === "es" ? "Consultivo" : "Advisory"}</span>
+                {ref ? (
+                  <span>
+                    {d.deb_ref_live}{" "}
+                    <Link href={`/referenda/${ref.id}?lang=${lang}`}>{d.ref_view} →</Link>
+                  </span>
+                ) : (
+                  <span>{d.deb_await_ref}</span>
+                )}
+              </div>
+            );
+          })())}
 
         {detail.thread_id && detail.ctq && (
           <>

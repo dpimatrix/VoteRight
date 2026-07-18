@@ -9,7 +9,9 @@ import {
   publishedFlagsFor,
   topicsWithAxes,
 } from "@/lib/queries";
+import { commitmentsFor } from "@/lib/referenda";
 import { agreement, axisValue } from "@/lib/scoring/engine";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,12 @@ export default async function CandidatePage({
   const asOf = new Date();
   const promises = await promisesFor(id);
   const flags = await publishedFlagsFor(id);
+  const commitments = await commitmentsFor(id);
+  const STANCE: Record<string, { label: string; cls: string; ic: string }> = {
+    commit: { label: d.stance_commit, cls: "b2", ic: "✓" },
+    decline: { label: d.stance_decline, cls: "bm2", ic: "✗" },
+    no_response: { label: d.stance_none, cls: "bnull", ic: "—" },
+  };
   const PILL: Record<string, string> = {
     kept: "kept", broken: "broken", in_progress: "pending", compromised: "pending",
     stalled: "neutral", pending: "neutral",
@@ -166,6 +174,36 @@ export default async function CandidatePage({
           ))
         )}
         <p className="nopos" style={{ marginBottom: 0 }}>{d.flag_note}</p>
+      </div>
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.cand_man_h}</div>
+        {commitments.length === 0 ? (
+          <div className="nopos">{d.cand_man_none}</div>
+        ) : (
+          <>
+            {commitments.map((c) => {
+              const s = STANCE[c.stance] ?? STANCE.no_response;
+              return (
+                <div key={c.id} style={{ margin: "0.5rem 0" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                    <Link href={`/mandates/${c.mandate_id}?lang=${lang}`} style={{ flex: 1, fontSize: "0.92rem" }}>
+                      {c.mandate_summary}
+                    </Link>
+                    <span className={`chip band ${s.cls}`}>{s.ic} {s.label}</span>
+                  </div>
+                  <div className="cover" style={{ margin: "0.15rem 0" }}>
+                    {c.office ?? ""} · {c.turnout_count.toLocaleString()} {d.man_turnout} · +{c.margin_pct}% {d.man_margin}
+                  </div>
+                  {c.statement && <p style={{ fontSize: "0.9rem", margin: "0.25rem 0" }}>“{c.statement}”</p>}
+                  {c.publisher && <span className="chip cite">▣ {c.publisher} · {c.cit_title}</span>}
+                  {c.became_promise && <p className="pill kept" style={{ marginTop: "0.3rem" }}>✓ {d.became_promise}</p>}
+                </div>
+              );
+            })}
+            <p className="nopos" style={{ marginBottom: 0 }}>{d.stance_none_note}</p>
+          </>
+        )}
       </div>
 
       <div className="card">
