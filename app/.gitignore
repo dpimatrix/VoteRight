@@ -40,5 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# keep the template (no secrets in it)
+# vercel (CLI link + pulled env)
+.vercel
+.env*
+
+# keep the template (no secrets in it) — must come AFTER .env* to win
 !.env.example
