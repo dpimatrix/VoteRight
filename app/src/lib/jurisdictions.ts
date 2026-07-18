@@ -63,6 +63,20 @@ export async function userResidence(userId: string): Promise<{ ocd_id: string; n
   return rows[0] ?? null;
 }
 
+/** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
+    Browsing NEVER touches residence or participation rights — every eligibility
+    check in the app reads users.residence_jurisdiction_id from the database,
+    not the visit cookie. */
+export async function listBrowsableJurisdictions(): Promise<{ ocd_id: string; name: string; level: string }[]> {
+  const { rows } = await db().query(
+    `SELECT j.ocd_id, j.name, j.level
+       FROM jurisdictions j
+      WHERE EXISTS (SELECT 1 FROM offices o WHERE o.jurisdiction_id = j.ocd_id AND o.is_elected)
+      ORDER BY j.level, j.name`,
+  );
+  return rows as { ocd_id: string; name: string; level: string }[];
+}
+
 /** The names in the user's stack, deepest first — for the "your ballot covers"
     line on the ballot page. */
 export async function stackNames(jurisdictionId: string): Promise<string[]> {

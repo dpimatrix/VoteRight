@@ -182,6 +182,13 @@ const DICT = {
     cand_man_none: "No published mandates apply to this candidate's races yet.",
     became_promise: "Now a tracked promise",
     deb_ref_live: "The debate closed and this proposal went to an advisory referendum.",
+    visit_h: "Browse another jurisdiction",
+    visit_sub:
+      "Read-only visitor view. Your own ballot, votes, and eligibility always follow your verified address — browsing never changes them.",
+    visit_note:
+      "Visitor view: %s. This is not your ballot — you can look, but voting, seconding, and referenda stay tied to your verified address.",
+    visit_return: "Return to my ballot",
+    visit_go: "Browse",
     ballot_stack: "Your address elects seats in",
     ballot_addr_note:
       "City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.",
@@ -406,6 +413,13 @@ const DICT = {
     cand_man_none: "Aún no hay mandatos publicados que apliquen a las contiendas de esta persona.",
     became_promise: "Ahora es una promesa con seguimiento",
     deb_ref_live: "El debate cerró y esta propuesta pasó a un referendo consultivo.",
+    visit_h: "Explorar otra jurisdicción",
+    visit_sub:
+      "Vista de visitante, solo lectura. Tu boleta, tus votos y tu elegibilidad siempre siguen tu dirección verificada — explorar nunca los cambia.",
+    visit_note:
+      "Vista de visitante: %s. Esta no es tu boleta — puedes mirar, pero votar, apoyar y los referendos quedan ligados a tu dirección verificada.",
+    visit_return: "Volver a mi boleta",
+    visit_go: "Explorar",
     ballot_stack: "Tu dirección elige escaños en",
     ballot_addr_note:
       "Las direcciones de ciudad (p. ej., Rockville) añaden los escaños de esa ciudad. Verifica tu dirección para ver tu lista completa.",
