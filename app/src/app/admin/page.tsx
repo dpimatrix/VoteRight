@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isAdmin } from "@/lib/adminAuth";
 import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
+import { adminCampaigns } from "@/lib/accountability";
 import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function AdminHome() {
   const queue = await adminCodingQueue();
   const mods = await moderationQueue();
   const pipeline = await adminMandatePipeline();
+  const campaigns = await adminCampaigns();
   const mandateWork =
     pipeline.ready.length +
     pipeline.referenda.filter((r: { status: string; certified: boolean }) => r.status === "closed" && !r.certified).length +
@@ -51,6 +53,14 @@ export default async function AdminHome() {
           <span className="smeta">schedule · certify · publish · commitments · outcomes · redaction</span>
         </span>
         <span className={`chip band ${mandateWork > 0 ? "b1" : "b0"}`}>{mandateWork} pending</span>
+      </Link>
+      <Link className="seat" href="/admin/accountability">
+        <span className="seat-ic">AC</span>
+        <span className="sname">
+          Accountability campaigns
+          <span className="smeta">in-app status vs. real petition status — tracked separately</span>
+        </span>
+        <span className="chip band b0">{campaigns.length} total</span>
       </Link>
     </>
   );

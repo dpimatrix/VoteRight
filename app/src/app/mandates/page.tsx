@@ -98,6 +98,10 @@ export default async function MandatesPage({
           </Link>
         ))}
 
+        <p style={{ margin: "0.7rem 0 0" }}>
+          <Link href={`/accountability?lang=${lang}`}>{d.acct_h} →</Link>
+        </p>
+
         {below.length > 0 && (
           <>
             <div className="grouph">{d.man_rec_h}</div>

@@ -9,6 +9,7 @@ import {
   publishedFlagsFor,
   topicsWithAxes,
 } from "@/lib/queries";
+import { campaignsForPolitician, pathwaysForPolitician } from "@/lib/accountability";
 import { commitmentsFor } from "@/lib/referenda";
 import { agreement, axisValue } from "@/lib/scoring/engine";
 import Link from "next/link";
@@ -50,6 +51,8 @@ export default async function CandidatePage({
   const promises = await promisesFor(id);
   const flags = await publishedFlagsFor(id);
   const commitments = await commitmentsFor(id);
+  const { pathways, holds_office } = await pathwaysForPolitician(id);
+  const campaigns = await campaignsForPolitician(id);
   const STANCE: Record<string, { label: string; cls: string; ic: string }> = {
     commit: { label: d.stance_commit, cls: "b2", ic: "✓" },
     decline: { label: d.stance_decline, cls: "bm2", ic: "✗" },
@@ -234,6 +237,45 @@ export default async function CandidatePage({
             ),
           )
         )}
+      </div>
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.acct_h}</div>
+        {!holds_office && <p className="nopos" style={{ margin: "0 0 0.4rem" }}>{d.acct_not_office}</p>}
+        {holds_office && !pathways.some((p) => p.mechanism_type !== "charter_amendment_petition" && p.is_binding && p.mechanism_type !== "next_election_defeat") && (
+          <p className="nopos" style={{ margin: "0 0 0.4rem" }}>{d.acct_none_note}</p>
+        )}
+        {pathways.map((p) => (
+          <div key={p.id} style={{ margin: "0.45rem 0" }}>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+              <strong style={{ flex: 1, fontSize: "0.9rem" }}>
+                {d.mech[p.mechanism_type as keyof typeof d.mech] ?? p.mechanism_type}
+              </strong>
+              <span className={`chip band ${p.is_binding ? "b2" : "b0"}`}>
+                {p.is_binding ? d.acct_binding : d.acct_organizing}
+              </span>
+            </div>
+            <p style={{ fontSize: "0.86rem", margin: "0.2rem 0" }}>{p.description}</p>
+            <span className="chip cite">▣ {p.legal_citation}</span>
+            {p.signature_requirement_note && (
+              <p className="nopos" style={{ margin: "0.25rem 0 0" }}>{d.acct_sig_req}: {p.signature_requirement_note}</p>
+            )}
+          </div>
+        ))}
+        {campaigns.length > 0 && (
+          <>
+            <div className="grouph" style={{ margin: "0.5rem 0 0.2rem" }}>{d.acct_campaigns_h}</div>
+            {campaigns.map((c) => (
+              <p key={c.id} style={{ fontSize: "0.88rem", margin: "0.25rem 0" }}>
+                <Link href={`/accountability/${c.id}?lang=${lang}`}>{c.description}</Link>{" "}
+                <span className="cover">· {c.support_count} {d.acct_supporters}</span>
+              </p>
+            ))}
+          </>
+        )}
+        <p style={{ margin: "0.5rem 0 0" }}>
+          <Link href={`/accountability?lang=${lang}`}>{d.acct_campaigns_h} →</Link>
+        </p>
       </div>
 
       <div className="card">
