@@ -31,6 +31,12 @@ const ICONS = {
       <path d="M8 9h8M8 12.5h5" />
     </svg>
   ),
+  mandates: (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <rect x="4" y="8" width="16" height="12" rx="1.5" />
+      <path d="M9.5 8V5.5h5V8M10 13.5l1.8 1.8 3.2-3.2" />
+    </svg>
+  ),
 };
 
 export function BottomNav() {
@@ -52,6 +58,12 @@ export function BottomNav() {
       label: d.nav_debates,
       icon: ICONS.debates,
       match: (p: string) => p.startsWith("/debates") || p.startsWith("/verify"),
+    },
+    {
+      href: `/mandates?lang=${lang}`,
+      label: d.nav_mandates,
+      icon: ICONS.mandates,
+      match: (p: string) => p.startsWith("/mandates") || p.startsWith("/referenda"),
     },
   ];
   return (

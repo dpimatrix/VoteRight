@@ -337,3 +337,98 @@ INSERT INTO call_the_question_votes (thread_id, user_id) VALUES
 -- one resolved claim flag for history (the pending argument's tax claim, author marked as opinion)
 INSERT INTO argument_claim_flags (argument_id, claim_text, detection_method, algorithm_version, author_response) VALUES
  ('00000000-0000-4000-8000-000000000d06', 'Property taxes near my station went up 30% already', 'model', 'claims-heuristic-v0.1', 'marked_as_opinion');
+
+-- ═══════════════════════════ PHASE 4 SEED ═══════════════════════════
+-- The mandate loop (§7.3, §7.9, §10.1): one OPEN advisory referendum you can
+-- vote in today, and one COMPLETED one — certified, published as a mandate,
+-- put to every at-large candidacy as a commitment, identities already redacted.
+
+-- ── Open referendum: proposal that finished its debate ──
+INSERT INTO issue_proposals (id, created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold, status) VALUES
+ ('00000000-0000-4000-8000-000000000b03', '00000000-0000-4000-8000-000000000a02',
+  'ocd-division/country:us/state:md/county:montgomery', '00000000-0000-4000-8000-000000000102',
+  'Make Ride On free for students and seniors',
+  'Eliminate Ride On fares for riders under 19 and over 65, funded from the existing transit services budget.',
+  3, 'referendum');
+INSERT INTO seconds (proposal_id, user_id, verification_tier_at_second) VALUES
+ ('00000000-0000-4000-8000-000000000b03', '00000000-0000-4000-8000-000000000a01', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b03', '00000000-0000-4000-8000-000000000a04', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b03', '00000000-0000-4000-8000-000000000a05', 'address_verified');
+INSERT INTO forum_threads (id, proposal_id, opened_at, closes_at, status, closed_early, closed_early_at) VALUES
+ ('00000000-0000-4000-8000-000000000c02', '00000000-0000-4000-8000-000000000b03',
+  now() - interval '20 days', now() - interval '6 days', 'closed', TRUE, now() - interval '8 days');
+
+INSERT INTO referenda (id, proposal_id, question_text, opens_at, closes_at, eligibility_jurisdiction_id, status) VALUES
+ ('00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000b03',
+  'Should Ride On bus service be free for riders under 19 and over 65?',
+  now() - interval '2 days', now() + interval '5 days',
+  'ocd-division/country:us/state:md/county:montgomery', 'open');
+
+-- Two seed residents have voted; one holds an unredeemed ballot token.
+INSERT INTO referendum_ballot_tokens (id, referendum_id, user_id, verification_tier_at_issuance, issued_at, redeemed_at) VALUES
+ ('00000000-0000-4000-8000-000000000e11', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000a01', 'address_verified', now() - interval '1 day', now() - interval '1 day'),
+ ('00000000-0000-4000-8000-000000000e12', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000a03', 'address_verified', now() - interval '1 day', now() - interval '20 hours'),
+ ('00000000-0000-4000-8000-000000000e13', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000a05', 'address_verified', now() - interval '6 hours', NULL);
+INSERT INTO referendum_ballots (id, referendum_id, ballot_token_id, choice, cast_at) VALUES
+ ('00000000-0000-4000-8000-000000000e31', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000e11', 'yes', now() - interval '1 day'),
+ ('00000000-0000-4000-8000-000000000e32', '00000000-0000-4000-8000-000000000e01', '00000000-0000-4000-8000-000000000e12', 'yes', now() - interval '20 hours');
+
+-- ── Completed loop: contract-transparency mandate on the at-large Council race ──
+INSERT INTO issue_proposals (id, created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold, status) VALUES
+ ('00000000-0000-4000-8000-000000000b04', '00000000-0000-4000-8000-000000000a04',
+  'ocd-division/country:us/state:md/county:montgomery', '00000000-0000-4000-8000-000000000106',
+  'Publish a quarterly dashboard of county contracts over $250,000',
+  'Require a public, searchable quarterly dashboard listing every county contract above $250,000: vendor, amount, purpose, and amendment history.',
+  3, 'closed');
+INSERT INTO seconds (proposal_id, user_id, verification_tier_at_second) VALUES
+ ('00000000-0000-4000-8000-000000000b04', '00000000-0000-4000-8000-000000000a01', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b04', '00000000-0000-4000-8000-000000000a02', 'address_verified'),
+ ('00000000-0000-4000-8000-000000000b04', '00000000-0000-4000-8000-000000000a03', 'address_verified');
+INSERT INTO forum_threads (id, proposal_id, opened_at, closes_at, status) VALUES
+ ('00000000-0000-4000-8000-000000000c03', '00000000-0000-4000-8000-000000000b04',
+  now() - interval '90 days', now() - interval '62 days', 'closed');
+INSERT INTO referenda (id, proposal_id, question_text, opens_at, closes_at, eligibility_jurisdiction_id, status) VALUES
+ ('00000000-0000-4000-8000-000000000e02', '00000000-0000-4000-8000-000000000b04',
+  'Should the county publish a quarterly public dashboard of every contract over $250,000?',
+  now() - interval '60 days', now() - interval '46 days',
+  'ocd-division/country:us/state:md/county:montgomery', 'published');
+
+-- §10.1 end state: identities already severed (user_id NULL). These token/ballot
+-- rows are a small trace sample; the certified tally lives on the mandate row.
+INSERT INTO referendum_ballot_tokens (id, referendum_id, user_id, verification_tier_at_issuance, issued_at, redeemed_at) VALUES
+ ('00000000-0000-4000-8000-000000000e21', '00000000-0000-4000-8000-000000000e02', NULL, 'address_verified', now() - interval '55 days', now() - interval '54 days'),
+ ('00000000-0000-4000-8000-000000000e22', '00000000-0000-4000-8000-000000000e02', NULL, 'address_verified', now() - interval '53 days', now() - interval '52 days'),
+ ('00000000-0000-4000-8000-000000000e23', '00000000-0000-4000-8000-000000000e02', NULL, 'address_verified', now() - interval '50 days', now() - interval '49 days');
+INSERT INTO referendum_ballots (id, referendum_id, ballot_token_id, choice, cast_at) VALUES
+ ('00000000-0000-4000-8000-000000000e33', '00000000-0000-4000-8000-000000000e02', '00000000-0000-4000-8000-000000000e21', 'yes', now() - interval '54 days'),
+ ('00000000-0000-4000-8000-000000000e34', '00000000-0000-4000-8000-000000000e02', '00000000-0000-4000-8000-000000000e22', 'yes', now() - interval '52 days'),
+ ('00000000-0000-4000-8000-000000000e35', '00000000-0000-4000-8000-000000000e02', '00000000-0000-4000-8000-000000000e23', 'no', now() - interval '49 days');
+
+INSERT INTO voter_mandates (id, referendum_id, office_id, mandate_summary, turnout_count, margin_pct,
+                            turnout_pct_of_registered, publish_threshold_pct, meets_publish_threshold,
+                            overlay_status, published_at) VALUES
+ ('00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000e02',
+  '00000000-0000-4000-8000-000000000402',
+  'Publish a quarterly public dashboard of every county contract over $250,000.',
+  41238, 28.40, 6.012, 1.0, TRUE, 'published', now() - interval '40 days');
+
+-- §7.9: every active at-large candidacy answers on the record (or visibly doesn't).
+INSERT INTO citations (id, url, archive_url, title, publisher, published_at) VALUES
+ ('00000000-0000-4000-8000-000000000e61', 'https://mayatrent.example/transparency', 'https://web.archive.org/web/0/trent-transparency', 'Transparency plank', 'mayatrent.example', (now() - interval '35 days')::date),
+ ('00000000-0000-4000-8000-000000000e62', 'https://quintanaforcouncil.example/mandates', 'https://web.archive.org/web/0/quintana-mandates', 'Answers to the VoteRight mandate questionnaire', 'quintanaforcouncil.example', (now() - interval '33 days')::date),
+ ('00000000-0000-4000-8000-000000000e63', 'https://okafor2026.example/contracts-response', 'https://web.archive.org/web/0/okafor-contracts', 'On the contract dashboard proposal', 'okafor2026.example', (now() - interval '30 days')::date),
+ ('00000000-0000-4000-8000-000000000e64', 'https://ramanforall.example/openbooks', 'https://web.archive.org/web/0/raman-openbooks', 'Open books commitment', 'ramanforall.example', (now() - interval '28 days')::date);
+
+INSERT INTO mandate_commitments (id, voter_mandate_id, candidacy_id, stance, statement, citation_id, recorded_at) VALUES
+ ('00000000-0000-4000-8000-000000000e71', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000211',
+  'commit', 'I will introduce the dashboard requirement within my first 90 days.', '00000000-0000-4000-8000-000000000e61', now() - interval '35 days'),
+ ('00000000-0000-4000-8000-000000000e72', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000212',
+  'commit', 'Contract transparency is already in my platform — yes, and I will co-sponsor.', '00000000-0000-4000-8000-000000000e62', now() - interval '33 days'),
+ ('00000000-0000-4000-8000-000000000e73', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000213',
+  'decline', 'A new dashboard duplicates the open-data portal; I would fund contract auditors instead.', '00000000-0000-4000-8000-000000000e63', now() - interval '30 days'),
+ ('00000000-0000-4000-8000-000000000e74', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000214',
+  'no_response', NULL, NULL, now() - interval '40 days'),
+ ('00000000-0000-4000-8000-000000000e75', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000215',
+  'commit', 'Yes — and every contract amendment should be published within 30 days.', '00000000-0000-4000-8000-000000000e64', now() - interval '28 days'),
+ ('00000000-0000-4000-8000-000000000e76', '00000000-0000-4000-8000-000000000e51', '00000000-0000-4000-8000-000000000216',
+  'no_response', NULL, NULL, now() - interval '40 days');
