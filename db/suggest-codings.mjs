@@ -51,11 +51,17 @@ You have ONLY the bill's title (no full text). Bill title: "${billTitle}"
 Published axes:
 ${axisList}
 
-Does this bill title name the EXACT policy one axis's question asks about, or is it a CLEAR ADJACENT match (same underlying disposition, different specific subject — per standard P2 above)? Report either kind; the caller applies P2's magnitude cap in code, not you. Only return no-match if there is truly no discernible connection. Respond with ONLY a JSON object, no other text:
+Does this bill title name the EXACT policy one axis's question asks about, or is it a CLEAR ADJACENT match — meaning it answers the SAME DISPOSITION QUESTION the axis asks (e.g. "does the county move faster or slower on climate," "does the county's tax burden go up or down"), not merely a bill that happens to live in the same general policy area?
+
+REJECT as no-match (this is the common failure mode — apply it strictly): bills that regulate HOW an existing program is administered (appeals processes, revenue allocation/routing, permit fees, deferral or eligibility mechanics) without changing the underlying rate, target, or level the axis asks about. A fee-appeals process is not evidence about the fee's direction. A tax CREDIT or DEFERRAL for one population is not evidence about the general rate posture the property-tax axis asks about — it changes who pays, not whether the county holds the line. Do not match on shared vocabulary (a bill about "energy" is not automatically about emissions TARGETS; a bill about "tax" is not automatically about the RATE).
+
+CRITICAL — read the bill's action, not just its subject: if the title contains "Repeal," "Reversal," "Rescind," or similarly undoes an existing requirement, a YEA vote means LESS of whatever that requirement provided — reason step by step about what a yes vote actually accomplishes before choosing yea_value's sign. A yea on "Energy Efficiency — Repeal" opposes efficiency, so yea_value must be NEGATIVE on a climate axis whose positive pole is "keep or accelerate" — getting this backwards asserts the opposite of what the person actually did, which is the single worst error this tool can make.
+
+Respond with ONLY a JSON object, no other text:
 
 {"exact_match": true|false, "axis_key": "<key or null>", "yea_value": <-2..2 or null>, "subject": "<one clause naming the bill's actual subject, or null>"}
 
-exact_match=true only if the title names the precise policy the axis's pole describes (e.g. title contains "Rent Stabilization" for a rent-cap axis). exact_match=false with a populated axis_key means a clear adjacent match (e.g. a climate-finance mechanism for a zero-emissions-target axis). yea_value is what a YEA vote means on that axis (sign matters), using full magnitude (2) for your confidence in DIRECTION even if exact_match is false — the caller reduces adjacent-match magnitude to 1 automatically. If there is truly no discernible connection to any axis, return {"exact_match": false, "axis_key": null, "yea_value": null, "subject": null}.`;
+exact_match=true only if the title names the precise policy the axis's pole describes (e.g. title contains "Rent Stabilization" for a rent-cap axis). exact_match=false with a populated axis_key means a clear, disposition-level adjacent match — not a topic-level one. yea_value is what a YEA vote means on that axis (sign matters — verify against the repeal check above), using full magnitude (2) for your confidence in DIRECTION even if exact_match is false — the caller reduces adjacent-match magnitude to 1 automatically. When genuinely uncertain whether a match is disposition-level or merely topic-level, return no-match: {"exact_match": false, "axis_key": null, "yea_value": null, "subject": null}.`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -105,9 +111,20 @@ try {
 
   let suggested = 0;
   let skipped = 0;
+  let excludedRepeal = 0;
   let positionsCreated = 0;
+  // Defense in depth, not just prompt wording: sign-flip reasoning (does a YEA
+  // on THIS bill mean more or less of the axis's positive pole?) is exactly
+  // where a model got it backwards in testing. Rather than trust prompting
+  // alone to get repeal/reversal bills right, exclude the whole class from
+  // automated suggestion — a human codes these deliberately, as with 15-23.
+  const REPEAL_PATTERN = /\b(repeal|rescind|reversal|revoke|reverse|undo|withdraw)\b/i;
 
   for (const bill of billsRes.rows) {
+    if (REPEAL_PATTERN.test(bill.bill_title)) {
+      excludedRepeal++;
+      continue;
+    }
     let draft;
     try {
       draft = await askModel(bill.bill_title, axes);
@@ -170,7 +187,7 @@ try {
     }
   }
 
-  console.log(`\ndone: ${suggested} bill(s) matched an axis, ${skipped} skipped (no clear match or error), ${positionsCreated} draft position(s) queued in /admin/coding${dryRun ? " [dry run — nothing written]" : ""}`);
+  console.log(`\ndone: ${suggested} bill(s) matched an axis, ${skipped} skipped (no clear match or error), ${excludedRepeal} excluded (repeal/reversal pattern — needs human coding, never auto-suggested), ${positionsCreated} draft position(s) queued in /admin/coding${dryRun ? " [dry run — nothing written]" : ""}`);
 } finally {
   await client.end();
 }
