@@ -116,7 +116,35 @@ Three rules that outrank frequency:
    status) drives an admin freshness panel and voter-facing "data current through {date}"
    stamps. Built in D2 alongside the first ingester.
 
-## 7. Standing cadences once live
+## 7. The scaling shape differs by data type (owner Q&A, 2026-07-20)
+
+Prompted by hand-entering a real MDCRIS filing: the committee's legal name ("Affordable
+Maryland") didn't match press shorthand ("Affordable Maryland PAC"), the filing had to be
+found by a human, and two of the six people it named weren't in VoteRight's roster yet.
+The reaction — "we can't possibly do this for thousands of counties" — is correct about
+the *labor*, but conflates three data types that scale along genuinely different axes.
+Getting this right matters for every future jurisdiction-expansion decision, so it's
+recorded here rather than re-derived each time:
+
+| Data type | Scaling unit | Why | Automates? |
+|---|---|---|---|
+| Votes / bills | Per **legislative body** — thousands (every county, city, and town council, plus state legislatures and Congress) | Each body publishes (or doesn't) its own records | **Yes**, where a clean source exists — proven by D2. OpenStates normalizes all 50 state legislatures behind one API (the next highest-leverage integration); Congress.gov covers federal; Legistar-pattern municipalities are individually adapter-able. Genuinely uncovered bodies stay "Not yet tracked," honestly, same as an unscored ballot seat today. |
+| Independent expenditures / campaign finance | Per **state** — fewer than 50 systems, because in the US this is regulated at the state level, not the county level. MDCRIS is Maryland's statewide system; it covers every race in the state, not just Montgomery County's | Even where a state has a searchable database, it is rarely a clean API (D3 already found MDCRIS to be a session-bound JS viewer, not machine-readable at any volume) | **No, not really, at any scale.** A ~50-state problem is far smaller than the "thousands" framing suggests, but it doesn't shrink further — matching a committee's press name to its legal filer name and confirming named people are real filers is an act of judgment, not a parsing problem. This stays admin-curated in every state, forever. |
+| Endorsements | Per **organization** — unbounded, and permanently manual | There is no government filing system for "who endorsed whom" anywhere, ever — an endorsement is just an organization's own announcement | **Never.** This is not a scaling problem to solve; it is a standing editorial-operations problem. |
+
+**The operating conclusion:** don't try to make campaign-finance or endorsement tracking
+mirror vote-ingestion's automation model — they are not the same shape of problem, and
+forcing them into a "scrape more sources" plan produces a brittle scraper for a data type
+that resists it (already tried and rejected for MDCRIS in D3 §3). The way real
+organizations do this at national scale (OpenSecrets, FollowTheMoney, Ballotpedia) is a
+**distributed network of local researchers/stringers**, not a bigger integration surface.
+The labor scales with *how many competitive races are covered*, not with jurisdiction
+count — a genuinely bounded, staffing problem, not an engineering one. When VoteRight
+expands beyond Montgomery County, budget people-hours for money/endorsements per new
+*state* covered; budget engineering-hours for votes/bills per new *data source* covered.
+These are different roadmaps and should never be planned as though they were the same one.
+
+## 8. Standing cadences once live
 
 | When | What |
 |---|---|
