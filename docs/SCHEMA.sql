@@ -888,6 +888,21 @@ CREATE TABLE privacy_requests (
     CHECK ((request_type = 'appeal') = (appeal_of IS NOT NULL))
 );
 
+-- Ingestion ledger (docs/DATA-OPS.md §6; migration 001): one row per automated
+-- run, drives the admin freshness panel and voter-facing "data current
+-- through" stamps.
+CREATE TABLE ingestion_runs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source          TEXT NOT NULL,
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at     TIMESTAMPTZ,
+    status          TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running','succeeded','failed')),
+    rows_upserted   INTEGER NOT NULL DEFAULT 0,
+    rows_skipped    INTEGER NOT NULL DEFAULT 0,
+    data_through    DATE,
+    note            TEXT
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- TRUST & IDENTITY
 -- ══════════════════════════════════════════════════════════════
@@ -958,3 +973,4 @@ CREATE INDEX idx_office_terms_politician ON office_terms(politician_id);
 CREATE INDEX idx_office_terms_current ON office_terms(office_id) WHERE term_end IS NULL;
 CREATE INDEX idx_privacy_requests_user ON privacy_requests(user_id);
 CREATE INDEX idx_privacy_requests_open ON privacy_requests(due_at) WHERE status IN ('received','in_progress');
+CREATE INDEX idx_ingestion_runs_source ON ingestion_runs(source, started_at DESC);

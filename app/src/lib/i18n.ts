@@ -143,6 +143,14 @@ const DICT = {
       "That address is outside Montgomery County. The pilot covers county residents only.",
     realdata_note:
       "Early real-data phase: positions are being ingested from sourced records. A candidate is scored only once enough sourced positions exist — silence is shown as silence, never guessed.",
+    votes_h: "Voting record",
+    votes_none: "No recorded votes for this person in the tracked jurisdiction.",
+    votes_yea: "Yea",
+    votes_nay: "Nay",
+    votes_src: "Official record",
+    votes_through: "Votes current through",
+    votes_note:
+      "Recorded roll-call votes from the county's official legislation dataset. Facts only — a vote becomes part of alignment scoring only after human review of what it means.",
     ballot_districts_note:
       "Council district seats: which one is yours depends on your exact address — district-level lookup arrives in a later update, so all seven are shown.",
     verify_need: "Verify your address to participate in debates.",
@@ -402,6 +410,14 @@ const DICT = {
       "Esa dirección está fuera del condado de Montgomery. El piloto cubre solo a residentes del condado.",
     realdata_note:
       "Fase temprana de datos reales: las posturas se ingieren de registros con fuente. Un candidato solo se puntúa cuando existen suficientes posturas con fuente — el silencio se muestra como silencio, nunca se adivina.",
+    votes_h: "Historial de votos",
+    votes_none: "Sin votos registrados para esta persona en la jurisdicción rastreada.",
+    votes_yea: "Sí",
+    votes_nay: "No",
+    votes_src: "Registro oficial",
+    votes_through: "Votos actualizados hasta",
+    votes_note:
+      "Votos nominales del conjunto de datos oficial de legislación del condado. Solo hechos — un voto entra en la puntuación de afinidad solo tras revisión humana de su significado.",
     ballot_districts_note:
       "Escaños de distrito del Concejo: el tuyo depende de tu dirección exacta — la búsqueda por distrito llegará en una actualización posterior, así que se muestran los siete.",
     verify_need: "Verifica tu dirección para participar en los debates.",
