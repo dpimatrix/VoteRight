@@ -4,6 +4,7 @@ import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
 import { adminPrivacyQueue } from "@/lib/privacy";
+import { ingestionFreshness } from "@/lib/queries";
 import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,20 @@ export default async function AdminHome() {
           {privacyOpen} open{privacyOverdue ? " · OVERDUE" : ""}
         </span>
       </Link>
+
+      <div className="grouph" style={{ marginTop: "1rem" }}>Data freshness (DATA-OPS §6)</div>
+      {(await ingestionFreshness()).map((f) => (
+        <div className="card" key={f.source} style={{ padding: "0.6rem 0.9rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+            <strong style={{ flex: 1, fontSize: "0.9rem" }}>{f.source}</strong>
+            <span className={`pill ${f.status === "succeeded" ? "kept" : f.status === "failed" ? "broken" : "pending"}`}>{f.status}</span>
+          </div>
+          <div className="cover" style={{ margin: "0.15rem 0 0" }}>
+            last run {f.finished ?? "…"} · data through {f.data_through ?? "n/a"} · +{f.rows_upserted} rows
+          </div>
+          {f.note && <p className="nopos" style={{ margin: "0.25rem 0 0" }}>{f.note}</p>}
+        </div>
+      ))}
     </>
   );
 }

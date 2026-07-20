@@ -1,0 +1,29 @@
+# Automated ingestion (docs/DATA-OPS.md §6): GitHub Actions, not in-app cron.
+# Weekly after the Council's session day; idempotent, so overlaps and manual
+# re-runs are harmless. DATABASE_URL is the Neon pooled string (repo secret).
+name: ingest
+on:
+  schedule:
+    - cron: "0 11 * * 3" # Wednesdays 11:00 UTC (~06:00 ET, after Tuesday sessions)
+  workflow_dispatch: {}
+
+jobs:
+  votes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pg (runner has no app node_modules)
+        working-directory: app
+        run: npm install --no-save --ignore-scripts pg
+      - name: Apply pending migrations
+        run: node db/migrate.mjs up
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest council votes
+        run: node db/ingest/votes.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

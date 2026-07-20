@@ -24,6 +24,30 @@ export async function ballot() {
   }[];
 }
 
+/* ── voting record (D2: ingested facts with citations) ── */
+export async function votesFor(politicianId: string, limit = 8) {
+  const { rows } = await db().query(
+    `SELECT bill_external_id, bill_title, vote, voted_at::text AS date, source_url
+       FROM voting_records WHERE politician_id = $1
+      ORDER BY voted_at DESC, bill_external_id DESC LIMIT $2`,
+    [politicianId, limit],
+  );
+  return rows as { bill_external_id: string; bill_title: string; vote: string; date: string; source_url: string }[];
+}
+
+/** Latest successful run per source — the honesty stamp (DATA-OPS §6). */
+export async function ingestionFreshness() {
+  const { rows } = await db().query(
+    `SELECT DISTINCT ON (source) source, status, finished_at::date::text AS finished,
+            data_through::text AS data_through, rows_upserted, note
+       FROM ingestion_runs ORDER BY source, started_at DESC`,
+  );
+  return rows as {
+    source: string; status: string; finished: string | null;
+    data_through: string | null; rows_upserted: number; note: string | null;
+  }[];
+}
+
 /* ── data-mode detection ──
    True while the database still carries the fictional dev seed; drives which
    disclosure the scoring surfaces show. After the D1 cutover this returns

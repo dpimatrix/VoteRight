@@ -4,12 +4,14 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   evidenceForPoliticians,
+  ingestionFreshness,
   isSampleData,
   loadPriorities,
   politicianProfile,
   promisesFor,
   publishedFlagsFor,
   topicsWithAxes,
+  votesFor,
 } from "@/lib/queries";
 import { campaignsForPolitician, pathwaysForPolitician } from "@/lib/accountability";
 import { commitmentsFor } from "@/lib/referenda";
@@ -56,6 +58,8 @@ export default async function CandidatePage({
   const { pathways, holds_office } = await pathwaysForPolitician(id);
   const campaigns = await campaignsForPolitician(id);
   const sample = await isSampleData();
+  const votes = await votesFor(id);
+  const freshness = (await ingestionFreshness()).find((f) => f.source === "moco-council-bills");
   const STANCE: Record<string, { label: string; cls: string; ic: string }> = {
     commit: { label: d.stance_commit, cls: "b2", ic: "✓" },
     decline: { label: d.stance_decline, cls: "bm2", ic: "✗" },
@@ -121,6 +125,33 @@ export default async function CandidatePage({
           </div>
         );
       })}
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.votes_h}</div>
+        {votes.length === 0 ? (
+          <div className="nopos">{d.votes_none}</div>
+        ) : (
+          <>
+            {votes.map((v) => (
+              <div key={v.bill_external_id} style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap", margin: "0.4rem 0" }}>
+                <span className={`chip band ${v.vote === "yea" ? "b2" : v.vote === "nay" ? "bm2" : "b0"}`}>
+                  {v.vote === "yea" ? d.votes_yea : v.vote === "nay" ? d.votes_nay : v.vote}
+                </span>
+                <span style={{ flex: 1, fontSize: "0.88rem", minWidth: "14ch" }}>
+                  {v.bill_external_id} · {v.bill_title}
+                </span>
+                <a className="chip cite" href={v.source_url} target="_blank" rel="noreferrer">
+                  ▣ {d.votes_src} · {v.date}
+                </a>
+              </div>
+            ))}
+            <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
+              {d.votes_note}
+              {freshness?.data_through ? ` ${d.votes_through} ${freshness.data_through}.` : ""}
+            </p>
+          </>
+        )}
+      </div>
 
       <div className="card">
         <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.promises_h}</div>
