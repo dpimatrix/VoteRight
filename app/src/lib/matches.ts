@@ -7,6 +7,7 @@ export interface MatchResult {
   fullName: string;
   party: string | null;
   incumbent: boolean;
+  photoUrl: string | null;
   score: CandidateScore;
   evidence: Record<
     string,
@@ -37,6 +38,7 @@ export async function matchesForRace(raceId: string, userId: string) {
       fullName: c.full_name,
       party: c.party,
       incumbent: c.incumbent,
+      photoUrl: c.photo_url,
       score: scoreCandidate(priorities, byAxis),
       evidence: byAxis,
     };

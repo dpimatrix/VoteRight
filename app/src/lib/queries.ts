@@ -124,11 +124,12 @@ export interface CandidateRow {
   full_name: string;
   party: string | null;
   incumbent: boolean;
+  photo_url: string | null;
 }
 
 export async function candidatesInRace(raceId: string): Promise<CandidateRow[]> {
   const { rows } = await db().query(
-    `SELECT p.id AS politician_id, c.id AS candidacy_id, p.full_name, c.party,
+    `SELECT p.id AS politician_id, c.id AS candidacy_id, p.full_name, c.party, p.photo_url,
             EXISTS (SELECT 1 FROM race_incumbents ri WHERE ri.race_id = c.race_id AND ri.politician_id = p.id) AS incumbent
        FROM candidacies c JOIN politicians p ON p.id = c.politician_id
       WHERE c.race_id = $1
@@ -174,7 +175,7 @@ export async function evidenceForPoliticians(politicianIds: string[]) {
 /* ── candidate profile extras (Phase 1 transparency, §8.1) ── */
 export async function politicianProfile(politicianId: string) {
   const pol = await db().query(
-    `SELECT p.id, p.full_name, p.party, p.bio,
+    `SELECT p.id, p.full_name, p.party, p.bio, p.photo_url,
             (SELECT o.title FROM office_terms ot JOIN offices o ON o.id = ot.office_id
               WHERE ot.politician_id = p.id AND ot.term_end IS NULL LIMIT 1) AS current_office
        FROM politicians p WHERE p.id = $1`,

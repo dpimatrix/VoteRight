@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Chev } from "@/components/Chev";
+import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
@@ -11,13 +12,6 @@ export const dynamic = "force-dynamic";
 const BAND_CLASS = { strong: "b2", good: "b1", mixed: "b0", weak: "bm1", insufficient: "bnull" } as const;
 const DOT = (a: number | null) =>
   a === null ? "dnull" : ({ 2: "d2", 1: "d1", 0: "d0", "-1": "dm1", "-2": "dm2" } as Record<string, string>)[String(a)];
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 
 export default async function MatchesPage({
   searchParams,
@@ -75,9 +69,7 @@ export default async function MatchesPage({
                   className={`cand ${insuff ? "insuff" : ""} ${r.score.dealbreaker ? "deal" : ""}`}
                   href={`/candidates/${r.politicianId}?lang=${lang}`}
                 >
-                  <span className="mono-av" aria-hidden>
-                    {initials(r.fullName)}
-                  </span>
+                  <PolAvatar name={r.fullName} photoUrl={r.photoUrl} />
                   <span className="body">
                     <span className="row1">
                       <span className="cname">{r.fullName}</span>
