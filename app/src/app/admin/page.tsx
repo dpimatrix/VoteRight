@@ -78,6 +78,15 @@ export default async function AdminHome() {
         </span>
       </Link>
 
+      <Link className="seat" href="/admin/transparency">
+        <span className="seat-ic">$$</span>
+        <span className="sname">
+          Outside money &amp; endorsements
+          <span className="smeta">MDCRIS filings + org announcements — curated, citation-required (§8.1)</span>
+        </span>
+        <span className="chip band b0">curate</span>
+      </Link>
+
       <div className="grouph" style={{ marginTop: "1rem" }}>Data freshness (DATA-OPS §6)</div>
       {(await ingestionFreshness()).map((f) => (
         <div className="card" key={f.source} style={{ padding: "0.6rem 0.9rem" }}>
