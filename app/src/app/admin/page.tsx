@@ -78,6 +78,14 @@ export default async function AdminHome() {
         </span>
       </Link>
 
+      <Link className="seat" href="/admin/positions">
+        <span className="seat-ic">VP</span>
+        <span className="sname">
+          Vote → position coding
+          <span className="smeta">turn roll calls into scored, cited positions — one deliberate judgment at a time</span>
+        </span>
+        <span className="chip band b0">code</span>
+      </Link>
       <Link className="seat" href="/admin/transparency">
         <span className="seat-ic">$$</span>
         <span className="sname">
