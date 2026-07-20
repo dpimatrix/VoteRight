@@ -13,7 +13,17 @@
 // each run is a deliberate, owner-approved action (workflow_dispatch or
 // local), never silent automation.
 //
-// Usage: node db/suggest-codings.mjs [--limit=20] [--dry-run] [--url=...]
+// Usage: node db/suggest-codings.mjs [--limit=20] [--dry-run] [--url=...] [--no-prefilter]
+//
+// Cost control: a ~540-bill run against every ingested bill found only ~9
+// real matches (most bills are administrative and can never match any axis
+// — "Vending Machine Service Contracts" has no possible connection to any
+// of the six topics). Spending an API call to learn that is waste. A cheap
+// keyword regex runs FIRST and rules out bills with no plausible connection
+// to ANY axis topic before the LLM is ever called — the LLM's real job is
+// judging disposition and rejecting false positives within the keyword-
+// matched set (something a regex can't do), not finding candidates from
+// scratch. --no-prefilter restores the exhaustive (expensive) behavior.
 
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -26,6 +36,25 @@ const args = process.argv.slice(2);
 const opt = (name, dflt) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? dflt;
 const limit = Number(opt("limit", "20"));
 const dryRun = args.includes("--dry-run");
+const noPrefilter = args.includes("--no-prefilter");
+
+// One keyword group per published topic — same shape as the manual sweep
+// that found the original hand-coded bills. Purely a cost gate: a title
+// that matches NONE of these has no plausible connection to any axis, so
+// asking the LLM about it can only ever produce a no-match at API cost.
+// The LLM still makes every real judgment (which axis, disposition vs.
+// topic, sign, magnitude) for anything that passes this filter — extend
+// this list whenever a new topic_axes row is added, or coverage silently
+// drops for the new topic.
+const TOPIC_KEYWORDS = [
+  /rent|housing|tenant|landlord|zoning|dwelling/i, // Housing affordability
+  /\bbus\b|transit|ride on|pedestrian|vision zero|bicycle|parking|transportation/i, // Transit & roads
+  /school|education|student|mcps/i, // Public schools
+  /energy|climate|electri|decarbon|environment|tree|solar|emission|green bank|sustainab/i, // Climate & environment
+  /police|policing|crime|gun|firearm|safety|public safety/i, // Public safety
+  /\btax\b|taxation|revenue|\bfee\b/i, // Taxes & budget
+];
+const PLAUSIBLE_TOPIC = new RegExp(TOPIC_KEYWORDS.map((r) => r.source).join("|"), "i");
 const url = opt("url", process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright");
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
@@ -107,12 +136,16 @@ try {
     [limit],
   );
 
-  console.log(`examining ${billsRes.rows.length} fully-uncoded bill(s) (limit ${limit}, model ${MODEL}, dry-run=${dryRun})`);
+  console.log(`examining ${billsRes.rows.length} fully-uncoded bill(s) (limit ${limit}, model ${MODEL}, prefilter=${!noPrefilter}, dry-run=${dryRun})`);
+  const startingCount = await client.query(
+    `SELECT count(*)::int AS n FROM position_codings WHERE coding_method = 'model_suggested'`,
+  );
 
   let suggested = 0;
   let skipped = 0;
   let excludedRepeal = 0;
-  let positionsCreated = 0;
+  let excludedPrefilter = 0;
+  let apiCalls = 0;
   // Defense in depth, not just prompt wording: sign-flip reasoning (does a YEA
   // on THIS bill mean more or less of the axis's positive pole?) is exactly
   // where a model got it backwards in testing. Rather than trust prompting
@@ -125,7 +158,12 @@ try {
       excludedRepeal++;
       continue;
     }
+    if (!noPrefilter && !PLAUSIBLE_TOPIC.test(bill.bill_title)) {
+      excludedPrefilter++;
+      continue;
+    }
     let draft;
+    apiCalls++;
     try {
       draft = await askModel(bill.bill_title, axes);
     } catch (e) {
@@ -183,11 +221,22 @@ try {
          VALUES ($1, $2, $3, 'model_suggested', FALSE, $4)`,
         [pos.rows[0].id, axis.id, value, `Model-drafted (${MODEL}) from bill title only; exact_match=${draft.exact_match}. Awaiting human confirmation.`],
       );
-      positionsCreated++;
     }
   }
 
-  console.log(`\ndone: ${suggested} bill(s) matched an axis, ${skipped} skipped (no clear match or error), ${excludedRepeal} excluded (repeal/reversal pattern — needs human coding, never auto-suggested), ${positionsCreated} draft position(s) queued in /admin/coding${dryRun ? " [dry run — nothing written]" : ""}`);
+  // Ground truth from the database, not an in-memory counter that a long run
+  // full of API errors proved unreliable — this number is always trustworthy.
+  const endingCount = await client.query(
+    `SELECT count(*)::int AS n FROM position_codings WHERE coding_method = 'model_suggested'`,
+  );
+  const positionsCreated = endingCount.rows[0].n - startingCount.rows[0].n;
+
+  console.log(
+    `\ndone: ${apiCalls} API call(s) made, ${suggested} bill(s) matched an axis, ${skipped} skipped (no clear match after asking, or API error), ` +
+      `${excludedPrefilter} excluded by keyword prefilter (never asked — no plausible axis connection), ` +
+      `${excludedRepeal} excluded (repeal/reversal pattern — needs human coding, never auto-suggested), ` +
+      `${positionsCreated} draft position(s) now in /admin/coding (verified against the database)${dryRun ? " [dry run — nothing written]" : ""}`,
+  );
 } finally {
   await client.end();
 }
