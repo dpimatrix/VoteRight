@@ -24,27 +24,27 @@ INSERT INTO citations (id, url, archive_url, title, publisher, published_at) VAL
   '2026 Gubernatorial Primary results — Montgomery County (unofficial as of 2026-07-18)', 'Maryland State Board of Elections', '2026-07-17');
 
 -- ── Officeholders (roster verified 2026-07-18) ─────────────────────────────
-INSERT INTO politicians (id, full_name, party, current_office_id, bio) VALUES
- ('00000000-0000-4000-8000-000000001001', 'Marc Elrich', 'D', '00000000-0000-4000-8000-000000000401', 'County Executive since December 2018; term-limited for 2026 by the 2024 charter amendment.'),
- ('00000000-0000-4000-8000-000000001002', 'Evan Glass', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2018.'),
- ('00000000-0000-4000-8000-000000001003', 'Will Jawando', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2018.'),
- ('00000000-0000-4000-8000-000000001004', 'Laurie-Anne Sayles', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2022.'),
- ('00000000-0000-4000-8000-000000001005', 'Shebra Evans', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember, appointed December 2025 to the seat vacated by Gabe Albornoz; previously eight years on the Board of Education.'),
- ('00000000-0000-4000-8000-000000001006', 'Gabe Albornoz', 'D', NULL, 'At-large councilmember December 2018 – December 2025; resigned to lead the county Department of Recreation.'),
- ('00000000-0000-4000-8000-000000001011', 'Andrew Friedson', 'D', '00000000-0000-4000-8000-000000000421', 'District 1 councilmember since December 2018.'),
- ('00000000-0000-4000-8000-000000001012', 'Marilyn Balcombe', 'D', '00000000-0000-4000-8000-000000000422', 'District 2 councilmember since December 2022.'),
- ('00000000-0000-4000-8000-000000001013', 'Sidney Katz', 'D', '00000000-0000-4000-8000-000000000423', 'District 3 councilmember; on the Council since 2014.'),
- ('00000000-0000-4000-8000-000000001014', 'Kate Stewart', 'D', '00000000-0000-4000-8000-000000000424', 'District 4 councilmember since December 2022.'),
- ('00000000-0000-4000-8000-000000001015', 'Kristin Mink', 'D', '00000000-0000-4000-8000-000000000403', 'District 5 councilmember since December 2022.'),
- ('00000000-0000-4000-8000-000000001016', 'Natali Fani-González', 'D', '00000000-0000-4000-8000-000000000425', 'District 6 councilmember since December 2022; Council President 2025–26.'),
- ('00000000-0000-4000-8000-000000001017', 'Dawn Luedtke', 'D', '00000000-0000-4000-8000-000000000426', 'District 7 councilmember since December 2022.');
+INSERT INTO politicians (id, full_name, party, current_office_id, bio, photo_url) VALUES
+ ('00000000-0000-4000-8000-000000001001', 'Marc Elrich', 'D', '00000000-0000-4000-8000-000000000401', 'County Executive since December 2018; term-limited for 2026 by the 2024 charter amendment.', NULL),
+ ('00000000-0000-4000-8000-000000001002', 'Evan Glass', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2018.', '/politicians/glass.png'),
+ ('00000000-0000-4000-8000-000000001003', 'Will Jawando', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2018.', '/politicians/jawando.png'),
+ ('00000000-0000-4000-8000-000000001004', 'Laurie-Anne Sayles', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember since December 2022.', '/politicians/sayles.png'),
+ ('00000000-0000-4000-8000-000000001005', 'Shebra Evans', 'D', '00000000-0000-4000-8000-000000000402', 'At-large councilmember, appointed December 2025 to the seat vacated by Gabe Albornoz; previously eight years on the Board of Education.', '/politicians/evans.png'),
+ ('00000000-0000-4000-8000-000000001006', 'Gabe Albornoz', 'D', NULL, 'At-large councilmember December 2018 – December 2025; resigned to lead the county Department of Recreation.', NULL),
+ ('00000000-0000-4000-8000-000000001011', 'Andrew Friedson', 'D', '00000000-0000-4000-8000-000000000421', 'District 1 councilmember since December 2018.', '/politicians/friedson.png'),
+ ('00000000-0000-4000-8000-000000001012', 'Marilyn Balcombe', 'D', '00000000-0000-4000-8000-000000000422', 'District 2 councilmember since December 2022.', '/politicians/balcombe.png'),
+ ('00000000-0000-4000-8000-000000001013', 'Sidney Katz', 'D', '00000000-0000-4000-8000-000000000423', 'District 3 councilmember; on the Council since 2014.', '/politicians/katz.png'),
+ ('00000000-0000-4000-8000-000000001014', 'Kate Stewart', 'D', '00000000-0000-4000-8000-000000000424', 'District 4 councilmember since December 2022.', '/politicians/stewart.png'),
+ ('00000000-0000-4000-8000-000000001015', 'Kristin Mink', 'D', '00000000-0000-4000-8000-000000000403', 'District 5 councilmember since December 2022.', '/politicians/mink.png'),
+ ('00000000-0000-4000-8000-000000001016', 'Natali Fani-González', 'D', '00000000-0000-4000-8000-000000000425', 'District 6 councilmember since December 2022; Council President 2025–26.', '/politicians/fani-gonzalez.png'),
+ ('00000000-0000-4000-8000-000000001017', 'Dawn Luedtke', 'D', '00000000-0000-4000-8000-000000000426', 'District 7 councilmember since December 2022.', '/politicians/luedtke.png');
 
 -- 2026 challengers not currently in office (party per SBE primary ballot)
-INSERT INTO politicians (id, full_name, party, current_office_id, bio) VALUES
- ('00000000-0000-4000-8000-000000001021', 'Esther Wells', 'R', NULL, 'Republican nominee for County Executive, 2026.'),
- ('00000000-0000-4000-8000-000000001022', 'Scott Evan Goldberg', 'D', NULL, 'Democratic nominee for County Council At-Large, 2026.'),
- ('00000000-0000-4000-8000-000000001023', 'Karla Silvestre', 'D', NULL, 'Democratic nominee for County Council At-Large, 2026.'),
- ('00000000-0000-4000-8000-000000001024', 'Sherily Wells', 'R', NULL, 'Republican nominee for County Council At-Large, 2026.');
+INSERT INTO politicians (id, full_name, party, current_office_id, bio, photo_url) VALUES
+ ('00000000-0000-4000-8000-000000001021', 'Esther Wells', 'R', NULL, 'Republican nominee for County Executive, 2026.', NULL),
+ ('00000000-0000-4000-8000-000000001022', 'Scott Evan Goldberg', 'D', NULL, 'Democratic nominee for County Council At-Large, 2026.', NULL),
+ ('00000000-0000-4000-8000-000000001023', 'Karla Silvestre', 'D', NULL, 'Democratic nominee for County Council At-Large, 2026.', NULL),
+ ('00000000-0000-4000-8000-000000001024', 'Sherily Wells', 'R', NULL, 'Republican nominee for County Council At-Large, 2026.', NULL);
 
 -- ── Office terms (source: official roster + appointment coverage) ──────────
 INSERT INTO office_terms (office_id, politician_id, term_start, term_end, how_obtained, source_citation_id) VALUES
