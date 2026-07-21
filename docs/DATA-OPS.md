@@ -77,9 +77,14 @@ geocoder call at submit, replacing the dev city-matcher — same contract, real 
 
 ## 5. Owner decisions needed before D1 (the cutover)
 
-1. **Office scope at launch:** County Executive + County Council (both modeled, both have
-   2026 races) is the recommendation. School Board and judicial can stay "Not yet
-   tracked" — the ballot already renders that honestly. Add them only with a data owner.
+1. ~~**Office scope at launch:** County Executive + County Council only~~ **DECIDED
+   OTHERWISE (owner, 2026-07-21): scope is all elected political seats in the county** —
+   Executive, Council (At-Large + Districts 1–7), Sheriff, State's Attorney, Register of
+   Wills, Circuit Court Judges, and Board of Education (At-Large + Districts). Built in
+   the D1-follow-on "full county scope" pass: real 2026 general-election fields for every
+   office with a 2026 election, each candidate/officeholder individually cited. Board of
+   Education Districts 2 and 4 are not up in 2026 (staggered terms) and their current
+   holders are not yet researched — a known, honest gap, not an oversight.
 2. **Questionnaire timing (D4):** sending it to real campaigns is VoteRight's first
    outward-facing act toward the people it scores — counsel should see the instrument
    first (added as item 15 to the counsel checklist).
