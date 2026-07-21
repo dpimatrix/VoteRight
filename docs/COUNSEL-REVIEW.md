@@ -1,8 +1,41 @@
 # VoteRight — Counsel Review Checklist
 
-Status: v1.0 — prepared for initial engagement · 2026-07-16
+Status: v1.1 — prepared for initial engagement · updated 2026-07-21
 Sources: ARCHITECTURE.md §13 (items 1–14), §2 (legal guardrails), SCORING.md
 Owner contact: repository owner (dpimatrix/VoteRight)
+
+**Update since v1.0:** the platform now runs on real Montgomery County data, not the
+fictional pilot seed — real officeholders, real 2026 candidates for every elected county
+seat, 1,925 real recorded votes, real independent-expenditure filings, all live and
+publicly viewable (behind access protection, not yet promoted). Nothing scored or
+asserted about a real person is published yet — that is exactly what section "Minimum
+viable engagement" below is scoped to unblock.
+
+## Minimum viable engagement — if counsel time is limited, start here
+
+Three questions, in priority order, that unlock the most already-built product with the
+least review time. Each is answerable without reading the whole codebase — the design is
+built and demonstrable; what's needed is a yes/no and any required adjustments.
+
+1. **B2 — may we display alignment scores for real candidates?** The scoring substrate is
+   already built and populated (every current councilmember has 3 of 6 topic axes coded
+   from their actual recorded votes, each citing the official roll call). Nothing is
+   displayed publicly yet. This is the single highest-value unlock: it is the platform's
+   core feature, already engineered, sitting inactive behind this one sign-off.
+2. **F2 — may we send the candidate questionnaire?** A drafted, ready-to-send instrument
+   (`docs/QUESTIONNAIRE.md`) that would let every 2026 candidate answer the platform's six
+   published questions in their own words — filling the three axes (transit, schools,
+   safety) that recorded votes alone can't reach, and doing so fairly (identical
+   questions, identical send time, to every candidate in a race).
+3. **C1 baseline — is the current data-collection posture MODPA-compliant today?** Real
+   residence/priority data collection is technically live (though the site isn't publicly
+   promoted). A baseline confirmation that the built design (data minimization, the
+   `/privacy` rights mechanism, the pseudonymize-on-deletion model) satisfies MODPA as
+   currently operated would close the most time-sensitive open item, since it's the one
+   statute already in force against data the platform can already collect.
+
+Everything else in this checklist can wait for a fuller engagement; these three are the
+ask if the first conversation is short.
 
 ## What VoteRight is (one paragraph)
 
@@ -27,6 +60,7 @@ mitigations are already designed and, where noted, demonstrable in a working pro
 | MODPA privacy notice + rights mechanism (DRAFT for category C review) | `/privacy` and `/privacy/request` in the app; queue with statutory clock in the admin console; deletion executes ARCHITECTURE.md §10 pseudonymization |
 | Candidate questionnaire instrument (DRAFT for item F2 — §6 of the doc lists the specific questions for counsel) | `docs/QUESTIONNAIRE.md` |
 | Working prototype (voter app + admin console) | prototype artifact — **Admin console tab demonstrates the dispute/right-of-reply workflow and the human-confirmation gate on scoring inputs** |
+| **Live production app (real data, access-protected)** | https://voteright-dpimatrix.vercel.app — sign in with a Vercel account to view; **the codebase behind it is public** at github.com/dpimatrix/VoteRight if counsel prefers to read source directly |
 
 All candidates, commentators, and sources in the prototype are fictional by design; the
 county structures, statutes, and bill numbers are real.
@@ -192,15 +226,59 @@ communication could be construed as coordination or as soliciting a thing of val
 
 ## Phase-gate summary
 
-| Before… | Items |
-|---|---|
-| Phase 1 (profiles + scoring) | A1 (initial), A2, B2, C1 (baseline) |
-| Phase 2 (promises + integrity flags + commentary) | A1 (final), A5, B1, B4 |
-| Phase 3 (debate forum) | C1 (full), E1 |
-| Phase 4 (referenda + mandates + campaigns) | A3, A4, B3, C2, C3, D1, F1 |
-| Phase 5 (AI debate agents) | A6 |
-| Real-data phase D4 (questionnaire + live scoring — see docs/DATA-OPS.md) | B2 (re-confirm on real data), F2 |
-| Real-data phase D5 (integrity flags on real people) | B1, B4 (operational readiness, not just design) |
+Phases 1–4 and data-ops steps D1–D3 are **built and live** (real people, real votes, real
+money, all on real Montgomery County data) — the phase names below now describe what
+counsel's sign-off *activates*, not what remains to be coded.
+
+| Before… | Items | Build status |
+|---|---|---|
+| Phase 1 (profiles + scoring) | A1 (initial), A2, B2, C1 (baseline) | Built; scores withheld pending B2 |
+| Phase 2 (promises + integrity flags + commentary) | A1 (final), A5, B1, B4 | Built; no real integrity flags published yet |
+| Phase 3 (debate forum) | C1 (full), E1 | Built (fictional debates only so far) |
+| Phase 4 (referenda + mandates + campaigns) | A3, A4, B3, C2, C3, D1, F1 | Built (fictional referenda only so far) |
+| Phase 5 (AI debate agents) | A6 | Not built |
+| Real-data D4 (questionnaire + live scoring) | B2 (re-confirm on real data), F2 | Scoring substrate built for real candidates; questionnaire drafted, unsent |
+| Real-data D5 (integrity flags on real people) | B1, B4 (operational readiness, not just design) | Not started |
+
+## Finding counsel
+
+**Recommended first call: Bar Association of Montgomery County, MD — Lawyer Referral
+Service.** (301) 279-9100, Spanish available, weekdays 9am–1pm. Connects to a locally
+barred attorney for a ~30-minute consultation at a nominal fee, matched by practice area
+(ask for election/campaign-finance law, or government/administrative law if that's not
+available). A Montgomery County-barred attorney is the right fit here specifically — the
+platform's legal-mechanism claims (D1) are already scoped to this county's charter and
+Maryland election law, not a generic jurisdiction.
+
+Other options if that doesn't yield a good match: the Maryland State Bar Association's
+directory of county lawyer-referral services (msba.org) for other counties; the Pro Bono
+Resource Center of Maryland (probonomd.org) or University of Maryland Carey School of
+Law's Clinical Law Program, if a no/low-cost review is preferable to a paid consultation
+and timeline flexibility allows for it.
+
+### Ready-to-send outreach note
+
+> Subject: Legal consultation request — civic-tech election platform (Montgomery County)
+>
+> I'm building VoteRight, a nonpartisan civic-information platform piloting in Montgomery
+> County — voters state policy priorities, candidates are matched using sourced positions
+> and voting records, and an advisory (non-official) referendum layer produces "voter
+> mandates" candidates answer on the record. I'm looking for an initial consultation, not
+> a full engagement, on three specific yes/no questions:
+>
+> 1. May we publicly display alignment scores for real 2026 candidates, given our
+>    designed mitigations (bands not raw numbers, human-confirmed sourcing only, standing
+>    bias audits)?
+> 2. May we send an identical policy questionnaire to every candidate in a race, given our
+>    draft cover letter and fairness design?
+> 3. Does our current data-collection design satisfy Maryland's Online Data Privacy Act
+>    as currently operated?
+>
+> I have a written package ready — a one-page project summary, the specific legal
+> questions with our designed mitigations for each, and a live (access-protected) working
+> app — so the intake read should be fast. Happy to send in advance of a call.
+>
+> [YOUR NAME] · [YOUR CONTACT] · project repo: github.com/dpimatrix/VoteRight
 
 ## Standing items after launch
 
