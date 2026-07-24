@@ -61,6 +61,7 @@ mitigations are already designed and, where noted, demonstrable in a working pro
 | Candidate questionnaire instrument (DRAFT for item F2 — §6 of the doc lists the specific questions for counsel) | `docs/QUESTIONNAIRE.md` |
 | Working prototype (voter app + admin console) | prototype artifact — **Admin console tab demonstrates the dispute/right-of-reply workflow and the human-confirmation gate on scoring inputs** |
 | **Live production app (real data, access-protected)** | https://voteright-dpimatrix.vercel.app — sign in with a Vercel account to view; **the codebase behind it is public** at github.com/dpimatrix/VoteRight if counsel prefers to read source directly |
+| **One-page summary for an initial consultation** (send ahead of a first call) | `docs/COUNSEL-ONE-PAGER.md` |
 
 All candidates, commentators, and sources in the prototype are fictional by design; the
 county structures, statutes, and bill numbers are real.
