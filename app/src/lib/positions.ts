@@ -5,9 +5,10 @@ import { db } from "./db";
    axis, and what the vote means on it — so it is DELIBERATE STAFF WORK, one
    vote at a time, never batch inference. The staff coding is usable for
    scoring by the SCORING.md S2 rule (staff = human by definition); the vote's
-   official record URL becomes the position's citation. Public score display
-   additionally waits on the counsel methodology review (item 11/B2) and the
-   50% coverage gate — this tool only builds the substrate. */
+   official record URL becomes the position's citation. Counsel cleared public
+   score display for real candidates 2026-07-28 (item 11/B2, 1st Amendment
+   basis); the 50% coverage gate (SCORING.md S1.3) still governs per-candidate
+   display — this tool only builds the substrate. */
 
 export async function politiciansWithVotes() {
   const { rows } = await db().query(
