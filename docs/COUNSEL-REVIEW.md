@@ -11,17 +11,24 @@ publicly viewable (behind access protection, not yet promoted). Nothing scored o
 asserted about a real person is published yet — that is exactly what section "Minimum
 viable engagement" below is scoped to unblock.
 
+**B2 CLEARED (2026-07-28 consultation):** counsel gave a verbal green light to publicly
+display alignment scores for real candidates, on 1st Amendment grounds. No written
+opinion yet. F2 and C1-baseline were not covered in the same consult. This unblocks the
+platform's core feature; see the item below and the phase-gate table for what's still
+outstanding.
+
 ## Minimum viable engagement — if counsel time is limited, start here
 
 Three questions, in priority order, that unlock the most already-built product with the
 least review time. Each is answerable without reading the whole codebase — the design is
 built and demonstrable; what's needed is a yes/no and any required adjustments.
 
-1. **B2 — may we display alignment scores for real candidates?** The scoring substrate is
-   already built and populated (every current councilmember has 3 of 6 topic axes coded
-   from their actual recorded votes, each citing the official roll call). Nothing is
-   displayed publicly yet. This is the single highest-value unlock: it is the platform's
-   core feature, already engineered, sitting inactive behind this one sign-off.
+1. **B2 — may we display alignment scores for real candidates? CLEARED (verbal, 2026-07-28,
+   1st Amendment basis).** The scoring substrate is already built and populated (every
+   current councilmember has 3 of 6 topic axes coded from their actual recorded votes,
+   each citing the official roll call). A written opinion has not been requested yet —
+   worth confirming whether one is needed before treating this as fully closed for the
+   record.
 2. **F2 — may we send the candidate questionnaire?** A drafted, ready-to-send instrument
    (`docs/QUESTIONNAIRE.md`) that would let every 2026 candidate answer the platform's six
    published questions in their own words — filling the three axes (transit, schools,
@@ -233,12 +240,12 @@ counsel's sign-off *activates*, not what remains to be coded.
 
 | Before… | Items | Build status |
 |---|---|---|
-| Phase 1 (profiles + scoring) | A1 (initial), A2, B2, C1 (baseline) | Built; scores withheld pending B2 |
+| Phase 1 (profiles + scoring) | A1 (initial), A2, B2, C1 (baseline) | Built; **B2 cleared 2026-07-28 (verbal)** — A1/A2/C1(baseline) still open |
 | Phase 2 (promises + integrity flags + commentary) | A1 (final), A5, B1, B4 | Built; no real integrity flags published yet |
 | Phase 3 (debate forum) | C1 (full), E1 | Built (fictional debates only so far) |
 | Phase 4 (referenda + mandates + campaigns) | A3, A4, B3, C2, C3, D1, F1 | Built (fictional referenda only so far) |
 | Phase 5 (AI debate agents) | A6 | Not built |
-| Real-data D4 (questionnaire + live scoring) | B2 (re-confirm on real data), F2 | Scoring substrate built for real candidates; questionnaire drafted, unsent |
+| Real-data D4 (questionnaire + live scoring) | B2 (re-confirm on real data), F2 | **B2 cleared 2026-07-28 (verbal)**; questionnaire drafted, unsent pending F2 |
 | Real-data D5 (integrity flags on real people) | B1, B4 (operational readiness, not just design) | Not started |
 
 ## Finding counsel

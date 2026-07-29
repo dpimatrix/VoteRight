@@ -29,8 +29,8 @@ export default async function AdminPositionsPage({
         on one published axis, in one sentence a voter can read. The official roll-call
         record becomes the citation; staff codings are usable for scoring (SCORING.md
         S2). One bill codes onto one axis once per person — duplicates are refused.
-        Public score display still waits on the counsel methodology review and the 50%
-        coverage gate.
+        Counsel cleared public score display 2026-07-28 (1st Amendment basis); the 50%
+        coverage gate still governs per-candidate display.
       </p>
       {sp.ok && <p className="pill kept">✓ Position created from the vote, with the roll-call record as citation.</p>}
       {sp.e === "duplicate" && <p className="pill broken">✗ That bill is already coded onto that axis for this person.</p>}
