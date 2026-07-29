@@ -43,21 +43,25 @@ psql "<NEON_CONNECTION_STRING>" -f db/seed.sql
 - Phone check works over the public URL (the dev-only `allowedDevOrigins` issue does not
   exist in production builds).
 
-## Posture while this deployment carries sample data
+## Posture (updated 2026-07-29 — real data, B2 cleared, promotion underway)
 
-The seed is **fictional by design** (ARCHITECTURE.md §2.3) and every page carries the
-sample-data disclosure — but a public URL is a public statement. Until real data
-operations begin:
+The seed described below is fictional-by-design only for **local dev** (`db/seed.sql`);
+production has run on real Montgomery County data since the D1 cutover (2026-07-18) —
+real officeholders, real 2026 candidates, real votes, real independent-expenditure
+filings. Counsel cleared public alignment-score display for real candidates on
+2026-07-28 (item B2, verbal, 1st Amendment basis — no written opinion yet).
 
-- Turn on **Vercel Deployment Protection** (password or Vercel authentication) so the
-  preview is shareable by choice, not discoverable.
-- Do not promote the URL.
+Vercel Deployment Protection was found to already be **off** on 2026-07-29 (no SSO wall
+on the production URL) — owner decided to leave it off and begin promoting the URL now
+that B2 is cleared, rather than wait on the remaining items below. Those items (A1, A2,
+B1, C1 baseline, F2) are still open and should inform what gets promoted/claimed publicly
+in the meantime — e.g. avoid characterizing this as a fully counsel-cleared launch.
 
-## Before any *public* launch (not this deployment)
+## Before *full* public launch (remaining, post-B2)
 
 | Gate | Where |
 |---|---|
-| Counsel items for Phases 1–2 | docs/COUNSEL-REVIEW.md (A1 initial, A2, B1, B2, C1) |
+| Counsel items still open | docs/COUNSEL-REVIEW.md (A1 initial, A2, B1, C1 baseline, F2) — B2 cleared 2026-07-28 |
 | ~~Real admin auth replacing `ADMIN_TOKEN`~~ **DONE** — TOTP (authenticator app) + signed 12 h sessions; production fails closed unless `ADMIN_TOTP_SECRET`/`ADMIN_SESSION_SECRET` are set (generate: `node app/scripts/gen-admin-secret.mjs`) | app/src/lib/adminAuth.ts |
 | Real data operations replacing the fictional seed | db/seed.sql structural parts survive |
 | MODPA notice/retention pages | ARCHITECTURE.md §10 |
