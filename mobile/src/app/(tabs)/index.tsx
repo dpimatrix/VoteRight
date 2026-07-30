@@ -34,7 +34,8 @@ export default function BallotScreen() {
       if (!hasSession()) await ensureSession();
       const res = await get<BallotResponse>('/api/ballot');
       setData(res);
-    } catch {
+    } catch (e) {
+      console.error('Ballot load failed:', e);
       setError('Could not load the ballot. Pull down to try again.');
     }
   }, []);

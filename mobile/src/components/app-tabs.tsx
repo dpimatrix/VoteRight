@@ -20,6 +20,11 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="priorities">
+        <NativeTabs.Trigger.Label>Priorities</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="slider.horizontal.3" md="tune" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>Matches</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

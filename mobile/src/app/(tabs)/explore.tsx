@@ -1,3 +1,4 @@
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
-import { ensureSession, get, hasSession } from '@/services/api';
+import { ApiError, ensureSession, get, hasSession } from '@/services/api';
 
 interface Race {
   id: string;
@@ -45,6 +46,7 @@ const BAND_LABEL: Record<CandidateScore['overall'], string> = {
 };
 
 export default function MatchesScreen() {
+  const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [races, setRaces] = useState<Race[] | null>(null);
@@ -58,7 +60,8 @@ export default function MatchesScreen() {
       const res = await get<{ races: Race[] }>('/api/races');
       setRaces(res.races);
       if (res.races[0]) setRaceId(res.races[0].id);
-    } catch {
+    } catch (e) {
+      console.error('Races load failed:', e);
       setError('Could not load races. Pull down to try again.');
     }
   }, []);
@@ -67,14 +70,21 @@ export default function MatchesScreen() {
     loadRaces();
   }, [loadRaces]);
 
-  useEffect(() => {
-    if (!raceId) return;
-    setMatches(null);
-    setError(null);
-    get<MatchesResponse>(`/api/matches?race=${raceId}`)
-      .then(setMatches)
-      .catch(() => setError('Set at least 3 priorities on voteright-dpimatrix.vercel.app to see matches.'));
-  }, [raceId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!raceId) return;
+      setMatches(null);
+      setError(null);
+      get<MatchesResponse>(`/api/matches?race=${raceId}`)
+        .then(setMatches)
+        .catch((e) => {
+          if (!(e instanceof ApiError && e.status === 409)) {
+            console.error('Matches load failed:', e);
+          }
+          setError('Set at least 3 priorities on the Priorities tab to see matches.');
+        });
+    }, [raceId]),
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -110,7 +120,11 @@ export default function MatchesScreen() {
         {raceId && !matches && !error && <ActivityIndicator style={styles.spinner} />}
 
         {matches?.results.map((m) => (
-          <View key={m.politicianId} style={[styles.cand, { backgroundColor: colors.backgroundElement }]}>
+          <Pressable
+            key={m.politicianId}
+            onPress={() => router.push({ pathname: '/candidates/[id]', params: { id: m.politicianId } })}
+            style={[styles.cand, { backgroundColor: colors.backgroundElement }]}
+          >
             <ThemedText style={styles.candName}>
               {m.fullName} {m.party ? `(${m.party})` : ''}
             </ThemedText>
@@ -119,7 +133,7 @@ export default function MatchesScreen() {
                 {BAND_LABEL[m.score.overall]}
               </ThemedText>
             </View>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </SafeAreaView>

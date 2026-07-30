@@ -52,12 +52,20 @@ const withTimeout = (ms: number) => {
   return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
 };
 
+export class ApiError extends Error {
+  status: number;
+  constructor(path: string, status: number) {
+    super(`GET ${path} failed: ${status}`);
+    this.status = status;
+  }
+}
+
 export const get = async <T = unknown>(path: string): Promise<T> => {
   await sessionReady;
   const { signal, clear } = withTimeout(15000);
   try {
     const res = await fetch(`${API_URL}${path}`, { method: "GET", headers: getHeaders(), signal });
-    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+    if (!res.ok) throw new ApiError(path, res.status);
     return (await res.json()) as T;
   } finally {
     clear();
