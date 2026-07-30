@@ -1,6 +1,11 @@
 import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto";
 import type { PoolClient } from "pg";
-export { canonicalArgumentPayload } from "./canonical";
+export {
+  canonicalArgumentPayload,
+  canonicalProposalPayload,
+  canonicalSecondPayload,
+  canonicalAccountabilitySupportPayload,
+} from "./canonical";
 
 /* Non-repudiation ledger for participant civic speech (ARCHITECTURE.md Section 10).
    Ed25519 public keys are stored/transmitted as raw 32-byte base64 everywhere -
@@ -84,6 +89,10 @@ export async function recordSignedAction(
     throw new Error("signing key is not currently valid (unregistered or revoked)");
   }
   await client.query("SELECT pg_advisory_xact_lock($1)", [CHAIN_LOCK_KEY]);
+  // Must run BEFORE inserting this action's own row below - otherwise the
+  // "have we seen this context before" check would always match against the
+  // row this very call is about to create, and nothing would ever be flagged.
+  if (opts.contextHash) await flagIfNewContext(client, opts.userId, opts.publicKeyFingerprint, opts.contextHash);
   const head = await client.query(`SELECT chain_hash FROM signed_actions ORDER BY seq DESC LIMIT 1`);
   const prevHash: string | null = head.rows[0]?.chain_hash ?? null;
   const hash = chainHash(prevHash, opts.canonicalPayload, opts.signature);
@@ -95,6 +104,33 @@ export async function recordSignedAction(
     [opts.userId, opts.publicKeyFingerprint, opts.actionType, opts.canonicalPayload, opts.signature, prevHash, hash, opts.contextHash ?? null],
   );
   return rows[0].id as string;
+}
+
+/** Anomaly detection (required, not optional - see the plan's discussion of why):
+    the first time a key signs from a context (hashed IP+User-Agent) not seen
+    before for that exact key, log a 'used_from_new_context' event. This is what
+    makes a stolen/misused key detectable in practice, without any tracking
+    beyond what's needed for this one equality check - never the raw IP/UA. */
+async function flagIfNewContext(
+  client: PoolClient,
+  userId: string,
+  publicKeyFingerprint: string,
+  contextHash: string,
+): Promise<void> {
+  const seen = await client.query(
+    `SELECT 1 FROM signed_actions WHERE public_key_fingerprint = $1 AND context_hash = $2
+     UNION ALL
+     SELECT 1 FROM user_key_events WHERE public_key_fingerprint = $1 AND context_hash = $2
+     LIMIT 1`,
+    [publicKeyFingerprint, contextHash],
+  );
+  if (seen.rowCount && seen.rowCount > 0) return;
+  await client.query(
+    `INSERT INTO user_key_events (user_id, event, public_key, public_key_fingerprint, context_hash)
+     SELECT $1, 'used_from_new_context', public_key, $2, $3
+       FROM user_key_events WHERE public_key_fingerprint = $2 ORDER BY created_at DESC LIMIT 1`,
+    [userId, publicKeyFingerprint, contextHash],
+  );
 }
 
 async function publicKeyFor(client: PoolClient, publicKeyFingerprint: string): Promise<string> {

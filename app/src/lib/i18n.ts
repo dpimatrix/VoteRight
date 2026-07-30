@@ -235,6 +235,9 @@ const DICT = {
     key_revoke_btn: "Revoke this key",
     key_revoke_confirm: "This can't be undone — anything signed with the old key stays valid, but only a new key can sign from now on. Continue?",
     key_revoke_ok: "Key revoked. A new one has been created.",
+    key_anomaly_banner: "Your signing key was just used from a device or browser we haven't seen before — was this you?",
+    key_anomaly_yes: "Yes, that was me",
+    key_anomaly_no: "Not me — revoke this key",
     visit_h: "Browse another jurisdiction",
     visit_sub:
       "Read-only visitor view. Your own ballot, votes, and eligibility always follow your verified address — browsing never changes them.",
@@ -519,6 +522,9 @@ const DICT = {
     key_revoke_btn: "Revocar esta clave",
     key_revoke_confirm: "Esto no se puede deshacer — lo firmado con la clave anterior sigue siendo válido, pero solo una clave nueva podrá firmar de ahora en adelante. ¿Continuar?",
     key_revoke_ok: "Clave revocada. Se ha creado una nueva.",
+    key_anomaly_banner: "Tu clave de firma se acaba de usar desde un dispositivo o navegador que no habíamos visto antes — ¿fuiste tú?",
+    key_anomaly_yes: "Sí, fui yo",
+    key_anomaly_no: "No fui yo — revocar esta clave",
     visit_h: "Explorar otra jurisdicción",
     visit_sub:
       "Vista de visitante, solo lectura. Tu boleta, tus votos y tu elegibilidad siempre siguen tu dirección verificada — explorar nunca los cambia.",
