@@ -53,8 +53,9 @@ export default function AccountabilityScreen() {
 
   const [pathwayId, setPathwayId] = useState<string | null>(null);
   const [politicianId, setPoliticianId] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
+  const [politicianDescription, setPoliticianDescription] = useState('');
   const [reformTitle, setReformTitle] = useState('');
+  const [reformDescription, setReformDescription] = useState('');
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(
@@ -88,14 +89,14 @@ export default function AccountabilityScreen() {
   const verified = tier !== null && tier !== 'unverified';
 
   async function submitPoliticianCampaign() {
-    if (!pathwayId || !politicianId || description.trim().length === 0) return;
+    if (!pathwayId || !politicianId || politicianDescription.trim().length === 0) return;
     setBusy(true);
     try {
       const res = await post<{ ok: boolean; id?: string }>('/api/accountability', {
         targetType: 'politician',
         pathwayId,
         politicianId,
-        description,
+        description: politicianDescription,
       });
       if (res.ok && res.id) router.push({ pathname: '/accountability/[id]', params: { id: res.id } });
     } catch (e) {
@@ -106,14 +107,14 @@ export default function AccountabilityScreen() {
   }
 
   async function submitReformCampaign() {
-    if (!petitionPathway || reformTitle.trim().length === 0 || description.trim().length === 0) return;
+    if (!petitionPathway || reformTitle.trim().length === 0 || reformDescription.trim().length === 0) return;
     setBusy(true);
     try {
       const res = await post<{ ok: boolean; id?: string }>('/api/accountability', {
         targetType: 'charter_or_law_change',
         pathwayId: petitionPathway.id,
         reformTitle,
-        description,
+        description: reformDescription,
       });
       if (res.ok && res.id) router.push({ pathname: '/accountability/[id]', params: { id: res.id } });
     } catch (e) {
@@ -205,8 +206,8 @@ export default function AccountabilityScreen() {
                 ))}
               </View>
               <TextInput
-                value={description}
-                onChangeText={setDescription}
+                value={politicianDescription}
+                onChangeText={setPoliticianDescription}
                 placeholder="Why this campaign?"
                 placeholderTextColor={colors.textSecondary}
                 multiline
@@ -214,7 +215,7 @@ export default function AccountabilityScreen() {
                 style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
               />
               <Pressable
-                disabled={busy || !pathwayId || !politicianId || description.trim().length === 0}
+                disabled={busy || !pathwayId || !politicianId || politicianDescription.trim().length === 0}
                 onPress={submitPoliticianCampaign}
                 style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
               >
@@ -233,8 +234,8 @@ export default function AccountabilityScreen() {
                   style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
                 />
                 <TextInput
-                  value={description}
-                  onChangeText={setDescription}
+                  value={reformDescription}
+                  onChangeText={setReformDescription}
                   placeholder="Why this campaign?"
                   placeholderTextColor={colors.textSecondary}
                   multiline
@@ -242,7 +243,7 @@ export default function AccountabilityScreen() {
                   style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
                 />
                 <Pressable
-                  disabled={busy || reformTitle.trim().length === 0 || description.trim().length === 0}
+                  disabled={busy || reformTitle.trim().length === 0 || reformDescription.trim().length === 0}
                   onPress={submitReformCampaign}
                   style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
                 >
