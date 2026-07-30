@@ -37,6 +37,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Debates</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" md="forum" />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="mandates">
+        <NativeTabs.Trigger.Label>Mandates</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="checkmark.seal" md="verified" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

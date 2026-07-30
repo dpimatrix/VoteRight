@@ -1,10 +1,38 @@
-import { createCampaign } from "@/lib/accountability";
-import { verifiedUserId } from "@/lib/anon";
+import { createCampaign, creatableTargets, listCampaigns } from "@/lib/accountability";
+import { currentUserId, verifiedUserId } from "@/lib/anon";
+
+export async function GET() {
+  const userId = await currentUserId();
+  const [campaigns, targets] = await Promise.all([listCampaigns(userId), creatableTargets()]);
+  return Response.json({ campaigns, pathways: targets.pathways, politicians: targets.politicians });
+}
 
 export async function POST(request: Request) {
+  const isJson = (request.headers.get("content-type") ?? "").includes("application/json");
+  const userId = await verifiedUserId();
+
+  if (isJson) {
+    if (!userId) return Response.json({ error: "verify" }, { status: 403 });
+    const b = (await request.json()) as {
+      targetType?: "politician" | "charter_or_law_change";
+      pathwayId?: string;
+      politicianId?: string;
+      reformTitle?: string;
+      description?: string;
+    };
+    const res = await createCampaign({
+      userId,
+      pathwayId: String(b.pathwayId ?? ""),
+      targetType: b.targetType ?? "politician",
+      politicianId: b.politicianId || undefined,
+      reformTitle: b.reformTitle || undefined,
+      description: String(b.description ?? ""),
+    });
+    return Response.json(res);
+  }
+
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  const userId = await verifiedUserId();
   if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
   const res = await createCampaign({
     userId,

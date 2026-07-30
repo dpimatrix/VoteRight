@@ -25,3 +25,7 @@ export function canonicalProposalPayload(opts: {
 export function canonicalSecondPayload(opts: { userId: string; proposalId: string }): string {
   return JSON.stringify(['second', opts.userId, opts.proposalId]);
 }
+
+export function canonicalAccountabilitySupportPayload(opts: { userId: string; campaignId: string }): string {
+  return JSON.stringify(['accountability_support', opts.userId, opts.campaignId]);
+}
