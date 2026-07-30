@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto";
 import type { PoolClient } from "pg";
+export { canonicalArgumentPayload } from "./canonical";
 
 /* Non-repudiation ledger for participant civic speech (ARCHITECTURE.md Section 10).
    Ed25519 public keys are stored/transmitted as raw 32-byte base64 everywhere -
@@ -103,22 +104,6 @@ async function publicKeyFor(client: PoolClient, publicKeyFingerprint: string): P
   );
   if (!rows[0]) throw new Error("unknown public key fingerprint");
   return rows[0].public_key as string;
-}
-
-/** Canonical payload builders - the exact string a client must sign, and the exact
-    string the server independently reconstructs before verifying (never trust a
-    client-supplied payload string itself; only these deterministic field lists).
-    JSON-encoding an ordered array (not object - no key-ordering ambiguity) avoids
-    any delimiter-collision risk a hand-rolled joined string would have against
-    free-text fields like `body`. */
-export function canonicalArgumentPayload(opts: {
-  threadId: string;
-  userId: string;
-  side: string;
-  body: string;
-  citationUrl?: string | null;
-}): string {
-  return JSON.stringify(["argument", opts.threadId, opts.userId, opts.side, opts.body, opts.citationUrl ?? ""]);
 }
 
 /** Hashes an IP + User-Agent pair for the anomaly-detection context check - never
