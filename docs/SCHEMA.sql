@@ -916,6 +916,48 @@ CREATE TABLE verification_records (
     expires_at      TIMESTAMPTZ
 );
 
+-- Append-only lifecycle log for a participant's signing keypair(s) — the client
+-- generates the keypair and never sends the private key; this only ever sees the
+-- public key. 'rotated' = the user proactively retired this key for a new one (no
+-- compromise implied); 'revoked' = this key is invalidated, typically because a
+-- backup export was suspected compromised. Either way the key stops being valid
+-- for NEW signatures as of created_at — signatures made before that instant remain
+-- verifiable (signed_actions checks validity as of the signing time, not now).
+CREATE TABLE user_key_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    event           TEXT NOT NULL CHECK (event IN ('registered','rotated','revoked')),
+    public_key      TEXT NOT NULL,                        -- raw Ed25519 public key, base64
+    public_key_fingerprint TEXT NOT NULL,                 -- short hash, the lookup key used elsewhere
+    context_hash    TEXT,                                 -- hashed IP+User-Agent at event time (anomaly detection)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One row per non-repudiable participant action (arguments, proposals, seconds,
+-- accountability support — never referendum ballot choices or argument agreement
+-- votes; see ARCHITECTURE.md Section 10.1/10.2, deliberately unsigned by design).
+-- chain_hash links every row to the one before it in strict append order, so a
+-- later edit or deletion breaks the chain — this is what makes tampering
+-- detectable, not merely disallowed by convention.
+CREATE TABLE signed_actions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seq             BIGSERIAL,                             -- strict append order for the chain, independent of created_at ties
+    user_id         UUID NOT NULL REFERENCES users(id),
+    public_key_fingerprint TEXT NOT NULL,                  -- must match a not-yet-revoked user_key_events row as of created_at
+    action_type     TEXT NOT NULL CHECK (action_type IN ('argument','issue_proposal','second','accountability_support')),
+    canonical_payload TEXT NOT NULL,                       -- exact string the signature covers, server-reconstructed — never trust a client-supplied payload/hash
+    signature       TEXT NOT NULL,                         -- Ed25519 signature, base64
+    prev_hash       TEXT,                                  -- chain_hash of the prior row; NULL only for the very first row ever
+    chain_hash      TEXT NOT NULL UNIQUE,                  -- hash(prev_hash || canonical_payload || signature)
+    context_hash    TEXT,                                  -- hashed IP+User-Agent (anomaly detection)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE arguments ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
+ALTER TABLE issue_proposals ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
+ALTER TABLE seconds ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
+ALTER TABLE accountability_campaign_supports ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
+
 -- ══════════════════════════════════════════════════════════════
 -- INDEXES
 -- ══════════════════════════════════════════════════════════════
@@ -974,3 +1016,8 @@ CREATE INDEX idx_office_terms_current ON office_terms(office_id) WHERE term_end 
 CREATE INDEX idx_privacy_requests_user ON privacy_requests(user_id);
 CREATE INDEX idx_privacy_requests_open ON privacy_requests(due_at) WHERE status IN ('received','in_progress');
 CREATE INDEX idx_ingestion_runs_source ON ingestion_runs(source, started_at DESC);
+CREATE INDEX idx_user_key_events_user ON user_key_events(user_id, created_at DESC);
+CREATE INDEX idx_user_key_events_fingerprint ON user_key_events(public_key_fingerprint);
+CREATE INDEX idx_signed_actions_user ON signed_actions(user_id);
+CREATE INDEX idx_signed_actions_fingerprint ON signed_actions(public_key_fingerprint);
+CREATE INDEX idx_signed_actions_seq ON signed_actions(seq DESC);
