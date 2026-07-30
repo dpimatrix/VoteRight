@@ -185,6 +185,13 @@ export async function postArgument(opts: {
   citationUrl?: string;
   citationTitle?: string;
   claimResponse?: "added_citation" | "marked_as_opinion" | "dismissed";
+  // Optional non-repudiation signature (ARCHITECTURE.md Section 10). Both fields
+  // must be present together or not at all; unsigned posting still works (the
+  // client-side signing UI is a separate, incremental rollout) — signed_action_id
+  // just stays null for unsigned posts.
+  signature?: string;
+  publicKeyFingerprint?: string;
+  contextHash?: string;
 }) {
   const claim = detectClaim(opts.body);
   if (claim && !opts.claimResponse && !opts.citationUrl) {
@@ -193,10 +200,33 @@ export async function postArgument(opts: {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    let signedActionId: string | null = null;
+    if (opts.signature && opts.publicKeyFingerprint) {
+      const { recordSignedAction, canonicalArgumentPayload } = await import("./signing");
+      try {
+        signedActionId = await recordSignedAction(client, {
+          userId: opts.userId,
+          publicKeyFingerprint: opts.publicKeyFingerprint,
+          actionType: "argument",
+          canonicalPayload: canonicalArgumentPayload({
+            threadId: opts.threadId,
+            userId: opts.userId,
+            side: opts.side,
+            body: opts.body,
+            citationUrl: opts.citationUrl,
+          }),
+          signature: opts.signature,
+          contextHash: opts.contextHash,
+        });
+      } catch {
+        await client.query("ROLLBACK");
+        return { prompted: false as const, signatureInvalid: true as const };
+      }
+    }
     const arg = await client.query(
-      `INSERT INTO arguments (thread_id, user_id, side, format, body_text, moderation_status)
-       VALUES ($1, $2, $3, 'text', $4, 'pending') RETURNING id`,
-      [opts.threadId, opts.userId, opts.side, opts.body],
+      `INSERT INTO arguments (thread_id, user_id, side, format, body_text, moderation_status, signed_action_id)
+       VALUES ($1, $2, $3, 'text', $4, 'pending', $5) RETURNING id`,
+      [opts.threadId, opts.userId, opts.side, opts.body, signedActionId],
     );
     let citationId: string | null = null;
     if (opts.citationUrl) {

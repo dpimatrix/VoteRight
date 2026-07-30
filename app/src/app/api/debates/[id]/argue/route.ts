@@ -1,5 +1,6 @@
 import { verifiedUserId } from "@/lib/anon";
 import { postArgument } from "@/lib/debates";
+import { hashContext } from "@/lib/signing";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: threadId } = await params;
@@ -7,6 +8,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!userId) return Response.json({ error: "verify" }, { status: 403 });
   const b = (await request.json()) as {
     side?: string; body?: string; citationUrl?: string; citationTitle?: string; claimResponse?: string;
+    signature?: string; publicKeyFingerprint?: string;
   };
   if (!["for", "against", "neutral_info"].includes(b.side ?? "") || !b.body || b.body.length < 10) {
     return Response.json({ error: "invalid" }, { status: 400 });
@@ -21,6 +23,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     claimResponse: (["marked_as_opinion", "dismissed"].includes(b.claimResponse ?? "")
       ? b.claimResponse
       : undefined) as "marked_as_opinion" | "dismissed" | undefined,
+    signature: b.signature || undefined,
+    publicKeyFingerprint: b.publicKeyFingerprint || undefined,
+    contextHash: hashContext(request.headers.get("x-forwarded-for") ?? "unknown", request.headers.get("user-agent") ?? "unknown"),
   });
   return Response.json(res);
 }

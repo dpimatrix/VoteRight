@@ -1,0 +1,11 @@
+node_modules
+android
+ios
+.expo
+.vscode
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
