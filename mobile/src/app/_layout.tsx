@@ -14,6 +14,9 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="candidates/[id]" options={{ headerShown: true, title: 'Candidate' }} />
+        <Stack.Screen name="debates/[id]" options={{ headerShown: true, title: 'Debate' }} />
+        <Stack.Screen name="debates/new" options={{ headerShown: true, title: 'Propose an issue' }} />
+        <Stack.Screen name="verify" options={{ headerShown: true, title: 'Verify' }} />
       </Stack>
     </ThemeProvider>
   );

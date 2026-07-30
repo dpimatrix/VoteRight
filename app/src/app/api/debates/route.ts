@@ -1,11 +1,35 @@
 import { verifiedUserId } from "@/lib/anon";
-import { createProposal } from "@/lib/debates";
+import { createProposal, listProposals } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
 
+export async function GET() {
+  return Response.json({ proposals: await listProposals() });
+}
+
 export async function POST(request: Request) {
+  const isJson = (request.headers.get("content-type") ?? "").includes("application/json");
+  const userId = await verifiedUserId();
+
+  if (isJson) {
+    if (!userId) return Response.json({ error: "verify" }, { status: 403 });
+    const b = (await request.json()) as {
+      topicId?: string; title?: string; body?: string;
+      signature?: string; publicKeyFingerprint?: string;
+    };
+    const res = await createProposal({
+      userId,
+      topicId: String(b.topicId ?? ""),
+      title: String(b.title ?? "").slice(0, 200),
+      body: String(b.body ?? "").slice(0, 4000),
+      signature: b.signature || undefined,
+      publicKeyFingerprint: b.publicKeyFingerprint || undefined,
+      contextHash: hashContext(request.headers.get("x-forwarded-for") ?? "unknown", request.headers.get("user-agent") ?? "unknown"),
+    });
+    return Response.json(res);
+  }
+
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  const userId = await verifiedUserId();
   if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
   const res = await createProposal({
     userId,

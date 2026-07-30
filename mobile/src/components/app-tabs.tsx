@@ -32,6 +32,11 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="debates">
+        <NativeTabs.Trigger.Label>Debates</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" md="forum" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

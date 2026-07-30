@@ -3,6 +3,7 @@ export default ({ config }) => {
 
   return {
     ...config,
+    plugins: [...(config.plugins ?? []), "expo-secure-store"],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {
       ...config.android,
