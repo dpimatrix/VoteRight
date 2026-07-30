@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   } else {
     const ok = (await listBrowsableJurisdictions()).some((j) => j.ocd_id === target);
     if (ok) {
-      store.set("vr_visit", target, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24, path: "/" });
+      store.set("vr_visit", target, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 60 * 60 * 24, path: "/" });
     }
   }
   return Response.redirect(new URL(`/?lang=${lang}`, request.url), 303);
