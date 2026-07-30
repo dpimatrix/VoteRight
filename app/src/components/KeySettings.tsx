@@ -16,7 +16,13 @@ type D = Pick<
   | "key_export_btn" | "key_export_p" | "key_passphrase_ph" | "key_export_go" | "key_export_ok"
   | "key_import_btn" | "key_import_file_label" | "key_import_go" | "key_import_ok" | "key_import_wrong"
   | "key_revoke_btn" | "key_revoke_confirm" | "key_revoke_ok"
+  | "key_anomaly_banner" | "key_anomaly_yes" | "key_anomaly_no"
 >;
+
+interface Anomaly {
+  id: string;
+  created_at: string;
+}
 
 export function KeySettings({ d }: { d: D }) {
   const [fingerprint, setFingerprint] = useState<string | null>(null);
@@ -25,11 +31,25 @@ export function KeySettings({ d }: { d: D }) {
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     ensureSigningKey().then(({ fingerprint: fp }) => setFingerprint(fp));
+    fetch("/api/keys/anomalies")
+      .then((r) => r.json())
+      .then((body: { anomalies: Anomaly[] }) => setAnomalies(body.anomalies));
   }, []);
+
+  async function acknowledgeAnomaly(id: string) {
+    await fetch(`/api/keys/anomalies/${id}/acknowledge`, { method: "POST" });
+    setAnomalies((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  async function anomalyNotMe(id: string) {
+    await doRevoke();
+    await acknowledgeAnomaly(id);
+  }
 
   async function doExport() {
     setBusy(true);
@@ -93,6 +113,33 @@ export function KeySettings({ d }: { d: D }) {
         </p>
       )}
       {message && <p className="nopos" style={{ margin: "0 0 0.5rem" }}>{message}</p>}
+
+      {anomalies.map((a) => (
+        <div key={a.id} className="disclosure" style={{ marginBottom: "0.6rem" }}>
+          <span className="tag">?</span>
+          <span>
+            {d.key_anomaly_banner}
+            <span style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
+              <button
+                className="btn secondary"
+                style={{ width: "auto", minHeight: 40, padding: "0.3rem 0.8rem" }}
+                disabled={busy}
+                onClick={() => acknowledgeAnomaly(a.id)}
+              >
+                {d.key_anomaly_yes}
+              </button>
+              <button
+                className="btn secondary"
+                style={{ width: "auto", minHeight: 40, padding: "0.3rem 0.8rem" }}
+                disabled={busy}
+                onClick={() => anomalyNotMe(a.id)}
+              >
+                {d.key_anomaly_no}
+              </button>
+            </span>
+          </span>
+        </div>
+      ))}
 
       {mode === "idle" && (
         <span style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>

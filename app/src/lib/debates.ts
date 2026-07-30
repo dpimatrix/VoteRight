@@ -73,25 +73,85 @@ export async function listProposals() {
   }[];
 }
 
-export async function createProposal(userId: string, topicId: string, title: string, body: string) {
-  const { rows } = await db().query(
-    `INSERT INTO issue_proposals (created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold)
-     VALUES ($1, 'ocd-division/country:us/state:md/county:montgomery', $2, $3, $4, $5)
-     RETURNING id`,
-    [userId, topicId, title, body, SECOND_THRESHOLD],
-  );
-  return rows[0].id as string;
-}
-
-/* ── seconding (public act) ── */
-export async function secondProposal(proposalId: string, userId: string, tier: string) {
+export async function createProposal(opts: {
+  userId: string;
+  topicId: string;
+  title: string;
+  body: string;
+  // Optional non-repudiation signature (ARCHITECTURE.md Section 10) - see the
+  // same tradeoff note on postArgument above: unsigned proposals still work.
+  signature?: string;
+  publicKeyFingerprint?: string;
+  contextHash?: string;
+}): Promise<{ signatureInvalid: true } | { signatureInvalid: false; id: string }> {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    let signedActionId: string | null = null;
+    if (opts.signature && opts.publicKeyFingerprint) {
+      const { recordSignedAction, canonicalProposalPayload } = await import("./signing");
+      try {
+        signedActionId = await recordSignedAction(client, {
+          userId: opts.userId,
+          publicKeyFingerprint: opts.publicKeyFingerprint,
+          actionType: "issue_proposal",
+          canonicalPayload: canonicalProposalPayload(opts),
+          signature: opts.signature,
+          contextHash: opts.contextHash,
+        });
+      } catch {
+        await client.query("ROLLBACK");
+        return { signatureInvalid: true };
+      }
+    }
+    const { rows } = await client.query(
+      `INSERT INTO issue_proposals
+         (created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold, signed_action_id)
+       VALUES ($1, 'ocd-division/country:us/state:md/county:montgomery', $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [opts.userId, opts.topicId, opts.title, opts.body, SECOND_THRESHOLD, signedActionId],
+    );
+    await client.query("COMMIT");
+    return { signatureInvalid: false, id: rows[0].id as string };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/* ── seconding (public act) ── */
+export async function secondProposal(
+  proposalId: string,
+  userId: string,
+  tier: string,
+  signing?: { signature: string; publicKeyFingerprint: string; contextHash?: string },
+): Promise<{ signatureInvalid: true } | { signatureInvalid: false }> {
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    let signedActionId: string | null = null;
+    if (signing) {
+      const { recordSignedAction, canonicalSecondPayload } = await import("./signing");
+      try {
+        signedActionId = await recordSignedAction(client, {
+          userId,
+          publicKeyFingerprint: signing.publicKeyFingerprint,
+          actionType: "second",
+          canonicalPayload: canonicalSecondPayload({ userId, proposalId }),
+          signature: signing.signature,
+          contextHash: signing.contextHash,
+        });
+      } catch {
+        await client.query("ROLLBACK");
+        return { signatureInvalid: true };
+      }
+    }
     await client.query(
-      `INSERT INTO seconds (proposal_id, user_id, verification_tier_at_second)
-       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-      [proposalId, userId, tier],
+      `INSERT INTO seconds (proposal_id, user_id, verification_tier_at_second, signed_action_id)
+       VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [proposalId, userId, tier, signedActionId],
     );
     const { rows } = await client.query(
       `SELECT p.status, p.second_threshold,
@@ -108,6 +168,7 @@ export async function secondProposal(proposalId: string, userId: string, tier: s
       );
     }
     await client.query("COMMIT");
+    return { signatureInvalid: false };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

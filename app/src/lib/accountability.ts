@@ -110,14 +110,36 @@ export async function campaignsForPolitician(politicianId: string) {
 
 /** Public act (§10.2 — like seconding): attributed, one per verified user;
     support_count self-corrects from the per-user rows. */
-export async function supportCampaign(campaignId: string, userId: string, tier: string) {
+export async function supportCampaign(
+  campaignId: string,
+  userId: string,
+  tier: string,
+  signing?: { signature: string; publicKeyFingerprint: string; contextHash?: string },
+): Promise<{ signatureInvalid: true } | { signatureInvalid: false }> {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    let signedActionId: string | null = null;
+    if (signing) {
+      const { recordSignedAction, canonicalAccountabilitySupportPayload } = await import("./signing");
+      try {
+        signedActionId = await recordSignedAction(client, {
+          userId,
+          publicKeyFingerprint: signing.publicKeyFingerprint,
+          actionType: "accountability_support",
+          canonicalPayload: canonicalAccountabilitySupportPayload({ userId, campaignId }),
+          signature: signing.signature,
+          contextHash: signing.contextHash,
+        });
+      } catch {
+        await client.query("ROLLBACK");
+        return { signatureInvalid: true };
+      }
+    }
     await client.query(
-      `INSERT INTO accountability_campaign_supports (campaign_id, user_id, verification_tier_at_support)
-       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-      [campaignId, userId, tier],
+      `INSERT INTO accountability_campaign_supports (campaign_id, user_id, verification_tier_at_support, signed_action_id)
+       VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [campaignId, userId, tier, signedActionId],
     );
     await client.query(
       `UPDATE accountability_campaigns c SET support_count =
@@ -126,6 +148,7 @@ export async function supportCampaign(campaignId: string, userId: string, tier: 
       [campaignId],
     );
     await client.query("COMMIT");
+    return { signatureInvalid: false };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
