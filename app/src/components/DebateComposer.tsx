@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { canonicalArgumentPayload } from "@/lib/canonical";
+import { currentUserIdForSigning, ensureSigningKey, signPayload } from "@/lib/clientSigning";
 import type { Dict } from "@/lib/i18n";
 
 type D = Pick<
@@ -23,10 +25,24 @@ export function DebateComposer({ threadId, proposalId, d }: { threadId: string; 
 
   async function submit(claimResponse?: "marked_as_opinion" | "dismissed") {
     setBusy(true);
+    // Non-repudiation signing (ARCHITECTURE.md §10) - best-effort: if key setup
+    // or signing fails for any reason (unsupported browser, IndexedDB blocked),
+    // fall back to posting unsigned rather than blocking the user from speaking.
+    let signature: string | undefined;
+    let publicKeyFingerprint: string | undefined;
+    try {
+      const [{ fingerprint }, userId] = await Promise.all([ensureSigningKey(), currentUserIdForSigning()]);
+      const payload = canonicalArgumentPayload({ threadId, userId, side, body, citationUrl: cite || undefined });
+      const signed = await signPayload(payload);
+      signature = signed.signature;
+      publicKeyFingerprint = fingerprint;
+    } catch {
+      // Unsigned fallback - see comment above.
+    }
     const res = await fetch(`/api/debates/${threadId}/argue`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ side, body, citationUrl: cite || undefined, claimResponse }),
+      body: JSON.stringify({ side, body, citationUrl: cite || undefined, claimResponse, signature, publicKeyFingerprint }),
     });
     setBusy(false);
     if (res.status === 403) {

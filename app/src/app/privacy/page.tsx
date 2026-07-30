@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { KeySettings } from "@/components/KeySettings";
 import { SiteHeader } from "@/components/SiteHeader";
 import { langFrom, t } from "@/lib/i18n";
 
@@ -262,6 +263,7 @@ export default async function PrivacyPage({
         <Link className="btn" href={`/privacy/request?lang=${lang}`} style={{ marginTop: "1rem" }}>
           {d.priv_request_btn}
         </Link>
+        <KeySettings d={d} />
       </div>
     </>
   );
