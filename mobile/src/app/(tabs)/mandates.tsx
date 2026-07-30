@@ -170,7 +170,7 @@ export default function MandatesScreen() {
           ))}
         </View>
 
-        <Pressable onPress={() => router.push('/accountability/index')}>
+        <Pressable onPress={() => router.push('/accountability/list')}>
           <ThemedText type="linkPrimary">Accountability campaigns →</ThemedText>
         </Pressable>
 
