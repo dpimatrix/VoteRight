@@ -44,6 +44,7 @@ interface DebateDetail {
   status: string;
   second_threshold: number;
   topic: string;
+  is_author: boolean;
   seconds: number;
   has_seconded: boolean;
   thread_id: string | null;
@@ -175,7 +176,11 @@ export default function DebateScreen() {
                 {detail.seconds}/{detail.second_threshold} seconds
               </ThemedText>
             </View>
-            {detail.has_seconded ? (
+            {detail.is_author ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                You proposed this — authors can't second their own proposal.
+              </ThemedText>
+            ) : detail.has_seconded ? (
               <ThemedText type="small">You've already seconded this proposal.</ThemedText>
             ) : verified ? (
               <Pressable

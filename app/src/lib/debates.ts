@@ -127,10 +127,18 @@ export async function secondProposal(
   userId: string,
   tier: string,
   signing?: { signature: string; publicKeyFingerprint: string; contextHash?: string },
-): Promise<{ signatureInvalid: true } | { signatureInvalid: false }> {
+): Promise<{ signatureInvalid: true } | { selfSecond: true } | { signatureInvalid: false; selfSecond: false }> {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // A proposal's own author can't second it — seconding is meant to signal
+    // independent support from other residents, not the author re-endorsing
+    // their own idea.
+    const author = await client.query(`SELECT created_by_user_id FROM issue_proposals WHERE id = $1`, [proposalId]);
+    if (author.rows[0]?.created_by_user_id === userId) {
+      await client.query("ROLLBACK");
+      return { selfSecond: true };
+    }
     let signedActionId: string | null = null;
     if (signing) {
       const { recordSignedAction, canonicalSecondPayload } = await import("./signing");
@@ -168,7 +176,7 @@ export async function secondProposal(
       );
     }
     await client.query("COMMIT");
-    return { signatureInvalid: false };
+    return { signatureInvalid: false, selfSecond: false };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -181,6 +189,7 @@ export async function secondProposal(
 export async function debateDetail(proposalId: string, userId: string | null) {
   const p = await db().query(
     `SELECT p.id, p.title, p.body, p.status, p.second_threshold, t.name AS topic,
+            (p.created_by_user_id = $2) AS is_author,
             (SELECT count(*)::int FROM seconds s WHERE s.proposal_id = p.id) AS seconds,
             EXISTS (SELECT 1 FROM seconds s WHERE s.proposal_id = p.id AND s.user_id = $2) AS has_seconded,
             ft.id AS thread_id, ft.closes_at::date::text AS closes, ft.closed_early, ft.status AS thread_status,

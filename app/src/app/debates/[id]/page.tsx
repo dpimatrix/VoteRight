@@ -55,13 +55,15 @@ export default async function DebatePage({
             <span className="chip band b1">
               {detail.seconds}/{detail.second_threshold} {d.deb_seconds}
             </span>
-            {verified && !detail.has_seconded ? (
+            {detail.is_author ? (
+              <p className="nopos" style={{ marginTop: "0.6rem" }}>{d.deb_own_proposal}</p>
+            ) : detail.has_seconded ? (
+              <p className="pill kept" style={{ marginTop: "0.6rem" }}>{d.deb_seconded}</p>
+            ) : verified ? (
               <form method="post" action={`/api/debates/${id}/second`} style={{ marginTop: "0.6rem" }}>
                 <input type="hidden" name="lang" value={lang} />
                 <button className="btn" type="submit">{d.deb_second_btn}</button>
               </form>
-            ) : detail.has_seconded ? (
-              <p className="pill kept" style={{ marginTop: "0.6rem" }}>{d.deb_seconded}</p>
             ) : (
               <Link className="btn secondary" style={{ marginTop: "0.6rem" }} href={`/verify?lang=${lang}`}>
                 {d.verify_need}

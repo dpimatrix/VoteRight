@@ -12,9 +12,18 @@
    mobile Privacy/key-settings screen, a separate piece of work. */
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import * as SecureStore from 'expo-secure-store';
 
 import { get, post } from '@/services/api';
+
+// Imported lazily (not at module scope) because expo-secure-store's native
+// module isn't necessarily compiled into every installed build yet — Expo
+// Router eagerly evaluates every screen file to build its route table at app
+// startup, so a static import here would crash the whole app on boot rather
+// than just failing this one signing call (which every caller already treats
+// as best-effort and falls back to unsigned on failure).
+async function secureStore() {
+  return import('expo-secure-store');
+}
 
 const STORE_KEY = 'voteright-signing-key';
 
@@ -70,11 +79,13 @@ function fingerprintOf(rawPublicKey: Uint8Array): string {
 }
 
 async function loadRecord(): Promise<KeyRecord | null> {
+  const SecureStore = await secureStore();
   const raw = await SecureStore.getItemAsync(STORE_KEY);
   return raw ? (JSON.parse(raw) as KeyRecord) : null;
 }
 
 async function saveRecord(record: KeyRecord): Promise<void> {
+  const SecureStore = await secureStore();
   await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(record));
 }
 

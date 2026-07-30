@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
   const signature = form.get("signature") as string | null;
   const publicKeyFingerprint = form.get("publicKeyFingerprint") as string | null;
-  await secondProposal(
+  const res = await secondProposal(
     id,
     userId,
     await userTier(userId),
@@ -42,5 +42,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       : undefined,
   );
-  return Response.redirect(new URL(`/debates/${id}?lang=${lang}`, request.url), 303);
+  const dest = "selfSecond" in res && res.selfSecond ? `/debates/${id}?lang=${lang}&error=self` : `/debates/${id}?lang=${lang}`;
+  return Response.redirect(new URL(dest, request.url), 303);
 }
