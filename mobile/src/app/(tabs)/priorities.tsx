@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,6 +22,13 @@ interface Selection {
   statement: string;
 }
 
+interface SavedPriority {
+  axisId: string;
+  direction: 1 | -1;
+  weight: number;
+  statement: string;
+}
+
 export default function PrioritiesScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -31,6 +38,7 @@ export default function PrioritiesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const count = Object.keys(sel).length;
+  const seededRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,7 +47,22 @@ export default function PrioritiesScreen() {
         try {
           if (!hasSession()) await ensureSession();
           const res = await get<{ topics: Topic[] }>('/api/topics');
-          if (!cancelled) setTopics(res.topics);
+          if (cancelled) return;
+          setTopics(res.topics);
+          if (!seededRef.current) {
+            seededRef.current = true;
+            const saved = await get<{ priorities: SavedPriority[] }>('/api/priorities');
+            if (!cancelled && saved.priorities.length > 0) {
+              setSel(
+                Object.fromEntries(
+                  saved.priorities.map((p) => [
+                    p.axisId,
+                    { direction: p.direction, weight: p.weight, statement: p.statement },
+                  ]),
+                ),
+              );
+            }
+          }
         } catch (e) {
           console.error('Topics load failed:', e);
           if (!cancelled) setError('Could not load issues. Pull down to try again.');

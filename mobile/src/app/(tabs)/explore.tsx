@@ -23,6 +23,7 @@ interface CandidateScore {
   overall: 'strong' | 'good' | 'mixed' | 'weak' | 'insufficient';
   answered: number;
   total: number;
+  dealbreaker: boolean;
 }
 
 interface MatchResult {
@@ -96,7 +97,7 @@ export default function MatchesScreen() {
         {!races && !error && <ActivityIndicator style={styles.spinner} />}
 
         {races && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.raceRow}>
+          <View style={styles.raceRow}>
             {races.map((r) => (
               <Pressable
                 key={r.id}
@@ -112,29 +113,40 @@ export default function MatchesScreen() {
                 <ThemedText type="small">{r.title}</ThemedText>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         )}
 
         {error && <ThemedText type="small">{error}</ThemedText>}
 
         {raceId && !matches && !error && <ActivityIndicator style={styles.spinner} />}
 
-        {matches?.results.map((m) => (
-          <Pressable
-            key={m.politicianId}
-            onPress={() => router.push({ pathname: '/candidates/[id]', params: { id: m.politicianId } })}
-            style={[styles.cand, { backgroundColor: colors.backgroundElement }]}
-          >
-            <ThemedText style={styles.candName}>
-              {m.fullName} {m.party ? `(${m.party})` : ''}
-            </ThemedText>
-            <View style={[styles.chip, { borderColor: colors.evidence }]}>
-              <ThemedText type="small" style={{ color: colors.evidence }}>
-                {BAND_LABEL[m.score.overall]}
-              </ThemedText>
-            </View>
-          </Pressable>
-        ))}
+        {matches && (
+          <View style={styles.grid}>
+            {matches.results.map((m) => (
+              <Pressable
+                key={m.politicianId}
+                onPress={() => router.push({ pathname: '/candidates/[id]', params: { id: m.politicianId } })}
+                style={[styles.cand, { backgroundColor: colors.backgroundElement }]}
+              >
+                <ThemedText style={styles.candName} numberOfLines={2}>
+                  {m.fullName} {m.party ? `(${m.party})` : ''}
+                </ThemedText>
+                <View style={[styles.chip, { borderColor: colors.evidence }]}>
+                  <ThemedText type="small" style={{ color: colors.evidence }}>
+                    {BAND_LABEL[m.score.overall]}
+                  </ThemedText>
+                </View>
+                {m.score.dealbreaker && (
+                  <View style={[styles.chip, styles.dealbreakerChip]}>
+                    <ThemedText type="small" style={styles.dealbreakerText}>
+                      ⚠ Dealbreaker issue
+                    </ThemedText>
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,27 +157,35 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
-  raceRow: { flexGrow: 0 },
+  raceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
   raceChip: {
     borderWidth: 1,
     borderRadius: Spacing.four,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    marginRight: Spacing.two,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
   },
   cand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    width: '48%',
     borderRadius: Spacing.two,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
   },
-  candName: { flex: 1, marginRight: Spacing.two },
+  candName: {},
   chip: {
     borderWidth: 1,
     borderRadius: Spacing.four,
     paddingVertical: Spacing.half,
     paddingHorizontal: Spacing.two,
   },
+  dealbreakerChip: { borderColor: '#C0392B' },
+  dealbreakerText: { color: '#C0392B' },
 });
