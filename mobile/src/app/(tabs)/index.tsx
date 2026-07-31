@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
+
+const VISIT_KEY = 'voteright_visit_jurisdiction';
 
 interface StackedOffice {
   id: string;
@@ -16,10 +20,18 @@ interface StackedOffice {
   jurisdiction_name: string;
 }
 
+interface Jurisdiction {
+  ocdId: string;
+  name: string;
+}
+
 interface BallotResponse {
   jurisdictionId: string;
+  residenceId: string;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
+  visiting: Jurisdiction | null;
+  browsable: { ocd_id: string; name: string; level: string }[];
 }
 
 export default function BallotScreen() {
@@ -27,12 +39,14 @@ export default function BallotScreen() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [data, setData] = useState<BallotResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
       if (!hasSession()) await ensureSession();
-      const res = await get<BallotResponse>('/api/ballot');
+      const visitId = await AsyncStorage.getItem(VISIT_KEY);
+      const res = await get<BallotResponse>(`/api/ballot${visitId ? `?visit=${visitId}` : ''}`);
       setData(res);
     } catch (e) {
       console.error('Ballot load failed:', e);
@@ -40,9 +54,25 @@ export default function BallotScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        if (!cancelled) await load();
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [load]),
+  );
+
+  async function visit(ocdId: string | null) {
+    if (ocdId) await AsyncStorage.setItem(VISIT_KEY, ocdId);
+    else await AsyncStorage.removeItem(VISIT_KEY);
+    setShowPicker(false);
+    setData(null);
+    await load();
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -52,6 +82,19 @@ export default function BallotScreen() {
         </ThemedText>
         {!data && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{error}</ThemedText>}
+
+        {data?.visiting && (
+          <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>
+            <ThemedText type="small">
+              Visitor view — browsing {data.visiting.name}'s ballot. Your own residence and participation rights
+              are unaffected.
+            </ThemedText>
+            <Pressable onPress={() => visit(null)}>
+              <ThemedText type="linkPrimary">Return to my ballot</ThemedText>
+            </Pressable>
+          </View>
+        )}
+
         {data?.jurisdictions.map((j) => {
           const rows = data.offices.filter((o) => o.jurisdiction_id === j.id);
           return (
@@ -83,6 +126,27 @@ export default function BallotScreen() {
             </View>
           );
         })}
+
+        {data && (
+          <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+            <Pressable onPress={() => setShowPicker((s) => !s)}>
+              <ThemedText type="smallBold">Browse another jurisdiction</ThemedText>
+            </Pressable>
+            {showPicker && (
+              <View style={styles.pickerRow}>
+                {data.browsable.map((j) => (
+                  <Pressable
+                    key={j.ocd_id}
+                    onPress={() => visit(j.ocd_id)}
+                    style={[styles.pickerChip, { borderColor: colors.textSecondary }]}
+                  >
+                    <ThemedText type="small">{j.name}</ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -93,6 +157,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
+  visitBanner: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   section: { gap: Spacing.two },
   groupHeading: { marginTop: Spacing.two },
   seatRow: {
@@ -110,4 +175,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.half,
     paddingHorizontal: Spacing.two,
   },
+  card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
+  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
 });
