@@ -32,6 +32,7 @@ export async function GET(request: Request) {
   return Response.json({
     jurisdictionId,
     residenceId,
+    residenceName: residence?.name ?? null,
     jurisdictions,
     offices,
     visiting: visited ? { ocdId: visited.ocd_id, name: visited.name } : null,

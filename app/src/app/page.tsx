@@ -124,6 +124,12 @@ export default async function BallotPage({
         <p>{d.tagline}</p>
       </div>
       <div className="pagepad">
+        {residence && (
+          <p className="nopos" style={{ marginTop: "0.4rem" }}>
+            {lang === "es" ? "Verificado como" : "Verified as"} <strong>{residence.name}</strong>{" "}
+            <Link href={`/verify?lang=${lang}&change=1`}>{lang === "es" ? "Cambiar dirección" : "Change address"}</Link>
+          </p>
+        )}
         {!displayId && (
           <div className="disclosure" style={{ marginTop: "0.7rem" }}>
             <span>{d.ballot_no_residence}</span>

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
 
@@ -12,6 +12,7 @@ export default function VerifyScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { currentResidence } = useLocalSearchParams<{ currentResidence?: string }>();
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,9 +25,9 @@ export default function VerifyScreen() {
       if (res.outcome === 'ok') {
         router.back();
       } else if (res.outcome === 'outside') {
-        setError('That address is outside Montgomery County.');
+        setError("That address is outside our current coverage area — the pilot covers select DC/Maryland/Virginia jurisdictions only.");
       } else {
-        setError('Could not match that address — check the street number, name, and "MD".');
+        setError('Could not match that address — check the street number, name, and state.');
       }
     } catch (e) {
       console.error('Verify failed:', e);
@@ -41,10 +42,22 @@ export default function VerifyScreen() {
       <ThemedText type="title" style={styles.title}>
         Verify your address
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        Proposing, seconding, and arguing are limited to Montgomery County residents. Your address is used only
-        to confirm your jurisdiction — never matched against any voter file.
-      </ThemedText>
+      {currentResidence ? (
+        <>
+          <ThemedText type="small" themeColor="textSecondary">
+            Currently verified as {currentResidence}.
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Verifying a new address moves your ballot and participation eligibility to the new location
+            immediately.
+          </ThemedText>
+        </>
+      ) : (
+        <ThemedText type="small" themeColor="textSecondary">
+          Proposing, seconding, and arguing are limited to residents of a covered jurisdiction. Your address is
+          used only to confirm your jurisdiction — never matched against any voter file.
+        </ThemedText>
+      )}
       <TextInput
         value={address}
         onChangeText={setAddress}

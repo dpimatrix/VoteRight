@@ -157,6 +157,12 @@ const DICT = {
       "Council district seats: which one is yours depends on your exact address — district-level lookup arrives in a later update, so all seven are shown.",
     verify_need: "Verify your address to participate in debates.",
     verify_done: "✓ Address verified — you can now propose, second, argue, and vote.",
+    verify_current: "Currently verified as",
+    verify_since: "verified",
+    verify_change_btn: "Change address",
+    verify_change_warn:
+      "Verifying a new address moves your ballot and participation eligibility to the new location immediately.",
+    verify_confirm_btn: "Confirm new address",
     nav_mandates: "Mandates",
     man_h: "Referenda & mandates",
     man_advisory:
@@ -446,6 +452,12 @@ const DICT = {
       "Escaños de distrito del Concejo: el tuyo depende de tu dirección exacta — la búsqueda por distrito llegará en una actualización posterior, así que se muestran los siete.",
     verify_need: "Verifica tu dirección para participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes proponer, apoyar, argumentar y votar.",
+    verify_current: "Actualmente verificado como",
+    verify_since: "verificado",
+    verify_change_btn: "Cambiar dirección",
+    verify_change_warn:
+      "Verificar una nueva dirección mueve tu boleta y tu elegibilidad de participación a la nueva ubicación de inmediato.",
+    verify_confirm_btn: "Confirmar nueva dirección",
     nav_mandates: "Mandatos",
     man_h: "Referendos y mandatos",
     man_advisory:

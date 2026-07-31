@@ -29,6 +29,7 @@ interface Jurisdiction {
 interface BallotResponse {
   jurisdictionId: string | null;
   residenceId: string | null;
+  residenceName: string | null;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   visiting: Jurisdiction | null;
@@ -99,6 +100,21 @@ export default function BallotScreen() {
         </View>
         {!data && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{error}</ThemedText>}
+
+        {data?.residenceId && data.residenceName && (
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/verify',
+                params: { currentResidence: data.residenceName ?? '' },
+              })
+            }
+          >
+            <ThemedText type="small" themeColor="textSecondary">
+              Verified as {data.residenceName} · <ThemedText type="linkPrimary">Change address</ThemedText>
+            </ThemedText>
+          </Pressable>
+        )}
 
         {data && !data.jurisdictionId && (
           <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>

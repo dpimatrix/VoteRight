@@ -13,6 +13,19 @@ export async function userTier(userId: string): Promise<string> {
   return rows[0]?.verification_tier ?? "unverified";
 }
 
+/** Most recent address verification timestamp, for the "verified since" line
+    a returning user sees before choosing to re-verify (change-of-address
+    guardrail — surfaces the current state instead of silently overwriting it). */
+export async function lastVerifiedAt(userId: string): Promise<Date | null> {
+  const { rows } = await db().query(
+    `SELECT verified_at FROM verification_records
+      WHERE user_id = $1 AND method = 'address_attestation'
+      ORDER BY verified_at DESC LIMIT 1`,
+    [userId],
+  );
+  return rows[0]?.verified_at ?? null;
+}
+
 export function addressLooksValid(address: string): boolean {
   // Dev-grade format check standing in for the geocoding vendor (§2.6): a street
   // number, a street name, and something jurisdiction-plausible. Never matched
