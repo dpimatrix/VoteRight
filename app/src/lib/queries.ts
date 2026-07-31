@@ -12,17 +12,41 @@ export async function votesFor(politicianId: string, limit = 8) {
   return rows as { bill_external_id: string; bill_title: string; vote: string; date: string; source_url: string }[];
 }
 
-/** Latest successful run per source — the honesty stamp (DATA-OPS §6). */
+/* Expected cadence per source, in days (DATA-OPS.md §6). A source finding
+   nothing new isn't itself a failure — the county's own data may just not
+   have moved — but if it stays quiet for multiple cadence periods in a row,
+   that's worth a human glance rather than a silent green pill forever. The
+   3x multiplier is a buffer against normal jitter (a source running weekly
+   isn't stale after 8 days, only after ~3 weeks of nothing). Unlisted
+   sources fall back to a conservative 30-day cadence. */
+const INGESTION_CADENCE_DAYS: Record<string, number> = {
+  "moco-council-bills": 7, // Legistar votes, weekly per §6
+};
+const STALE_MULTIPLIER = 3;
+
+/** Latest successful run per source — the honesty stamp (DATA-OPS §6).
+    health is 'failed' (last run errored), 'stale' (running fine, but
+    data_through hasn't advanced within a few cadence periods -- the
+    upstream source may have gone quiet), or 'fresh'. */
 export async function ingestionFreshness() {
   const { rows } = await db().query(
     `SELECT DISTINCT ON (source) source, status, finished_at::date::text AS finished,
             data_through::text AS data_through, rows_upserted, note
        FROM ingestion_runs ORDER BY source, started_at DESC`,
   );
-  return rows as {
-    source: string; status: string; finished: string | null;
-    data_through: string | null; rows_upserted: number; note: string | null;
-  }[];
+  const now = Date.now();
+  return rows.map((r) => {
+    const cadenceDays = INGESTION_CADENCE_DAYS[r.source] ?? 30;
+    const staleAfterDays = cadenceDays * STALE_MULTIPLIER;
+    const ageDays = r.data_through ? (now - new Date(r.data_through).getTime()) / 86_400_000 : null;
+    const health: "failed" | "stale" | "fresh" =
+      r.status === "failed" ? "failed" : ageDays === null || ageDays > staleAfterDays ? "stale" : "fresh";
+    return { ...r, health, staleAfterDays } as {
+      source: string; status: string; finished: string | null;
+      data_through: string | null; rows_upserted: number; note: string | null;
+      health: "failed" | "stale" | "fresh"; staleAfterDays: number;
+    };
+  });
 }
 
 /* ── data-mode detection ──

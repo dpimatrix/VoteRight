@@ -100,11 +100,19 @@ export default async function AdminHome() {
         <div className="card" key={f.source} style={{ padding: "0.6rem 0.9rem" }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
             <strong style={{ flex: 1, fontSize: "0.9rem" }}>{f.source}</strong>
-            <span className={`pill ${f.status === "succeeded" ? "kept" : f.status === "failed" ? "broken" : "pending"}`}>{f.status}</span>
+            <span className={`pill ${f.health === "fresh" ? "kept" : f.health === "failed" ? "broken" : "pending"}`}>
+              {f.health === "fresh" ? "fresh" : f.health === "failed" ? "failed" : "stale"}
+            </span>
           </div>
           <div className="cover" style={{ margin: "0.15rem 0 0" }}>
-            last run {f.finished ?? "…"} · data through {f.data_through ?? "n/a"} · +{f.rows_upserted} rows
+            last run {f.finished ?? "…"} ({f.status}) · data through {f.data_through ?? "n/a"} · +{f.rows_upserted} rows
           </div>
+          {f.health === "stale" && f.status !== "failed" && (
+            <p className="nopos" style={{ margin: "0.25rem 0 0" }}>
+              No newer data seen in over {f.staleAfterDays} days — the run itself is succeeding, but the upstream
+              source may have gone quiet. Worth a manual check.
+            </p>
+          )}
           {f.note && <p className="nopos" style={{ margin: "0.25rem 0 0" }}>{f.note}</p>}
         </div>
       ))}
