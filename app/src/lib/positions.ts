@@ -85,11 +85,19 @@ export async function createPositionFromVote(opts: {
       await client.query("ROLLBACK");
       return "duplicate";
     }
+    const jur = await client.query(
+      `SELECT j.name FROM politicians p
+         JOIN offices o ON o.id = p.current_office_id
+         JOIN jurisdictions j ON j.ocd_id = o.jurisdiction_id
+        WHERE p.id = $1`,
+      [opts.politicianId],
+    );
+    const publisher = jur.rows[0]?.name ? `${jur.rows[0].name} legislative record` : "Legislative record";
     const cit = await client.query(
       `INSERT INTO citations (url, archive_url, title, publisher, published_at)
-       VALUES ($1, 'https://web.archive.org/web/' || $1, $2, 'Montgomery County legislative record', $3)
+       VALUES ($1, 'https://web.archive.org/web/' || $1, $2, $3, $4)
        RETURNING id`,
-      [v.source_url, `${opts.billExternalId} · roll call · ${String(v.vote).toUpperCase()}`, v.voted_at],
+      [v.source_url, `${opts.billExternalId} · roll call · ${String(v.vote).toUpperCase()}`, publisher, v.voted_at],
     );
     const topic = await client.query(`SELECT topic_id FROM topic_axes WHERE id = $1`, [opts.axisId]);
     if (topic.rowCount === 0) {

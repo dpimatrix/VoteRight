@@ -21,11 +21,16 @@ export default function VerifyScreen() {
     setBusy(true);
     setError(null);
     try {
-      const res = await post<{ outcome: 'ok' | 'bad_format' | 'no_match' | 'outside' }>('/api/verify', { address });
+      const res = await post<{ outcome: 'ok' | 'bad_format' | 'no_match' | 'outside' | 'resolver_unavailable' }>(
+        '/api/verify',
+        { address },
+      );
       if (res.outcome === 'ok') {
         router.back();
       } else if (res.outcome === 'outside') {
         setError("That address is outside our current coverage area — the pilot covers select DC/Maryland/Virginia jurisdictions only.");
+      } else if (res.outcome === 'resolver_unavailable') {
+        setError('Address verification is temporarily unavailable — please try again in a few minutes.');
       } else {
         setError('Could not match that address — check the street number, name, and state.');
       }

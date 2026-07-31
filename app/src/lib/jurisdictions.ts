@@ -28,7 +28,8 @@ export const FALLBACK_RESOLVER = "address-city-match-v0.1-fallback";
 export type Resolution =
   | { outcome: "ok"; jurisdiction: string; method: string }
   | { outcome: "outside"; method: string } // real address, wrong county — not eligible
-  | { outcome: "no_match"; method: string }; // geocoder couldn't find the address
+  | { outcome: "no_match"; method: string } // geocoder couldn't find the address
+  | { outcome: "resolver_unavailable"; method: string }; // geocoder unreachable — never guess a jurisdiction
 
 interface CensusGeography {
   STATE?: string;
@@ -103,9 +104,18 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
     if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
     return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER };
   } catch {
-    // Offline/dev: the format check already passed upstream; fall back to the
-    // city matcher so local development keeps working without network.
-    return { outcome: "ok", jurisdiction: resolveJurisdictionFromAddress(address), method: FALLBACK_RESOLVER };
+    // Local dev only: the crude Rockville/Montgomery regex matcher keeps
+    // development working without network. In production this must NEVER
+    // silently guess a jurisdiction on a geocoder outage -- that regex only
+    // knows two of the now several seeded jurisdictions, and a confident
+    // wrong answer here means a real Fairfax/D.C./Gaithersburg address could
+    // get silently assigned Montgomery County residence, gating their real
+    // ballot, referendum eligibility, and accountability-campaign access
+    // wrong. An honest "try again" beats a wrong jurisdiction.
+    if (process.env.NODE_ENV !== "production") {
+      return { outcome: "ok", jurisdiction: resolveJurisdictionFromAddress(address), method: FALLBACK_RESOLVER };
+    }
+    return { outcome: "resolver_unavailable", method: FALLBACK_RESOLVER };
   }
 }
 

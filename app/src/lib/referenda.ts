@@ -8,8 +8,6 @@ import { db } from "./db";
    a (user, choice) pair. Identity lives only on referendum_ballot_tokens;
    choice lives only on referendum_ballots keyed by token. Keep it that way. */
 
-const COUNTY = "ocd-division/country:us/state:md/county:montgomery";
-
 /* ── tally (pure — unit-tested) ── */
 export interface TallyCount {
   choice: string;
@@ -296,11 +294,16 @@ export async function commitmentsFor(politicianId: string) {
 
 /* ══════════════ admin (paired tooling, internal register) ══════════════ */
 
+/** Eligibility follows the proposal's own jurisdiction (set once, correctly,
+    at creation -- see createProposal in debates.ts) rather than a fixed
+    constant: a Fairfax proposal must produce a Fairfax-eligible referendum,
+    not a Montgomery one, same discipline as issueBallot/supportCampaign. */
 export async function scheduleReferendum(proposalId: string, question: string, opensAt: string, closesAt: string) {
   await db().query(
     `INSERT INTO referenda (proposal_id, question_text, opens_at, closes_at, eligibility_jurisdiction_id)
-     VALUES ($1, $2, $3::timestamptz, $4::timestamptz, $5)`,
-    [proposalId, question, opensAt, closesAt, COUNTY],
+     SELECT $1, $2, $3::timestamptz, $4::timestamptz, jurisdiction_id
+       FROM issue_proposals WHERE id = $1`,
+    [proposalId, question, opensAt, closesAt],
   );
   await syncStatuses(); // an opens_at in the past goes live immediately
 }

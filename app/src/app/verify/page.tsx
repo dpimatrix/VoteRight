@@ -21,6 +21,8 @@ function AddressForm({
     <>
       {sp.bad === "outside" ? (
         <p className="nopos">{d.verify_outside}</p>
+      ) : sp.bad === "unavailable" ? (
+        <p className="nopos">{d.verify_unavailable}</p>
       ) : sp.bad ? (
         <p className="nopos">{d.verify_bad}</p>
       ) : null}

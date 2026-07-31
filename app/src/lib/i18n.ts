@@ -142,6 +142,7 @@ const DICT = {
     verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
     verify_outside:
       "That address is outside our current coverage area. The pilot covers select DC/Maryland/Virginia jurisdictions only.",
+    verify_unavailable: "Address verification is temporarily unavailable — please try again in a few minutes.",
     ballot_no_residence: "Verify your address to see your ballot.",
     realdata_note:
       "Early real-data phase: positions are being ingested from sourced records. A candidate is scored only once enough sourced positions exist — silence is shown as silence, never guessed.",
@@ -439,6 +440,7 @@ const DICT = {
     verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
     verify_outside:
       "Esa dirección está fuera de nuestra área de cobertura actual. El piloto cubre solo ciertas jurisdicciones de DC/Maryland/Virginia.",
+    verify_unavailable: "La verificación de direcciones no está disponible en este momento — inténtalo de nuevo en unos minutos.",
     ballot_no_residence: "Verifica tu dirección para ver tu boleta.",
     realdata_note:
       "Fase temprana de datos reales: las posturas se ingieren de registros con fuente. Un candidato solo se puntúa cuando existen suficientes posturas con fuente — el silencio se muestra como silencio, nunca se adivina.",

@@ -19,6 +19,8 @@ export async function POST(request: Request) {
       ? `/debates?lang=${lang}`
       : outcome === "outside"
         ? `/verify?bad=outside&lang=${lang}`
-        : `/verify?bad=1&lang=${lang}`; // bad_format and no_match share the "check the address" message
+        : outcome === "resolver_unavailable"
+          ? `/verify?bad=unavailable&lang=${lang}`
+          : `/verify?bad=1&lang=${lang}`; // bad_format and no_match share the "check the address" message
   return Response.redirect(new URL(dest, request.url), 303);
 }

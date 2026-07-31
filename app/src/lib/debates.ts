@@ -41,7 +41,7 @@ export function addressLooksValid(address: string): boolean {
 export async function verifyAddress(
   userId: string,
   address: string,
-): Promise<"ok" | "bad_format" | "no_match" | "outside"> {
+): Promise<"ok" | "bad_format" | "no_match" | "outside" | "resolver_unavailable"> {
   if (!addressLooksValid(address)) return "bad_format";
   const { resolveJurisdiction } = await import("./jurisdictions");
   const res = await resolveJurisdiction(address);
