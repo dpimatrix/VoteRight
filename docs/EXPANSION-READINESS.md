@@ -1,11 +1,24 @@
 # VoteRight — Country Expansion Readiness
 
-Status: v0.1 — first draft, reconstructing the multi-country planning thread · 2026-07-17
-Scope: Montgomery County, MD is the **pilot**, not the product's boundary. This document
-defines which countries VoteRight can expand into, on what evidence, and with what
-posture — so that expansion is a **mechanical, rule-based decision**, never a staff pick.
-This deliberately mirrors the commentary-inclusion principle (ARCHITECTURE.md §8.2): where
-selection power exists, it must live in published rules applied to published data.
+Status: v0.2 — domestic DMV expansion shipped, international framework still unbuilt · 2026-07-31
+Scope: the pilot is the DMV area (Montgomery County MD, Prince George's County MD,
+Fairfax County VA, Arlington County VA, and Washington D.C. — expanded 2026-07-31 from
+the original Montgomery-County-only pilot), not the product's boundary. This document
+defines which *countries* VoteRight can expand into, on what evidence, and with what
+posture — so that international expansion is a **mechanical, rule-based decision**, never
+a staff pick. This deliberately mirrors the commentary-inclusion principle
+(ARCHITECTURE.md §8.2): where selection power exists, it must live in published rules
+applied to published data.
+
+**2026-07-31 note:** the DMV expansion (Part 1: code generalized off every
+Montgomery-only assumption; Part 2: real offices/officeholders/accountability-pathway
+data seeded and live-verified for all four new jurisdictions) is a *domestic* scaling
+step — the platform is still operating a single Tier B country (the United States, per
+§3) under one legal-review posture. It does not touch, satisfy, or shortcut the
+country-tier framework below, which remains **not built**, still gated on the pilot
+completing a full real election cycle (§5, "the pilot is the proof"). Growing the US
+pilot's jurisdiction count changes what "the pilot" covers; it doesn't change what
+unlocks Tier A/B market entry elsewhere.
 
 ## 1. The inclusion rule (mechanical, re-runnable)
 
@@ -164,9 +177,10 @@ before the first non-US market:
   candidate-centric elections. Party-list PR (Netherlands, Spain), MMP (Germany, NZ),
   and STV (Ireland, Australia Senate) need modeling work — promises made by *parties*
   vs *candidates* is a real architecture question, not a localization detail.
-- **The pilot is the proof.** Nothing internationalizes until the Montgomery County loop
-  has run through at least one real election cycle. This document exists so the schema
-  and legal architecture don't paint us into a US-only corner — not to accelerate entry.
+- **The pilot is the proof.** Nothing internationalizes until the DMV pilot (Montgomery
+  County, Prince George's County, Fairfax County, Arlington County, D.C.) has run through
+  at least one real election cycle. This document exists so the schema and legal
+  architecture don't paint us into a US-only corner — not to accelerate entry.
 
 ## 6. Schema implications (design-ahead, build-later)
 
