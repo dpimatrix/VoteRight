@@ -124,7 +124,11 @@ export async function referendumForProposal(proposalId: string): Promise<{ id: s
 }
 
 /** Step 1 (§7.3): identity is checked once and a single-use token issued. */
-export async function issueBallot(refId: string, userId: string, tier: string): Promise<"ok" | "not_open" | "not_eligible"> {
+export async function issueBallot(
+  refId: string,
+  userId: string,
+  tier: string,
+): Promise<"ok" | "not_open" | "not_eligible" | "too_recent"> {
   await syncStatuses();
   const client = await db().connect();
   try {
@@ -132,6 +136,16 @@ export async function issueBallot(refId: string, userId: string, tier: string): 
     // Eligibility walks UP the jurisdiction stack: a City of Rockville resident
     // is inside the county, so county referenda include them; the reverse
     // (county resident in a city-only referendum) correctly fails.
+    //
+    // residency_established_before_open guards against last-minute address
+    // switching: verification is self-attested (no real identity behind it),
+    // so a live-only residence check would let someone re-verify into a
+    // jurisdiction specifically to swing an already-open vote there, then
+    // switch back. Anchoring to the referendum's opens_at instead means your
+    // eligibility reflects who lived there when voting started, mirroring a
+    // real voter-registration cutoff -- not a rate limit on switching itself,
+    // which a self-attested, anonymous-session system can't meaningfully
+    // enforce anyway (a determined actor would just start a fresh session).
     const chk = await client.query(
       `WITH RECURSIVE up AS (
          SELECT j.ocd_id, j.parent_ocd_id
@@ -141,7 +155,11 @@ export async function issueBallot(refId: string, userId: string, tier: string): 
          SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN up ON j.ocd_id = up.parent_ocd_id
        )
        SELECT r.status,
-              EXISTS (SELECT 1 FROM up WHERE up.ocd_id = r.eligibility_jurisdiction_id) AS eligible
+              EXISTS (SELECT 1 FROM up WHERE up.ocd_id = r.eligibility_jurisdiction_id) AS eligible,
+              EXISTS (
+                SELECT 1 FROM verification_records vr
+                 WHERE vr.user_id = $2 AND vr.method = 'address_attestation' AND vr.verified_at <= r.opens_at
+              ) AS residency_established_before_open
          FROM referenda r WHERE r.id = $1`,
       [refId, userId],
     );
@@ -153,6 +171,10 @@ export async function issueBallot(refId: string, userId: string, tier: string): 
     if (!c.eligible) {
       await client.query("ROLLBACK");
       return "not_eligible";
+    }
+    if (!c.residency_established_before_open) {
+      await client.query("ROLLBACK");
+      return "too_recent";
     }
     await client.query(
       `INSERT INTO referendum_ballot_tokens (referendum_id, user_id, verification_tier_at_issuance)

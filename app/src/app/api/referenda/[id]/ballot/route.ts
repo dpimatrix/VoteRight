@@ -17,6 +17,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const lang = String(form.get("lang") ?? "en");
   if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
   const res = await issueBallot(id, userId, await userTier(userId));
-  const err = res === "not_eligible" ? "&e=nel" : "";
+  const err = res === "not_eligible" ? "&e=nel" : res === "too_recent" ? "&e=tr" : "";
   return Response.redirect(new URL(`/referenda/${id}?lang=${lang}${err}`, request.url), 303);
 }

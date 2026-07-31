@@ -50,6 +50,7 @@ export default function ReferendumScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notEligible, setNotEligible] = useState(false);
+  const [tooRecent, setTooRecent] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -81,9 +82,14 @@ export default function ReferendumScreen() {
   async function getBallot() {
     setBusy(true);
     setNotEligible(false);
+    setTooRecent(false);
     try {
-      const res = await post<{ outcome: 'ok' | 'not_open' | 'not_eligible' }>(`/api/referenda/${id}/ballot`, {});
+      const res = await post<{ outcome: 'ok' | 'not_open' | 'not_eligible' | 'too_recent' }>(
+        `/api/referenda/${id}/ballot`,
+        {},
+      );
       if (res.outcome === 'not_eligible') setNotEligible(true);
+      if (res.outcome === 'too_recent') setTooRecent(true);
       await load();
     } catch (e) {
       console.error('Ballot request failed:', e);
@@ -162,6 +168,12 @@ export default function ReferendumScreen() {
               Results are shown only after voting closes.
             </ThemedText>
             {notEligible && <ThemedText type="small">Your residence isn't eligible for this referendum.</ThemedText>}
+            {tooRecent && (
+              <ThemedText type="small">
+                Your address was verified after this referendum opened — eligibility follows where you lived when
+                voting started, not a same-day address change.
+              </ThemedText>
+            )}
             {!verified ? (
               <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
                 <ThemedText type="smallBold">Verify to vote</ThemedText>

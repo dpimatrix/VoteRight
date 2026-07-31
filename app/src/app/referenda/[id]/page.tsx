@@ -60,6 +60,7 @@ export default async function ReferendumPage({
             </div>
             <p className="nopos" style={{ margin: "0.35rem 0" }}>{d.ref_results_after}</p>
             {sp.e === "nel" && <p className="pill broken">{d.ref_not_eligible}</p>}
+            {sp.e === "tr" && <p className="pill broken">{d.ref_too_recent}</p>}
             {!verified ? (
               <Link className="btn secondary" href={`/verify?lang=${lang}`}>{d.verify_need}</Link>
             ) : ref.voted ? (
