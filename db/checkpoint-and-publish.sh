@@ -5,6 +5,13 @@
 # publicly reachable (correctly so), so the checkpoint has to be computed
 # locally, where the database actually lives.
 #
+# Logs its outcome to the same ingestion_runs ledger the data-feed ingesters
+# use (source='checkpoint-publish', via db/checkpoint-log.mjs) so a silently
+# broken cron job -- expired token, git push failing, the VPS cron itself
+# disabled -- shows up in the admin freshness panel instead of just going
+# quiet. Deliberately NOT `set -e`: every exit path below must still reach
+# the logging call at the end, including failure paths.
+#
 # One-time setup on the VPS, as the voteright user:
 #   1. Create a fine-grained GitHub personal access token scoped to ONLY this
 #      repo, with Contents: Read and write - nothing else.
@@ -16,7 +23,7 @@
 #   5. Add to crontab: 0 6 * * * /home/voteright/repo/db/checkpoint-and-publish.sh
 #
 # Usage: ./checkpoint-and-publish.sh
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 export PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"
@@ -29,13 +36,27 @@ if [ -f app/.env.production ]; then
   export DATABASE_URL="$(grep -m1 '^DATABASE_URL=' app/.env.production | cut -d= -f2-)"
 fi
 
-node db/checkpoint.mjs
+log_and_exit() {
+  CHECKPOINT_STATUS="$1" CHECKPOINT_NOTE="$2" CHECKPOINT_DATE="$(date -u +%F)" node db/checkpoint-log.mjs
+  exit "$3"
+}
 
-if [ -z "$(git status --porcelain docs/audit-checkpoints/)" ]; then
-  echo "No new checkpoint file - nothing to publish."
-  exit 0
+if ! node db/checkpoint.mjs; then
+  log_and_exit failed "node db/checkpoint.mjs failed (see cron output for detail)" 1
 fi
 
-git add docs/audit-checkpoints/
-git commit -m "Daily audit checkpoint: $(date -u +%F)"
-git push origin main
+if [ -z "$(git status --porcelain docs/audit-checkpoints/)" ]; then
+  log_and_exit succeeded "no new checkpoint needed today" 0
+fi
+
+if ! git add docs/audit-checkpoints/; then
+  log_and_exit failed "git add failed" 1
+fi
+if ! git commit -m "Daily audit checkpoint: $(date -u +%F)"; then
+  log_and_exit failed "git commit failed" 1
+fi
+if ! git push origin main; then
+  log_and_exit failed "checkpoint computed and committed locally, but git push failed -- it is NOT actually published/visible yet" 1
+fi
+
+log_and_exit succeeded "checkpoint computed, committed, and pushed" 0

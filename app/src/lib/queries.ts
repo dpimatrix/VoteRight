@@ -21,14 +21,25 @@ export async function votesFor(politicianId: string, limit = 8) {
    sources fall back to a conservative 30-day cadence. */
 const INGESTION_CADENCE_DAYS: Record<string, number> = {
   "moco-council-bills": 7, // Legistar votes, weekly per §6
+  "checkpoint-publish": 1, // daily VPS cron (db/checkpoint-and-publish.sh), not a data feed -- see ingestionFreshness doc
 };
 const STALE_MULTIPLIER = 3;
 
+export interface IngestionFreshness {
+  source: string; status: string; finished: string | null;
+  data_through: string | null; rows_upserted: number; note: string | null;
+  health: "failed" | "stale" | "fresh"; staleAfterDays: number;
+}
+
 /** Latest successful run per source — the honesty stamp (DATA-OPS §6).
-    health is 'failed' (last run errored), 'stale' (running fine, but
-    data_through hasn't advanced within a few cadence periods -- the
-    upstream source may have gone quiet), or 'fresh'. */
-export async function ingestionFreshness() {
+    Covers both inbound data feeds (e.g. moco-council-bills) and outbound
+    publishing jobs (e.g. checkpoint-publish) that share the same
+    ingestion_runs ledger -- see admin/page.tsx for why they're split into
+    separate sections despite sharing this one query. health is 'failed'
+    (last run errored), 'stale' (running fine, but data_through hasn't
+    advanced within a few cadence periods -- the upstream source, or the
+    publishing job itself, may have gone quiet), or 'fresh'. */
+export async function ingestionFreshness(): Promise<IngestionFreshness[]> {
   const { rows } = await db().query(
     `SELECT DISTINCT ON (source) source, status, finished_at::date::text AS finished,
             data_through::text AS data_through, rows_upserted, note
@@ -41,11 +52,7 @@ export async function ingestionFreshness() {
     const ageDays = r.data_through ? (now - new Date(r.data_through).getTime()) / 86_400_000 : null;
     const health: "failed" | "stale" | "fresh" =
       r.status === "failed" ? "failed" : ageDays === null || ageDays > staleAfterDays ? "stale" : "fresh";
-    return { ...r, health, staleAfterDays } as {
-      source: string; status: string; finished: string | null;
-      data_through: string | null; rows_upserted: number; note: string | null;
-      health: "failed" | "stale" | "fresh"; staleAfterDays: number;
-    };
+    return { ...r, health, staleAfterDays } as IngestionFreshness;
   });
 }
 

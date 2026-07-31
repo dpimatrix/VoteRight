@@ -4,10 +4,41 @@ import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
 import { adminPrivacyQueue } from "@/lib/privacy";
-import { ingestionFreshness } from "@/lib/queries";
+import { ingestionFreshness, type IngestionFreshness } from "@/lib/queries";
 import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
+
+// checkpoint-publish writes our own audit trail OUT (git push); everything
+// else in ingestion_runs pulls external data IN. Same ledger, same health
+// logic, but conflating "the county stopped publishing" with "our own
+// tamper-evidence checkpoint stopped publishing" under one heading would
+// hide that they need different people/fixes -- split the display, not the
+// underlying query.
+const PUBLISHING_SOURCES = new Set(["checkpoint-publish"]);
+
+function FreshnessCard({ f }: { f: IngestionFreshness }) {
+  return (
+    <div className="card" style={{ padding: "0.6rem 0.9rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
+        <strong style={{ flex: 1, fontSize: "0.9rem" }}>{f.source}</strong>
+        <span className={`pill ${f.health === "fresh" ? "kept" : f.health === "failed" ? "broken" : "pending"}`}>
+          {f.health === "fresh" ? "fresh" : f.health === "failed" ? "failed" : "stale"}
+        </span>
+      </div>
+      <div className="cover" style={{ margin: "0.15rem 0 0" }}>
+        last run {f.finished ?? "…"} ({f.status}) · data through {f.data_through ?? "n/a"} · +{f.rows_upserted} rows
+      </div>
+      {f.health === "stale" && f.status !== "failed" && (
+        <p className="nopos" style={{ margin: "0.25rem 0 0" }}>
+          No newer data seen in over {f.staleAfterDays} days — the run itself is succeeding, but the upstream
+          source may have gone quiet. Worth a manual check.
+        </p>
+      )}
+      {f.note && <p className="nopos" style={{ margin: "0.25rem 0 0" }}>{f.note}</p>}
+    </div>
+  );
+}
 
 export default async function AdminHome() {
   if (!(await isAdmin())) return null;
@@ -17,6 +48,7 @@ export default async function AdminHome() {
   const pipeline = await adminMandatePipeline();
   const campaigns = await adminCampaigns();
   const privacy = await adminPrivacyQueue();
+  const freshness = await ingestionFreshness();
   const privacyOpen = privacy.filter((p) => p.status === "received" || p.status === "in_progress").length;
   const privacyOverdue = privacy.some((p) => p.overdue);
   const mandateWork =
@@ -95,27 +127,25 @@ export default async function AdminHome() {
         <span className="chip band b0">curate</span>
       </Link>
 
-      <div className="grouph" style={{ marginTop: "1rem" }}>Data freshness (DATA-OPS §6)</div>
-      {(await ingestionFreshness()).map((f) => (
-        <div className="card" key={f.source} style={{ padding: "0.6rem 0.9rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
-            <strong style={{ flex: 1, fontSize: "0.9rem" }}>{f.source}</strong>
-            <span className={`pill ${f.health === "fresh" ? "kept" : f.health === "failed" ? "broken" : "pending"}`}>
-              {f.health === "fresh" ? "fresh" : f.health === "failed" ? "failed" : "stale"}
-            </span>
-          </div>
-          <div className="cover" style={{ margin: "0.15rem 0 0" }}>
-            last run {f.finished ?? "…"} ({f.status}) · data through {f.data_through ?? "n/a"} · +{f.rows_upserted} rows
-          </div>
-          {f.health === "stale" && f.status !== "failed" && (
-            <p className="nopos" style={{ margin: "0.25rem 0 0" }}>
-              No newer data seen in over {f.staleAfterDays} days — the run itself is succeeding, but the upstream
-              source may have gone quiet. Worth a manual check.
-            </p>
-          )}
-          {f.note && <p className="nopos" style={{ margin: "0.25rem 0 0" }}>{f.note}</p>}
-        </div>
-      ))}
+      {(() => {
+        const all = freshness;
+        const feeds = all.filter((f) => !PUBLISHING_SOURCES.has(f.source));
+        const publishing = all.filter((f) => PUBLISHING_SOURCES.has(f.source));
+        return (
+          <>
+            <div className="grouph" style={{ marginTop: "1rem" }}>Data freshness (DATA-OPS §6)</div>
+            {feeds.length === 0 && <p className="nopos">No ingestion runs recorded yet.</p>}
+            {feeds.map((f) => (
+              <FreshnessCard key={f.source} f={f} />
+            ))}
+            <div className="grouph" style={{ marginTop: "1rem" }}>Audit &amp; publishing jobs</div>
+            {publishing.length === 0 && <p className="nopos">No publishing runs recorded yet.</p>}
+            {publishing.map((f) => (
+              <FreshnessCard key={f.source} f={f} />
+            ))}
+          </>
+        );
+      })()}
     </>
   );
 }
