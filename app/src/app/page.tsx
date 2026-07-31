@@ -208,7 +208,7 @@ export default async function BallotPage({
                 <optgroup key={groupName} label={groupName}>
                   {items.map((j) => (
                     <option key={j.ocd_id} value={j.ocd_id}>
-                      {j.level === "municipal" ? ` ↳ ${j.name}` : j.name}
+                      {j.level === "municipal" ? `    ${j.name}` : j.name}
                     </option>
                   ))}
                 </optgroup>
