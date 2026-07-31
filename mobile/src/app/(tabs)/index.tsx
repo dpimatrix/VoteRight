@@ -32,7 +32,14 @@ interface BallotResponse {
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   visiting: Jurisdiction | null;
-  browsable: { ocd_id: string; name: string; level: string; group_name: string; sort_key: string }[];
+  browsable: {
+    ocd_id: string;
+    name: string;
+    level: string;
+    group_name: string;
+    sort_key: string;
+    isCurrent: boolean;
+  }[];
 }
 
 export default function BallotScreen() {
@@ -170,15 +177,18 @@ export default function BallotScreen() {
                       {items.map((j) => (
                         <Pressable
                           key={j.ocd_id}
+                          disabled={j.isCurrent}
                           onPress={() => visit(j.ocd_id)}
                           style={[
                             styles.pickerChip,
                             { borderColor: colors.textSecondary },
                             j.level === "municipal" && { marginLeft: Spacing.three },
+                            j.isCurrent && { opacity: 0.4 },
                           ]}
                         >
                           <ThemedText type="small">
                             {j.level === "municipal" ? `↳ ${j.name}` : j.name}
+                            {j.isCurrent ? " (current)" : ""}
                           </ThemedText>
                         </Pressable>
                       ))}

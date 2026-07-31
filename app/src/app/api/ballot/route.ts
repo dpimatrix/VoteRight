@@ -35,6 +35,10 @@ export async function GET(request: Request) {
     jurisdictions,
     offices,
     visiting: visited ? { ocdId: visited.ocd_id, name: visited.name } : null,
-    browsable: browsable.filter((j) => j.ocd_id !== jurisdictionId),
+    // Kept in full (not filtered out) so a jurisdiction with children --
+    // Montgomery County with Rockville underneath -- still shows as the
+    // group parent even when it's also the jurisdiction you're currently on;
+    // isCurrent tells the client to render it disabled instead of dropping it.
+    browsable: browsable.map((j) => ({ ...j, isCurrent: j.ocd_id === jurisdictionId })),
   });
 }

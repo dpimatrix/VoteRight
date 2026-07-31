@@ -196,19 +196,21 @@ export default async function BallotPage({
           </p>
           <form method="post" action="/api/visit" className="admform" style={{ marginTop: 0 }}>
             <input type="hidden" name="lang" value={lang} />
-            <select name="jurisdiction" required style={{ flex: 1 }}>
+            <select name="jurisdiction" required defaultValue="" style={{ flex: 1 }}>
+              <option value="" disabled>
+                {lang === "es" ? "Elige un área" : "Choose an area"}
+              </option>
               {Object.entries(
-                browsable
-                  .filter((j) => j.ocd_id !== displayId)
-                  .reduce<Record<string, typeof browsable>>((groups, j) => {
-                    (groups[j.group_name] ??= []).push(j);
-                    return groups;
-                  }, {}),
+                browsable.reduce<Record<string, typeof browsable>>((groups, j) => {
+                  (groups[j.group_name] ??= []).push(j);
+                  return groups;
+                }, {}),
               ).map(([groupName, items]) => (
                 <optgroup key={groupName} label={groupName}>
                   {items.map((j) => (
-                    <option key={j.ocd_id} value={j.ocd_id}>
+                    <option key={j.ocd_id} value={j.ocd_id} disabled={j.ocd_id === displayId}>
                       {j.level === "municipal" ? `    ${j.name}` : j.name}
+                      {j.ocd_id === displayId ? (lang === "es" ? " (actual)" : " (current)") : ""}
                     </option>
                   ))}
                 </optgroup>
