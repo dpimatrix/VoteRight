@@ -190,15 +190,29 @@ export default async function BallotPage({
 
         <div className="card" style={{ marginTop: "0.9rem" }}>
           <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.visit_h}</div>
-          <p className="nopos" style={{ margin: "0 0 0.45rem" }}>{d.visit_sub}</p>
+          <p className="nopos" style={{ margin: "0 0 0.15rem" }}>{d.visit_sub}</p>
+          <p className="nopos" style={{ margin: "0 0 0.45rem", opacity: 0.7 }}>
+            {lang === "es" ? "Estados Unidos" : "United States"}
+          </p>
           <form method="post" action="/api/visit" className="admform" style={{ marginTop: 0 }}>
             <input type="hidden" name="lang" value={lang} />
             <select name="jurisdiction" required style={{ flex: 1 }}>
-              {browsable
-                .filter((j) => j.ocd_id !== displayId)
-                .map((j) => (
-                  <option key={j.ocd_id} value={j.ocd_id}>{j.name}</option>
-                ))}
+              {Object.entries(
+                browsable
+                  .filter((j) => j.ocd_id !== displayId)
+                  .reduce<Record<string, typeof browsable>>((groups, j) => {
+                    (groups[j.group_name] ??= []).push(j);
+                    return groups;
+                  }, {}),
+              ).map(([groupName, items]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {items.map((j) => (
+                    <option key={j.ocd_id} value={j.ocd_id}>
+                      {j.level === "municipal" ? ` ↳ ${j.name}` : j.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
             <button type="submit">{d.visit_go}</button>
           </form>

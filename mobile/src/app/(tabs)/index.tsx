@@ -32,7 +32,7 @@ interface BallotResponse {
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   visiting: Jurisdiction | null;
-  browsable: { ocd_id: string; name: string; level: string }[];
+  browsable: { ocd_id: string; name: string; level: string; group_name: string; sort_key: string }[];
 }
 
 export default function BallotScreen() {
@@ -154,15 +154,36 @@ export default function BallotScreen() {
               <ThemedText type="smallBold">Browse another jurisdiction</ThemedText>
             </Pressable>
             {showPicker && (
-              <View style={styles.pickerRow}>
-                {data.browsable.map((j) => (
-                  <Pressable
-                    key={j.ocd_id}
-                    onPress={() => visit(j.ocd_id)}
-                    style={[styles.pickerChip, { borderColor: colors.textSecondary }]}
-                  >
-                    <ThemedText type="small">{j.name}</ThemedText>
-                  </Pressable>
+              <View style={{ gap: Spacing.two }}>
+                <ThemedText type="small" style={{ opacity: 0.7 }}>United States</ThemedText>
+                {Object.entries(
+                  data.browsable.reduce<Record<string, typeof data.browsable>>((groups, j) => {
+                    (groups[j.group_name] ??= []).push(j);
+                    return groups;
+                  }, {}),
+                ).map(([groupName, items]) => (
+                  <View key={groupName} style={{ gap: Spacing.two }}>
+                    <ThemedText type="small" style={{ opacity: 0.55, marginLeft: Spacing.two }}>
+                      {groupName}
+                    </ThemedText>
+                    <View style={styles.pickerRow}>
+                      {items.map((j) => (
+                        <Pressable
+                          key={j.ocd_id}
+                          onPress={() => visit(j.ocd_id)}
+                          style={[
+                            styles.pickerChip,
+                            { borderColor: colors.textSecondary },
+                            j.level === "municipal" && { marginLeft: Spacing.three },
+                          ]}
+                        >
+                          <ThemedText type="small">
+                            {j.level === "municipal" ? `↳ ${j.name}` : j.name}
+                          </ThemedText>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
                 ))}
               </View>
             )}

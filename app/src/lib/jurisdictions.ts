@@ -156,15 +156,34 @@ export async function userResidence(userId: string): Promise<{ ocd_id: string; n
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
     Browsing NEVER touches residence or participation rights — every eligibility
     check in the app reads users.residence_jurisdiction_id from the database,
-    not the visit cookie. */
-export async function listBrowsableJurisdictions(): Promise<{ ocd_id: string; name: string; level: string }[]> {
+    not the visit cookie.
+
+    groupName is the state (or, for D.C., itself — it has no state parent) so
+    callers can render a country → state → county → municipality picker without
+    re-deriving the jurisdiction stack client-side. sortKey is the county's own
+    name (or the jurisdiction's own name for county/state rows), so a
+    municipality always sorts immediately after its parent county within its
+    state group. */
+export async function listBrowsableJurisdictions(): Promise<
+  { ocd_id: string; name: string; level: string; group_name: string; sort_key: string }[]
+> {
   const { rows } = await db().query(
-    `SELECT j.ocd_id, j.name, j.level
-       FROM jurisdictions j
-      WHERE EXISTS (SELECT 1 FROM offices o WHERE o.jurisdiction_id = j.ocd_id AND o.is_elected)
-      ORDER BY j.level, j.name`,
+    `WITH b AS (
+       SELECT j.ocd_id, j.name, j.level, j.parent_ocd_id
+         FROM jurisdictions j
+        WHERE EXISTS (SELECT 1 FROM offices o WHERE o.jurisdiction_id = j.ocd_id AND o.is_elected)
+     )
+     SELECT
+       b.ocd_id, b.name, b.level,
+       COALESCE(st.name, cst.name, b.name) AS group_name,
+       COALESCE(county.name, b.name) AS sort_key
+       FROM b
+       LEFT JOIN jurisdictions county ON county.ocd_id = b.parent_ocd_id AND b.level = 'municipal'
+       LEFT JOIN jurisdictions st ON st.ocd_id = b.parent_ocd_id AND st.level = 'state'
+       LEFT JOIN jurisdictions cst ON cst.ocd_id = county.parent_ocd_id AND cst.level = 'state'
+      ORDER BY group_name, sort_key, b.level`,
   );
-  return rows as { ocd_id: string; name: string; level: string }[];
+  return rows as { ocd_id: string; name: string; level: string; group_name: string; sort_key: string }[];
 }
 
 /** The names in the user's stack, deepest first — for the "your ballot covers"
