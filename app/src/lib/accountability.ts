@@ -115,16 +115,41 @@ export async function campaignsForPolitician(politicianId: string) {
 }
 
 /** Public act (§10.2 — like seconding): attributed, one per verified user;
-    support_count self-corrects from the per-user rows. */
+    support_count self-corrects from the per-user rows.
+
+    Eligibility walks UP the supporter's jurisdiction stack against the
+    campaign's pathway jurisdiction, same pattern as issueBallot in
+    referenda.ts -- a City of Rockville resident can support a Montgomery
+    County-wide campaign; the reverse fails. Unlike a referendum, a campaign
+    has no opens_at to anchor a residency-established-before check against
+    (it's ongoing, not a single time-boxed vote), so this is jurisdiction-only. */
 export async function supportCampaign(
   campaignId: string,
   userId: string,
   tier: string,
   signing?: { signature: string; publicKeyFingerprint: string; contextHash?: string },
-): Promise<{ signatureInvalid: true } | { signatureInvalid: false }> {
+): Promise<"ok" | "signature_invalid" | "not_eligible"> {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    const elig = await client.query(
+      `WITH RECURSIVE up AS (
+         SELECT j.ocd_id, j.parent_ocd_id
+           FROM users u JOIN jurisdictions j ON j.ocd_id = u.residence_jurisdiction_id
+          WHERE u.id = $2
+         UNION ALL
+         SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN up ON j.ocd_id = up.parent_ocd_id
+       )
+       SELECT EXISTS (
+         SELECT 1 FROM up JOIN accountability_pathways ap ON ap.jurisdiction_id = up.ocd_id
+          WHERE ap.id = (SELECT pathway_id FROM accountability_campaigns WHERE id = $1)
+       ) AS eligible`,
+      [campaignId, userId],
+    );
+    if (!elig.rows[0]?.eligible) {
+      await client.query("ROLLBACK");
+      return "not_eligible";
+    }
     let signedActionId: string | null = null;
     if (signing) {
       const { recordSignedAction, canonicalAccountabilitySupportPayload } = await import("./signing");
@@ -139,7 +164,7 @@ export async function supportCampaign(
         });
       } catch {
         await client.query("ROLLBACK");
-        return { signatureInvalid: true };
+        return "signature_invalid";
       }
     }
     await client.query(
@@ -154,7 +179,7 @@ export async function supportCampaign(
       [campaignId],
     );
     await client.query("COMMIT");
-    return { signatureInvalid: false };
+    return "ok";
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

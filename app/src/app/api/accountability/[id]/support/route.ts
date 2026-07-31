@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
   const signature = form.get("signature") as string | null;
   const publicKeyFingerprint = form.get("publicKeyFingerprint") as string | null;
-  await supportCampaign(
+  const res = await supportCampaign(
     id,
     userId,
     await userTier(userId),
@@ -43,5 +43,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       : undefined,
   );
-  return Response.redirect(new URL(`/accountability/${id}?lang=${lang}`, request.url), 303);
+  const err = res === "not_eligible" ? "&e=nel" : res === "signature_invalid" ? "&e=sig" : "";
+  return Response.redirect(new URL(`/accountability/${id}?lang=${lang}${err}`, request.url), 303);
 }

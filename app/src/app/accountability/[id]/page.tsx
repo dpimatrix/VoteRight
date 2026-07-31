@@ -13,10 +13,11 @@ export default async function CampaignPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; e?: string }>;
 }) {
   const { id } = await params;
-  const lang = langFrom((await searchParams).lang);
+  const sp = await searchParams;
+  const lang = langFrom(sp.lang);
   const d = t(lang);
   const userId = await currentUserId();
   const c = await campaignDetail(id, userId);
@@ -70,6 +71,7 @@ export default async function CampaignPage({
               {d.acct_ext_status}: {d.ext[c.external_petition_status as keyof typeof d.ext] ?? c.external_petition_status}
             </p>
           )}
+          {sp.e === "nel" && <p className="pill broken">{d.acct_not_eligible}</p>}
           {c.supported ? (
             <p className="pill kept" style={{ margin: "0.4rem 0 0" }}>{d.acct_supported}</p>
           ) : verified && c.status === "gathering_support" ? (
