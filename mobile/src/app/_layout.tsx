@@ -1,12 +1,13 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemePreferenceProvider } from '@/hooks/theme-preference';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutNav() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -21,7 +22,16 @@ export default function RootLayout() {
         <Stack.Screen name="mandates/[id]" options={{ headerShown: true, title: 'Mandate' }} />
         <Stack.Screen name="accountability/list" options={{ headerShown: true, title: 'Accountability' }} />
         <Stack.Screen name="accountability/[id]" options={{ headerShown: true, title: 'Campaign' }} />
+        <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
       </Stack>
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemePreferenceProvider>
+      <RootLayoutNav />
+    </ThemePreferenceProvider>
   );
 }

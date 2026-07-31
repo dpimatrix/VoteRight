@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { post } from '@/services/api';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function VerifyScreen() {
   const router = useRouter();

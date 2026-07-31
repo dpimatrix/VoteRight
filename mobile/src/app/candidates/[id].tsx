@@ -1,12 +1,13 @@
 import { useFocusEffect } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface EvidenceItem {
   value: number;

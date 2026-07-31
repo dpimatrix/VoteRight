@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalArgumentPayload } from '@/lib/canonical';
@@ -7,6 +7,7 @@ import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/si
 import { post } from '@/services/api';
 
 import { ThemedText } from './themed-text';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type Side = 'for' | 'against' | 'neutral_info';
 const SIDE_OPTIONS: { value: Side; label: string }[] = [

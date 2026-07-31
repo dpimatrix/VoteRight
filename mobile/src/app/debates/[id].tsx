@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DebateComposer } from '@/components/DebateComposer';
@@ -10,6 +10,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { canonicalSecondPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
 import { ensureSession, get, hasSession, post } from '@/services/api';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface Citation {
   publisher: string;

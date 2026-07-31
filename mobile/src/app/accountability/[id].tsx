@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { canonicalAccountabilitySupportPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
 import { ensureSession, get, hasSession, post } from '@/services/api';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface CampaignDetail {
   id: string;

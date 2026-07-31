@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const VISIT_KEY = 'voteright_visit_jurisdiction';
 
@@ -35,6 +36,7 @@ interface BallotResponse {
 }
 
 export default function BallotScreen() {
+  const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [data, setData] = useState<BallotResponse | null>(null);
@@ -77,9 +79,17 @@ export default function BallotScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          Your ballot
-        </ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText type="title" style={styles.title}>
+            Your ballot
+          </ThemedText>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            style={[styles.settingsBtn, { backgroundColor: colors.backgroundElement }]}
+          >
+            <ThemedText type="smallBold">⚙</ThemedText>
+          </Pressable>
+        </View>
         {!data && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{error}</ThemedText>}
 
@@ -155,7 +165,9 @@ export default function BallotScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: { padding: Spacing.four, gap: Spacing.three },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { marginBottom: Spacing.two },
+  settingsBtn: { borderRadius: Spacing.four, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   spinner: { marginTop: Spacing.five },
   visitBanner: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   section: { gap: Spacing.two },
