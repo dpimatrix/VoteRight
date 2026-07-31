@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, TextInput, useColorScheme } from 'react-native';
 
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { post } from '@/services/api';
@@ -36,45 +36,42 @@ export default function VerifyScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          Verify your address
+    <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+      <ThemedText type="title" style={styles.title}>
+        Verify your address
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        Proposing, seconding, and arguing are limited to Montgomery County residents. Your address is used only
+        to confirm your jurisdiction — never matched against any voter file.
+      </ThemedText>
+      <TextInput
+        value={address}
+        onChangeText={setAddress}
+        placeholder="123 Main St, Rockville, MD"
+        placeholderTextColor={colors.textSecondary}
+        autoComplete="street-address"
+        style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+      />
+      {error && (
+        <ThemedText type="small" style={styles.error}>
+          {error}
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Proposing, seconding, and arguing are limited to Montgomery County residents. Your address is used only
-          to confirm your jurisdiction — never matched against any voter file.
-        </ThemedText>
-        <TextInput
-          value={address}
-          onChangeText={setAddress}
-          placeholder="123 Main St, Rockville, MD"
-          placeholderTextColor={colors.textSecondary}
-          autoComplete="street-address"
-          style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
-        />
-        {error && (
-          <ThemedText type="small" style={styles.error}>
-            {error}
-          </ThemedText>
-        )}
-        <Pressable
-          disabled={busy || address.trim().length < 12}
-          onPress={submit}
-          style={[
-            styles.submitBtn,
-            { backgroundColor: busy || address.trim().length < 12 ? colors.backgroundElement : colors.evidence },
-          ]}
-        >
-          <ThemedText type="smallBold">Verify</ThemedText>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+      )}
+      <Pressable
+        disabled={busy || address.trim().length < 12}
+        onPress={submit}
+        style={[
+          styles.submitBtn,
+          { backgroundColor: busy || address.trim().length < 12 ? colors.backgroundElement : colors.evidence },
+        ]}
+      >
+        <ThemedText type="smallBold">Verify</ThemedText>
+      </Pressable>
+    </KeyboardAwareScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, fontSize: 16 },

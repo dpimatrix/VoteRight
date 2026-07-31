@@ -1,9 +1,10 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DebateComposer } from '@/components/DebateComposer';
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalSecondPayload } from '@/lib/canonical';
@@ -161,8 +162,7 @@ export default function DebateScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="subtitle">{detail.title}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           {detail.topic}
@@ -295,8 +295,7 @@ export default function DebateScreen() {
               ))}
           </>
         )}
-      </ScrollView>
-    </SafeAreaView>
+    </KeyboardAwareScreen>
   );
 }
 

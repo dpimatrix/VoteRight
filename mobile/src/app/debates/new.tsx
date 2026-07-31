@@ -1,18 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useColorScheme,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
 
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalProposalPayload } from '@/lib/canonical';
@@ -83,16 +73,10 @@ export default function NewProposalScreen() {
   const canSubmit = !!topicId && title.trim().length >= 10 && body.trim().length >= 30;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.safeArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-      >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="title" style={styles.title}>
-            Propose an issue
-          </ThemedText>
+    <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+      <ThemedText type="title" style={styles.title}>
+        Propose an issue
+      </ThemedText>
 
         {!topics && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{error}</ThemedText>}
@@ -145,14 +129,11 @@ export default function NewProposalScreen() {
         >
           <ThemedText type="smallBold">Submit proposal</ThemedText>
         </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },

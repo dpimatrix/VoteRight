@@ -1,8 +1,8 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, useColorScheme, View } from 'react-native';
 
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
@@ -125,11 +125,10 @@ export default function AccountabilityScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          Accountability
-        </ThemedText>
+    <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+      <ThemedText type="title" style={styles.title}>
+        Accountability
+      </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           Organize around real mechanisms — not signature petitions. In-app support has no legal effect.
         </ThemedText>
@@ -257,8 +256,7 @@ export default function AccountabilityScreen() {
             <ThemedText type="smallBold">Verify to start a campaign</ThemedText>
           </Pressable>
         )}
-      </ScrollView>
-    </SafeAreaView>
+    </KeyboardAwareScreen>
   );
 }
 
