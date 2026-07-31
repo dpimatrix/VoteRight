@@ -1,29 +1,6 @@
 import { db } from "./db";
 import type { EvidenceCoding, Priority } from "./scoring/engine";
 
-const COUNTY = "ocd-division/country:us/state:md/county:montgomery";
-
-/* ── your ballot ── */
-export async function ballot() {
-  const { rows } = await db().query(
-    `SELECT o.id, o.title, o.level, o.seat_count,
-            r.id AS race_id, r.seats_elected
-       FROM offices o
-       LEFT JOIN races r ON r.office_id = o.id
-      WHERE o.jurisdiction_id = $1
-      ORDER BY o.level, o.title`,
-    [COUNTY],
-  );
-  return rows as {
-    id: string;
-    title: string;
-    level: string;
-    seat_count: number;
-    race_id: string | null;
-    seats_elected: number | null;
-  }[];
-}
-
 /* ── voting record (D2: ingested facts with citations) ── */
 export async function votesFor(politicianId: string, limit = 8) {
   const { rows } = await db().query(
@@ -77,13 +54,17 @@ export async function topicsWithAxes() {
 }
 
 /* ── anonymous voter (cookie-scoped; verification_tier stays 'unverified') ── */
+/* Nationwide expansion: no default residence — a new anonymous user's jurisdiction
+   is unknown until they verify a real address (verifyAddress in debates.ts). Assuming
+   a county here (as the pilot-only version did) would be actively wrong for anyone
+   outside whatever county happened to be hardcoded. */
 export async function ensureUser(anonId: string): Promise<string> {
   const { rows } = await db().query(
     `INSERT INTO users (auth_id, residence_jurisdiction_id)
-     VALUES ($1, $2)
+     VALUES ($1, NULL)
      ON CONFLICT (auth_id) DO UPDATE SET auth_id = EXCLUDED.auth_id
      RETURNING id`,
-    [`anon:${anonId}`, COUNTY],
+    [`anon:${anonId}`],
   );
   return rows[0].id as string;
 }

@@ -22,11 +22,15 @@ function EnglishNotice({ lang }: { lang: string }) {
     <>
       <H>1 · Who we are</H>
       <P>
-        VoteRight is a civic-information platform piloting in Montgomery County, Maryland.
-        This notice explains what personal data the platform processes, why, and the rights
-        Maryland residents have under the Maryland Online Data Privacy Act (MODPA, Md. Code,
-        Com. Law §14-4601 et seq., effective October 1, 2025, applying to processing on and
-        after April 1, 2026).
+        VoteRight is a civic-information platform piloting in the Washington, D.C. area —
+        Montgomery and Prince George's Counties in Maryland, Fairfax and Arlington Counties
+        in Virginia, and the District of Columbia. This notice explains what personal data
+        the platform processes and why. Maryland residents' rights under the Maryland Online
+        Data Privacy Act (MODPA, Md. Code, Com. Law §14-4601 et seq., effective October 1,
+        2025, applying to processing on and after April 1, 2026) are described below.
+        Virginia's Consumer Data Protection Act and D.C.'s privacy law may grant Virginia and
+        D.C. residents different or additional rights — that section is pending counsel
+        review (COUNSEL-REVIEW.md item C4) and isn't represented here yet.
       </P>
 
       <H>2 · What we collect — and what we deliberately do not</H>
@@ -136,11 +140,17 @@ function SpanishNotice({ lang }: { lang: string }) {
     <>
       <H>1 · Quiénes somos</H>
       <P>
-        VoteRight es una plataforma de información cívica en fase piloto en el condado de
-        Montgomery, Maryland. Este aviso explica qué datos personales procesa la plataforma,
-        por qué, y los derechos de los residentes de Maryland bajo la Ley de Privacidad de
-        Datos en Línea de Maryland (MODPA, Md. Code, Com. Law §14-4601 y ss., vigente desde
-        el 1 de octubre de 2025, aplicable al procesamiento desde el 1 de abril de 2026).
+        VoteRight es una plataforma de información cívica en fase piloto en el área de
+        Washington, D.C. — los condados de Montgomery y Prince George's en Maryland, los
+        condados de Fairfax y Arlington en Virginia, y el Distrito de Columbia. Este aviso
+        explica qué datos personales procesa la plataforma y por qué. Los derechos de los
+        residentes de Maryland bajo la Ley de Privacidad de Datos en Línea de Maryland
+        (MODPA, Md. Code, Com. Law §14-4601 y ss., vigente desde el 1 de octubre de 2025,
+        aplicable al procesamiento desde el 1 de abril de 2026) se describen abajo. La Ley
+        de Protección de Datos del Consumidor de Virginia y la ley de privacidad de D.C.
+        podrían otorgar a los residentes de Virginia y D.C. derechos distintos o
+        adicionales — esa sección está pendiente de revisión legal (COUNSEL-REVIEW.md,
+        punto C4) y todavía no se refleja aquí.
       </P>
 
       <H>2 · Qué recopilamos — y qué deliberadamente no</H>

@@ -39,16 +39,52 @@ export interface CensusResponse {
   result?: { addressMatches?: { geographies?: Record<string, CensusGeography[]> }[] };
 }
 
-/** Pure mapping (unit-tested): Census geographies → pilot jurisdiction. */
-export function mapCensusToJurisdiction(data: CensusResponse): "no_match" | "outside" | string {
+export interface ExtractedGeography {
+  stateFips: string;
+  countyFips: string;
+  placeName: string | null;
+}
+
+/** Pure extraction (unit-tested): Census response → raw FIPS + place name, no
+    jurisdiction/DB knowledge at all. Nationwide by construction — every US county
+    the geocoder can match produces a FIPS pair here; whether we've actually seeded
+    that county is a question for jurisdictionForGeography below, not this function. */
+export function extractCensusGeography(data: CensusResponse): "no_match" | ExtractedGeography {
   const match = data?.result?.addressMatches?.[0];
   if (!match) return "no_match";
   const county = (match.geographies?.["Counties"] ?? [])[0];
-  // Montgomery County, MD = state FIPS 24, county FIPS 031
-  if (!county || county.STATE !== "24" || county.COUNTY !== "031") return "outside";
+  if (!county?.STATE || !county?.COUNTY) return "no_match";
   const place = (match.geographies?.["Incorporated Places"] ?? [])[0];
-  if (place?.NAME && /^rockville\b/i.test(place.NAME)) return ROCKVILLE;
-  return COUNTY;
+  return { stateFips: county.STATE, countyFips: county.COUNTY, placeName: place?.NAME ?? null };
+}
+
+/** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end
+    verification instead): does a seeded jurisdiction exist for this FIPS pair? A
+    seeded municipality inside that county (e.g. Rockville inside Montgomery County)
+    takes priority when the Census place name matches one — adding the next county,
+    or the next municipality, is a data insert (docs/SCHEMA.sql `jurisdictions`
+    rows), never a code change here. */
+async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outside" | string> {
+  const county = await db().query(
+    `SELECT ocd_id FROM jurisdictions WHERE level = 'county' AND state_fips = $1 AND county_fips = $2`,
+    [geo.stateFips, geo.countyFips],
+  );
+  if (county.rowCount === 0) return "outside";
+  const countyOcdId = county.rows[0].ocd_id as string;
+
+  if (geo.placeName) {
+    // Census returns e.g. "Rockville city"; jurisdictions.name stores "City of
+    // Rockville" — neither is a prefix of the other, so match on the bare place
+    // name as a substring of the stored name rather than requiring an exact form.
+    const bareName = geo.placeName.replace(/\s+(city|town|cdp|village|borough)$/i, "").trim();
+    const muni = await db().query(
+      `SELECT ocd_id FROM jurisdictions
+        WHERE level = 'municipal' AND parent_ocd_id = $1 AND name ILIKE '%' || $2 || '%'`,
+      [countyOcdId, bareName],
+    );
+    if ((muni.rowCount ?? 0) > 0) return muni.rows[0].ocd_id as string;
+  }
+  return countyOcdId;
 }
 
 export async function resolveJurisdiction(address: string): Promise<Resolution> {
@@ -61,8 +97,9 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
     u.searchParams.set("format", "json");
     const res = await fetch(u, { signal: AbortSignal.timeout(6000) });
     if (!res.ok) throw new Error(`census ${res.status}`);
-    const mapped = mapCensusToJurisdiction((await res.json()) as CensusResponse);
-    if (mapped === "no_match") return { outcome: "no_match", method: CENSUS_RESOLVER };
+    const geo = extractCensusGeography((await res.json()) as CensusResponse);
+    if (geo === "no_match") return { outcome: "no_match", method: CENSUS_RESOLVER };
+    const mapped = await jurisdictionForGeography(geo);
     if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
     return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER };
   } catch {

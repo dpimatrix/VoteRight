@@ -6,8 +6,6 @@ import { db } from "./db";
    citizen organizing on top of those facts, with two hard limits: in-app support
    is never a legal signature, and the disclosure text is generated, not edited. */
 
-const COUNTY = "ocd-division/country:us/state:md/county:montgomery";
-
 export interface Pathway {
   id: string;
   mechanism_type: string;
@@ -45,9 +43,17 @@ export async function pathwaysForPolitician(politicianId: string): Promise<{ pat
        FROM accountability_pathways ap
        LEFT JOIN offices o ON o.id = ap.office_id
       WHERE ap.office_id = (SELECT current_office_id FROM politicians WHERE id = $1)
-         OR (ap.office_id IS NULL AND ap.jurisdiction_id = $2)
+         -- Jurisdiction-wide pathways (e.g. a charter amendment petition) apply
+         -- only within the politician's OWN jurisdiction — Virginia and D.C. have
+         -- no equivalent to Maryland's Article XI-A charter petition, so this must
+         -- never silently borrow another state's mechanism (§2 discipline).
+         OR (ap.office_id IS NULL AND ap.jurisdiction_id = (
+               SELECT o2.jurisdiction_id FROM politicians p
+                 JOIN offices o2 ON o2.id = p.current_office_id
+                WHERE p.id = $1
+             ))
       ORDER BY ap.is_binding DESC, ap.mechanism_type`,
-    [politicianId, COUNTY],
+    [politicianId],
   );
   return {
     pathways: rows as Pathway[],

@@ -11,6 +11,8 @@ CREATE TABLE jurisdictions (
     name            TEXT NOT NULL,
     level           TEXT NOT NULL CHECK (level IN ('country','state','county','municipal','school_district','special_district')),
     parent_ocd_id   TEXT REFERENCES jurisdictions(ocd_id),
+    state_fips      TEXT,                           -- US Census state FIPS (e.g. '24' = MD); nationwide address resolution keys off this pair instead of a hardcoded county check
+    county_fips     TEXT,                           -- US Census county FIPS (e.g. '031' = Montgomery Co., MD); D.C. is its own county-equivalent ('11'/'001')
     registered_voter_count INTEGER,                 -- refreshed periodically from official SBE stats; denominator for voter_mandates turnout_pct_of_registered
     registered_voter_count_as_of DATE
 );

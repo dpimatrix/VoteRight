@@ -7,7 +7,7 @@ export function langFrom(v: string | string[] | undefined): Lang {
 
 const DICT = {
   en: {
-    county: "Montgomery County, MD",
+    county: "DC · MD · VA",
     tagline: "Matched to what you actually want",
     ballot_h: "Every seat your address elects",
     ballot_note:
@@ -134,14 +134,15 @@ const DICT = {
     new_topic: "Topic",
     new_submit: "Submit proposal",
     new_pub: "Public — your name appears as the proposer.",
-    verify_h: "Verify your county address",
+    verify_h: "Verify your address",
     verify_p:
       "Seconding, debating, and voting are one-per-verified-person. Your address is self-attested and format-checked only — never matched against any voter file, never shown to anyone.",
-    verify_ph: "Street address, city, MD",
+    verify_ph: "Street address, city, state",
     verify_btn: "Verify address",
-    verify_bad: "That doesn’t look like a Maryland street address — include a street number, street, and MD.",
+    verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
     verify_outside:
-      "That address is outside Montgomery County. The pilot covers county residents only.",
+      "That address is outside our current coverage area. The pilot covers select DC/Maryland/Virginia jurisdictions only.",
+    ballot_no_residence: "Verify your address to see your ballot.",
     realdata_note:
       "Early real-data phase: positions are being ingested from sourced records. A candidate is scored only once enough sourced positions exist — silence is shown as silence, never guessed.",
     votes_h: "Voting record",
@@ -295,7 +296,7 @@ const DICT = {
     },
   },
   es: {
-    county: "Condado de Montgomery, MD",
+    county: "DC · MD · VA",
     tagline: "Compatibilidad con lo que tú realmente quieres",
     ballot_h: "Cada cargo que elige tu dirección",
     ballot_note:
@@ -422,14 +423,15 @@ const DICT = {
     new_topic: "Tema",
     new_submit: "Enviar propuesta",
     new_pub: "Público — tu nombre aparece como proponente.",
-    verify_h: "Verifica tu dirección en el condado",
+    verify_h: "Verifica tu dirección",
     verify_p:
       "Apoyar, debatir y votar es uno-por-persona-verificada. Tu dirección es autodeclarada y solo se valida su formato — nunca se compara con ningún padrón, nunca se muestra a nadie.",
-    verify_ph: "Dirección, ciudad, MD",
+    verify_ph: "Dirección, ciudad, estado",
     verify_btn: "Verificar dirección",
-    verify_bad: "No parece una dirección de Maryland — incluye número, calle y MD.",
+    verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
     verify_outside:
-      "Esa dirección está fuera del condado de Montgomery. El piloto cubre solo a residentes del condado.",
+      "Esa dirección está fuera de nuestra área de cobertura actual. El piloto cubre solo ciertas jurisdicciones de DC/Maryland/Virginia.",
+    ballot_no_residence: "Verifica tu dirección para ver tu boleta.",
     realdata_note:
       "Fase temprana de datos reales: las posturas se ingieren de registros con fuente. Un candidato solo se puntúa cuando existen suficientes posturas con fuente — el silencio se muestra como silencio, nunca se adivina.",
     votes_h: "Historial de votos",

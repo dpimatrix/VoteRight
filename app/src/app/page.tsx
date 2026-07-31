@@ -6,7 +6,6 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
-  COUNTY,
   listBrowsableJurisdictions,
   userResidence,
   type StackedOffice,
@@ -14,11 +13,16 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const COUNTY_LEVELS: { level: string; en: string; es: string }[] = [
-  { level: "county", en: "Montgomery County", es: "Condado de Montgomery" },
-  { level: "school_board", en: "School board", es: "Junta escolar" },
-  { level: "judicial", en: "Judicial", es: "Judicial" },
-];
+// Some jurisdictions elect their school board and judiciary separately from
+// general county government — where seeded offices carry those levels, they get
+// their own sub-heading instead of one flat list. Not every jurisdiction has all
+// three (a jurisdiction with no judicial-level offices just skips that group).
+const SUB_GROUP_LEVELS = ["county", "school_board", "judicial"] as const;
+const SUB_GROUP_LABELS: Record<(typeof SUB_GROUP_LEVELS)[number], { en: string; es: string } | null> = {
+  county: null, // uses the jurisdiction's own name instead of a fixed label
+  school_board: { en: "School board", es: "Junta escolar" },
+  judicial: { en: "Judicial", es: "Judicial" },
+};
 
 function officeCode(title: string): string {
   if (title.includes("At-Large")) return "AL";
@@ -90,7 +94,10 @@ export default async function BallotPage({
   const d = t(lang);
   const userId = await currentUserId();
   const residence = (userId && (await userResidence(userId))) || null;
-  const residenceId = residence?.ocd_id ?? COUNTY;
+  // No default jurisdiction — a not-yet-verified user's residence is genuinely
+  // unknown nationwide (see ensureUser in queries.ts). Visitor mode below still
+  // works without one; only "your ballot" needs a real, verified residence.
+  const residenceId = residence?.ocd_id ?? null;
 
   // Visitor mode: a display-only lens. Participation rights always follow
   // users.residence_jurisdiction_id in the database, never this cookie.
@@ -99,7 +106,7 @@ export default async function BallotPage({
   const visited = browsable.find((j) => j.ocd_id === visitCookie && j.ocd_id !== residenceId) ?? null;
   const displayId = visited ? visited.ocd_id : residenceId;
 
-  const offices = await ballotForJurisdiction(displayId);
+  const offices = displayId ? await ballotForJurisdiction(displayId) : [];
 
   // Jurisdictions in stack order (deepest first), from the rows themselves.
   const jurisdictions: { id: string; name: string }[] = [];
@@ -117,6 +124,14 @@ export default async function BallotPage({
         <p>{d.tagline}</p>
       </div>
       <div className="pagepad">
+        {!displayId && (
+          <div className="disclosure" style={{ marginTop: "0.7rem" }}>
+            <span>{d.ballot_no_residence}</span>
+            <Link className="btn" href={`/verify?lang=${lang}`} style={{ marginTop: "0.5rem" }}>
+              {d.verify_btn}
+            </Link>
+          </div>
+        )}
         {visited && (
           <div className="disclosure" style={{ marginTop: "0.7rem" }}>
             <span className="tag">{lang === "es" ? "Visitante" : "Visitor"}</span>
@@ -139,14 +154,15 @@ export default async function BallotPage({
         )}
         {jurisdictions.map((j) => {
           const rows = offices.filter((o) => o.jurisdiction_id === j.id);
-          if (j.id === COUNTY) {
-            // County keeps its level sub-groups (county / school board / judicial).
-            return COUNTY_LEVELS.map((g) => {
-              const lv = rows.filter((o) => o.level === g.level);
+          const hasSubGroups = rows.some((o) => (SUB_GROUP_LEVELS as readonly string[]).includes(o.level));
+          if (hasSubGroups) {
+            return SUB_GROUP_LEVELS.map((level) => {
+              const lv = rows.filter((o) => o.level === level);
               if (lv.length === 0) return null;
+              const label = SUB_GROUP_LABELS[level];
               return (
-                <section key={g.level}>
-                  <div className="grouph">{g[lang]}</div>
+                <section key={level}>
+                  <div className="grouph">{label ? label[lang] : j.name}</div>
                   {lv.map((o) => (
                     <SeatRow key={o.id} o={o} lang={lang} d={d} />
                   ))}

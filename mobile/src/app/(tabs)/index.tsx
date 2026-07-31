@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
-import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ensureSession, get, hasSession } from '@/services/api';
 
 const VISIT_KEY = 'voteright_visit_jurisdiction';
 
@@ -27,8 +27,8 @@ interface Jurisdiction {
 }
 
 interface BallotResponse {
-  jurisdictionId: string;
-  residenceId: string;
+  jurisdictionId: string | null;
+  residenceId: string | null;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   visiting: Jurisdiction | null;
@@ -92,6 +92,17 @@ export default function BallotScreen() {
         </View>
         {!data && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{error}</ThemedText>}
+
+        {data && !data.jurisdictionId && (
+          <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>
+            <ThemedText type="small">
+              Verify your address to see your ballot — it's the only way we know which real seats you elect.
+            </ThemedText>
+            <Pressable onPress={() => router.push('/verify')}>
+              <ThemedText type="linkPrimary">Verify address</ThemedText>
+            </Pressable>
+          </View>
+        )}
 
         {data?.visiting && (
           <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>

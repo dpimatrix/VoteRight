@@ -15,9 +15,14 @@ export async function userTier(userId: string): Promise<string> {
 
 export function addressLooksValid(address: string): boolean {
   // Dev-grade format check standing in for the geocoding vendor (§2.6): a street
-  // number, a street name, and something county-plausible. Never matched against
-  // any voter file.
-  return /\d+\s+\S+.*\s+(md|maryland)\b/i.test(address.trim()) && address.trim().length >= 12;
+  // number, a street name, and something jurisdiction-plausible. Never matched
+  // against any voter file. Covers the DMV pilot area (MD/VA/DC) — the real gate
+  // is resolveJurisdiction's live Census geocoder call right after this; this is
+  // just a cheap pre-check to reject obviously-malformed input before that call.
+  return (
+    /\d+\s+\S+.*\s+(md|maryland|va|virginia|dc|d\.c\.|district of columbia)\b/i.test(address.trim()) &&
+    address.trim().length >= 12
+  );
 }
 
 export async function verifyAddress(
@@ -87,6 +92,16 @@ export async function createProposal(opts: {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // The proposal's jurisdiction is wherever its creator actually lives, not a
+    // hardcoded county — createProposal is only reachable via verifiedUserId(),
+    // so a real residence_jurisdiction_id is already guaranteed to be set by the
+    // time an address_verified user gets here (see verifyAddress in this file).
+    const residence = await client.query(`SELECT residence_jurisdiction_id FROM users WHERE id = $1`, [opts.userId]);
+    const jurisdictionId = residence.rows[0]?.residence_jurisdiction_id as string | undefined;
+    if (!jurisdictionId) {
+      await client.query("ROLLBACK");
+      throw new Error("createProposal: creating user has no residence_jurisdiction_id set");
+    }
     let signedActionId: string | null = null;
     if (opts.signature && opts.publicKeyFingerprint) {
       const { recordSignedAction, canonicalProposalPayload } = await import("./signing");
@@ -107,9 +122,9 @@ export async function createProposal(opts: {
     const { rows } = await client.query(
       `INSERT INTO issue_proposals
          (created_by_user_id, jurisdiction_id, topic_id, title, body, second_threshold, signed_action_id)
-       VALUES ($1, 'ocd-division/country:us/state:md/county:montgomery', $2, $3, $4, $5, $6)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [opts.userId, opts.topicId, opts.title, opts.body, SECOND_THRESHOLD, signedActionId],
+      [opts.userId, jurisdictionId, opts.topicId, opts.title, opts.body, SECOND_THRESHOLD, signedActionId],
     );
     await client.query("COMMIT");
     return { signatureInvalid: false, id: rows[0].id as string };

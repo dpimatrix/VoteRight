@@ -197,6 +197,16 @@ cryptographic e-voting guarantees (§10.1).
 **We need:** whether structural secrecy suffices for an advisory poll of this visibility,
 or whether a stronger protocol is warranted before mandates carry real political weight.
 
+**C4. Virginia / D.C. privacy law coverage** *(new — before the DMV expansion's privacy
+notice can honestly claim multi-jurisdiction coverage)*
+The privacy notice (`app/src/app/privacy/page.tsx`) currently frames rights entirely
+under Maryland's MODPA. With real Prince George's/Fairfax/Arlington/D.C. users, Virginia's
+Consumer Data Protection Act (VCDPA) and D.C.'s privacy regime may grant residents of
+those jurisdictions different or additional rights MODPA doesn't cover.
+**We need:** whether VCDPA's applicability thresholds are met, what if anything D.C.
+requires, and updated per-jurisdiction rights language before the notice can accurately
+describe VA/D.C. residents' rights — not just Maryland's.
+
 ## D. Accuracy of legal mechanisms shown to voters
 
 **D1. Per-office mechanism verification** *(item 3 — rolling, before each expansion)*

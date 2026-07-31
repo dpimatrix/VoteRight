@@ -1,5 +1,5 @@
 import { currentUserId } from "@/lib/anon";
-import { ballotForJurisdiction, COUNTY, listBrowsableJurisdictions, userResidence } from "@/lib/jurisdictions";
+import { ballotForJurisdiction, listBrowsableJurisdictions, userResidence } from "@/lib/jurisdictions";
 
 /* JSON read-side counterpart to the / (ballot) page — used by the native app,
    which can't import server-only page.tsx modules. Mirrors app/src/app/page.tsx's
@@ -11,14 +11,16 @@ import { ballotForJurisdiction, COUNTY, listBrowsableJurisdictions, userResidenc
 export async function GET(request: Request) {
   const userId = await currentUserId();
   const residence = (userId && (await userResidence(userId))) || null;
-  const residenceId = residence?.ocd_id ?? COUNTY;
+  // No default jurisdiction — see ensureUser in queries.ts. A brand-new mobile
+  // session has an unknown residence until /api/verify resolves a real address.
+  const residenceId = residence?.ocd_id ?? null;
 
   const visit = new URL(request.url).searchParams.get("visit");
   const browsable = await listBrowsableJurisdictions();
   const visited = visit ? (browsable.find((j) => j.ocd_id === visit && j.ocd_id !== residenceId) ?? null) : null;
   const jurisdictionId = visited ? visited.ocd_id : residenceId;
 
-  const offices = await ballotForJurisdiction(jurisdictionId);
+  const offices = jurisdictionId ? await ballotForJurisdiction(jurisdictionId) : [];
 
   const jurisdictions: { id: string; name: string }[] = [];
   for (const o of offices) {
