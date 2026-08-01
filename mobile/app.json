@@ -39,8 +39,8 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrl": "https://voteright-dpimatrix.vercel.app",
-      "webUrl": "https://voteright-dpimatrix.vercel.app",
+      "apiUrl": "https://voteright.dpimatrix.com",
+      "webUrl": "https://voteright.dpimatrix.com",
       "router": {},
       "eas": {
         "projectId": "12f8cf08-05be-42b8-aa4f-764dc56cbff2"
