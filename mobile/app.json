@@ -8,7 +8,12 @@
     "scheme": "voteright",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.dpimatrix.voteright",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +22,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dpimatrix.voteright.mobile",
+      "versionCode": 2
     },
     "web": {
       "output": "static",
@@ -46,6 +53,12 @@
         "projectId": "12f8cf08-05be-42b8-aa4f-764dc56cbff2"
       }
     },
-    "owner": "dpimatrix"
+    "owner": "dpimatrix",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/12f8cf08-05be-42b8-aa4f-764dc56cbff2"
+    }
   }
 }
