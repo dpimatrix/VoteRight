@@ -4,12 +4,15 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   evidenceForPoliticians,
+  GRANICUS_CAPTIONS_HOST,
   ingestionFreshness,
+  SPONSORSHIP_SOURCE_BY_JURISDICTION,
   isSampleData,
   loadPriorities,
   politicianProfile,
   promisesFor,
   publishedFlagsFor,
+  sponsorshipsFor,
   topicsWithAxes,
   votesFor,
 } from "@/lib/queries";
@@ -32,6 +35,14 @@ const BAND_KEY = (a: number | null) =>
   a === null ? "none" : (String(a) as "2" | "1" | "0" | "-1" | "-2");
 const BAND_CLASS = (a: number | null) =>
   a === null ? "bnull" : ({ 2: "b2", 1: "b1", 0: "b0", "-1": "bm1", "-2": "bm2" } as Record<string, string>)[String(a)];
+// lead_sponsor/co_sponsor: Maryland charter counties' bill sponsorship.
+// mover/seconder: Virginia boards' parliamentary convention (schema
+// widened in migration 008) -- a genuinely different fact, not the same
+// role relabeled, so each gets its own class/label rather than collapsing
+// mover into lead_sponsor's styling.
+const SPONSORSHIP_ROLE_CLASS: Record<string, string> = {
+  lead_sponsor: "b2", co_sponsor: "b0", mover: "b1", seconder: "b0",
+};
 
 export default async function CandidatePage({
   params,
@@ -59,7 +70,11 @@ export default async function CandidatePage({
   const campaigns = await campaignsForPolitician(id);
   const sample = await isSampleData();
   const votes = await votesFor(id);
-  const freshness = (await ingestionFreshness()).find((f) => f.source === "moco-council-bills");
+  const sponsorships = await sponsorshipsFor(id);
+  const allFreshness = await ingestionFreshness();
+  const freshness = allFreshness.find((f) => f.source === "moco-council-bills");
+  const sponsorshipSource = sponsorships[0] ? SPONSORSHIP_SOURCE_BY_JURISDICTION[sponsorships[0].jurisdiction_id] : null;
+  const sponsorshipFreshness = allFreshness.find((f) => f.source === sponsorshipSource);
   const STANCE: Record<string, { label: string; cls: string; ic: string }> = {
     commit: { label: d.stance_commit, cls: "b2", ic: "✓" },
     decline: { label: d.stance_decline, cls: "bm2", ic: "✗" },
@@ -148,6 +163,54 @@ export default async function CandidatePage({
             <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
               {d.votes_note}
               {freshness?.data_through ? ` ${d.votes_through} ${freshness.data_through}.` : ""}
+            </p>
+          </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.sponsorships_h}</div>
+        {sponsorships.length === 0 ? (
+          <div className="nopos">{d.sponsorships_none}</div>
+        ) : (
+          <>
+            {sponsorships.map((s) => {
+              const ROLE_LABEL: Record<string, string> = {
+                lead_sponsor: d.sponsorships_lead, co_sponsor: d.sponsorships_co,
+                mover: d.sponsorships_mover, seconder: d.sponsorships_seconder,
+              };
+              return (
+              <div key={s.agenda_item_external_id} style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap", margin: "0.4rem 0" }}>
+                <span className={`chip band ${SPONSORSHIP_ROLE_CLASS[s.role] ?? "b0"}`}>
+                  {ROLE_LABEL[s.role] ?? s.role}
+                </span>
+                <span style={{ flex: 1, fontSize: "0.88rem", minWidth: "14ch" }}>
+                  {s.item_title} · {s.date}
+                </span>
+                <a className="chip cite" href={s.video_url} target="_blank" rel="noreferrer">
+                  ▣ {d.sponsorships_video}
+                </a>
+                {s.staff_report_url && (
+                  <a className="chip cite" href={s.staff_report_url} target="_blank" rel="noreferrer">
+                    ▣ {d.sponsorships_staff_report}
+                  </a>
+                )}
+                {s.clip_id !== "unresolved" && GRANICUS_CAPTIONS_HOST[s.jurisdiction_id] && (
+                  <a
+                    className="chip cite"
+                    href={`https://${GRANICUS_CAPTIONS_HOST[s.jurisdiction_id]}/videos/${s.clip_id}/captions.vtt`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    ▣ {d.sponsorships_captions}
+                  </a>
+                )}
+              </div>
+              );
+            })}
+            <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
+              {d.sponsorships_note}
+              {sponsorshipFreshness?.data_through ? ` ${d.sponsorships_through} ${sponsorshipFreshness.data_through}.` : ""}
             </p>
           </>
         )}

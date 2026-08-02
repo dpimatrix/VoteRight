@@ -12,6 +12,44 @@ export async function votesFor(politicianId: string, limit = 8) {
   return rows as { bill_external_id: string; bill_title: string; vote: string; date: string; source_url: string }[];
 }
 
+export async function sponsorshipsFor(politicianId: string, limit = 8) {
+  const { rows } = await db().query(
+    `SELECT agenda_item_external_id, item_title, role, clip_id, jurisdiction_id,
+            meeting_date::text AS date, video_url, staff_report_url
+       FROM council_sponsorships WHERE politician_id = $1
+      ORDER BY meeting_date DESC, agenda_item_external_id DESC LIMIT $2`,
+    [politicianId, limit],
+  );
+  return rows as {
+    agenda_item_external_id: string; item_title: string; role: "lead_sponsor" | "co_sponsor" | "mover" | "seconder";
+    clip_id: string; jurisdiction_id: string; date: string; video_url: string; staff_report_url: string | null;
+  }[];
+}
+
+// Each jurisdiction's council_sponsorships rows link to a different Granicus
+// tenant for the meeting-level auto-generated captions -- there is no single
+// shared domain. `clip_id` is "unresolved" when the ingester couldn't
+// correlate a Granicus clip at all (e.g. a virtual/emergency meeting that
+// was never recorded there); no captions link exists in that case.
+export const GRANICUS_CAPTIONS_HOST: Record<string, string> = {
+  "ocd-division/country:us/state:md/county:montgomery": "montgomerycountymd.granicus.com",
+  "ocd-division/country:us/state:md/county:prince_georges": "princegeorgescountymd.granicus.com",
+  "ocd-division/country:us/state:va/county:fairfax": "video.fairfaxcounty.gov",
+  "ocd-division/country:us/state:va/county:arlington": "arlington.granicus.com",
+};
+
+// council_sponsorships is shared across five jurisdictions, each with its
+// own ingester/source name -- the candidate page needs this to show the
+// correct "current through" date for whichever jurisdiction's citations are
+// actually on screen, not a hardcoded single source.
+export const SPONSORSHIP_SOURCE_BY_JURISDICTION: Record<string, string> = {
+  "ocd-division/country:us/state:md/county:montgomery": "moco-agenda-items",
+  "ocd-division/country:us/state:md/county:prince_georges": "pg-agenda-items",
+  "ocd-division/country:us/state:va/county:fairfax": "fairfax-agenda-items",
+  "ocd-division/country:us/state:va/county:arlington": "arlington-agenda-items",
+  "ocd-division/country:us/district:dc": "dc-legislation-items",
+};
+
 /* Expected cadence per source, in days (DATA-OPS.md §6). A source finding
    nothing new isn't itself a failure — the county's own data may just not
    have moved — but if it stays quiet for multiple cadence periods in a row,
@@ -21,6 +59,11 @@ export async function votesFor(politicianId: string, limit = 8) {
    sources fall back to a conservative 30-day cadence. */
 const INGESTION_CADENCE_DAYS: Record<string, number> = {
   "moco-council-bills": 7, // Legistar votes, weekly per §6
+  "moco-agenda-items": 7, // Granicus agenda-item sponsorships, weekly (same council-session cadence)
+  "pg-agenda-items": 7, // Prince George's Legistar Web API sponsorships, weekly
+  "fairfax-agenda-items": 7, // Fairfax Board Summary PDF movers, weekly
+  "arlington-agenda-items": 7, // Arlington County Board minutes PDF movers/seconders, weekly
+  "dc-legislation-items": 7, // D.C. LIMS introducers/co-introducers, weekly
   "checkpoint-publish": 1, // daily VPS cron (db/checkpoint-and-publish.sh), not a data feed -- see ingestionFreshness doc
 };
 const STALE_MULTIPLIER = 3;

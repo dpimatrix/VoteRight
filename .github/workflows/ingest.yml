@@ -5,7 +5,42 @@ name: ingest
 on:
   schedule:
     - cron: "0 11 * * 3" # Wednesdays 11:00 UTC (~06:00 ET, after Tuesday sessions)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      since_clip:
+        description: >-
+          council-sponsorships.mjs only: first-run backfill lower bound
+          (Granicus clip_id). Required once, manually, before the table has
+          any rows -- the script refuses to guess a backfill window on its
+          own. Leave blank on later runs; incremental mode takes over once
+          rows exist.
+        required: false
+        type: string
+      since_date:
+        description: >-
+          council-sponsorships-pg.mjs only: first-run backfill lower bound
+          (YYYY-MM-DD). Same reasoning as since_clip above -- required once,
+          manually, before the table has any Prince George's rows.
+        required: false
+        type: string
+      since_date_fairfax:
+        description: >-
+          council-sponsorships-fairfax.mjs only: first-run backfill lower
+          bound (YYYY-MM-DD). Same reasoning as since_clip above.
+        required: false
+        type: string
+      since_date_arlington:
+        description: >-
+          council-sponsorships-arlington.mjs only: first-run backfill lower
+          bound (YYYY-MM-DD). Same reasoning as since_clip above.
+        required: false
+        type: string
+      since_date_dc:
+        description: >-
+          council-sponsorships-dc.mjs only: first-run backfill lower bound
+          (YYYY-MM-DD). Same reasoning as since_clip above.
+        required: false
+        type: string
 
 jobs:
   votes:
@@ -16,14 +51,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install pg (runner has no app node_modules)
+      - name: Install pg and pdf-parse (runner has no app node_modules)
         working-directory: app
-        run: npm install --no-save --ignore-scripts pg
+        run: npm install --no-save pg pdf-parse
       - name: Apply pending migrations
         run: node db/migrate.mjs up
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Ingest council votes
         run: node db/ingest/votes.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest council agenda-item sponsorships (Montgomery)
+        run: node db/ingest/council-sponsorships.mjs ${{ github.event.inputs.since_clip && format('--since-clip={0}', github.event.inputs.since_clip) || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest council agenda-item sponsorships (Prince George's)
+        run: node db/ingest/council-sponsorships-pg.mjs ${{ github.event.inputs.since_date && format('--since={0}', github.event.inputs.since_date) || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest council agenda-item movers (Fairfax)
+        run: node db/ingest/council-sponsorships-fairfax.mjs ${{ github.event.inputs.since_date_fairfax && format('--since={0}', github.event.inputs.since_date_fairfax) || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest council agenda-item movers (Arlington)
+        run: node db/ingest/council-sponsorships-arlington.mjs ${{ github.event.inputs.since_date_arlington && format('--since={0}', github.event.inputs.since_date_arlington) || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ingest legislation introducers (D.C.)
+        run: node db/ingest/council-sponsorships-dc.mjs ${{ github.event.inputs.since_date_dc && format('--since={0}', github.event.inputs.since_date_dc) || '' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

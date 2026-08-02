@@ -154,6 +154,18 @@ const DICT = {
     votes_through: "Votes current through",
     votes_note:
       "Recorded roll-call votes from the county's official legislation dataset. Facts only — a vote becomes part of alignment scoring only after human review of what it means.",
+    sponsorships_h: "Council record",
+    sponsorships_none: "No recorded agenda-item sponsorships for this person.",
+    sponsorships_lead: "Lead sponsor",
+    sponsorships_co: "Co-sponsor",
+    sponsorships_mover: "Moved by",
+    sponsorships_seconder: "Seconded by",
+    sponsorships_video: "Video",
+    sponsorships_staff_report: "Staff report",
+    sponsorships_captions: "Full session captions (auto-generated, may contain errors)",
+    sponsorships_through: "Council record current through",
+    sponsorships_note:
+      "Who introduced or co-sponsored each item, from the county's official Granicus agenda index — with a link to the exact video moment and the staff report. Not a scored position: sponsoring a bill isn't the same as taking a stance on it.",
     ballot_districts_note:
       "Council district seats: which one is yours depends on your exact address — district-level lookup arrives in a later update, so all seven are shown.",
     verify_need: "Verify your address to participate in debates.",
@@ -452,6 +464,18 @@ const DICT = {
     votes_through: "Votos actualizados hasta",
     votes_note:
       "Votos nominales del conjunto de datos oficial de legislación del condado. Solo hechos — un voto entra en la puntuación de afinidad solo tras revisión humana de su significado.",
+    sponsorships_h: "Registro en el concejo",
+    sponsorships_none: "Sin patrocinios de puntos de agenda registrados para esta persona.",
+    sponsorships_lead: "Patrocinador principal",
+    sponsorships_co: "Copatrocinador",
+    sponsorships_mover: "Propuesto por",
+    sponsorships_seconder: "Secundado por",
+    sponsorships_video: "Video",
+    sponsorships_staff_report: "Informe técnico",
+    sponsorships_captions: "Subtítulos completos de la sesión (generados automáticamente, pueden contener errores)",
+    sponsorships_through: "Registro del concejo actualizado hasta",
+    sponsorships_note:
+      "Quién presentó o copatrocinó cada punto, según el índice oficial de agendas de Granicus del condado — con un enlace al momento exacto del video y al informe técnico. No es una postura puntuada: patrocinar un proyecto de ley no equivale a tomar una posición sobre él.",
     ballot_districts_note:
       "Escaños de distrito del Concejo: el tuyo depende de tu dirección exacta — la búsqueda por distrito llegará en una actualización posterior, así que se muestran los siete.",
     verify_need: "Verifica tu dirección para participar en los debates.",

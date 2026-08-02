@@ -224,6 +224,28 @@ CREATE TABLE voting_records (
     UNIQUE (politician_id, bill_external_id)
 );
 
+-- Council-sponsorship evidence: who introduced/co-sponsored a real agenda
+-- item, with a link to the exact video moment and the staff report --
+-- verified live against Montgomery County's Granicus AgendaViewer
+-- (montgomerycountymd.granicus.com, view_id=169) 2026-08-01. Displayed as
+-- its own citation card, same as voting_records -- NOT fed into
+-- politician_positions/scoring in this pass (no topic-coding workflow
+-- exists yet to responsibly assign a sponsored bill to a policy axis).
+CREATE TABLE council_sponsorships (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    politician_id           UUID NOT NULL REFERENCES politicians(id),
+    jurisdiction_id         TEXT NOT NULL REFERENCES jurisdictions(ocd_id),
+    role                    TEXT NOT NULL CHECK (role IN ('lead_sponsor','co_sponsor','mover','seconder')), -- mover/seconder: VA boards' parliamentary convention, distinct from MD's bill sponsorship
+    clip_id                 TEXT NOT NULL,     -- Granicus clip id for the full meeting
+    agenda_item_external_id TEXT NOT NULL,     -- Granicus meta_id -- unique per agenda item
+    meeting_date            DATE NOT NULL,
+    item_title              TEXT NOT NULL,
+    video_url               TEXT NOT NULL,     -- MediaPlayer.php jump link for this item
+    staff_report_url        TEXT,              -- not every item has one
+    ingested_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (politician_id, agenda_item_external_id)
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- TRANSPARENCY: OUTSIDE MONEY, BALLOT-AUTHENTICITY CHECKS & ENDORSEMENTS
 -- Generalizes three feature gaps identified from local reporting patterns
@@ -973,6 +995,7 @@ CREATE INDEX idx_politician_positions_politician ON politician_positions(politic
 CREATE INDEX idx_promises_politician ON promises(politician_id);
 CREATE INDEX idx_promise_status_events_promise ON promise_status_events(promise_id);
 CREATE INDEX idx_voting_records_politician ON voting_records(politician_id);
+CREATE INDEX idx_council_sponsorships_politician ON council_sponsorships(politician_id);
 CREATE INDEX idx_alignment_scores_user ON alignment_scores(user_id);
 CREATE INDEX idx_integrity_flags_politician ON integrity_flags(politician_id);
 CREATE INDEX idx_integrity_flag_status_events_flag ON integrity_flag_status_events(integrity_flag_id);

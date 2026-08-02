@@ -30,7 +30,12 @@ const full = args.includes("--full");
 const url = args.find((a) => a.startsWith("--url="))?.slice(6) ?? process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright";
 
 const stripAccents = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
-const lastNameKey = (fullName) => stripAccents(fullName.trim().split(/\s+/).at(-1)).toLowerCase();
+const SUFFIX_RE = /^(Jr\.?|Sr\.?|II|III|IV|V)$/i;
+function lastNameKey(fullName) {
+  const parts = fullName.trim().split(/\s+/);
+  while (parts.length > 1 && SUFFIX_RE.test(parts.at(-1))) parts.pop();
+  return stripAccents(parts.at(-1)).toLowerCase();
+}
 
 const client = new Client({ connectionString: url });
 await client.connect();
@@ -42,9 +47,16 @@ try {
   // who have ever held an office (office_terms) — they're the only ones who can
   // appear in roll-call name lists, and it keeps unrelated challengers who share
   // a last name (e.g., the two 2026 Wells candidacies) out of the collision set.
+  // Scoped to THIS jurisdiction's offices only: other DMV jurisdictions now share
+  // this database, and a global roster risks a cross-jurisdiction last-name
+  // collision (e.g. D.C.'s Robert C. White Jr. and Trayon White Sr. both reduce
+  // to "white") that has nothing to do with Montgomery's own roll call.
   const pols = await client.query(
     `SELECT DISTINCT p.id, p.full_name FROM politicians p
-      JOIN office_terms ot ON ot.politician_id = p.id`,
+       JOIN office_terms ot ON ot.politician_id = p.id
+       JOIN offices o ON o.id = ot.office_id
+      WHERE o.jurisdiction_id = $1`,
+    [COUNTY],
   );
   const byLast = new Map();
   for (const p of pols.rows) {
