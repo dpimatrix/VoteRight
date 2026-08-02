@@ -94,8 +94,8 @@ function parseAgendaViewer(html) {
   for (const m of html.matchAll(STAFF_REPORT_RE)) {
     const [, href, docMetaId] = m;
     // Staff reports are published at metaId+1 relative to their agenda item
-    // in every meeting observed so far; fall back to nearest preceding item
-    // if that offset doesn't resolve, rather than guessing further.
+    // in every meeting observed so far; if that offset doesn't resolve, the
+    // item simply keeps staffReportUrl = null rather than guessing.
     const target = byExternalId.get(String(Number(docMetaId) - 1));
     if (target) target.staffReportUrl = href;
   }
@@ -103,10 +103,17 @@ function parseAgendaViewer(html) {
   return { meetingDate, items };
 }
 
+// Parse "Tuesday, July 28, 2026" by its named parts rather than via
+// new Date(...).toISOString() -- that pair parses local midnight and then
+// converts to UTC, which silently rolls the date back a day on any
+// UTC-ahead machine (verified: Sydney turns July 28 into 2026-07-27).
+const MONTH_NUM = { January: 1, February: 2, March: 3, April: 4, May: 5, June: 6, July: 7, August: 8, September: 9, October: 10, November: 11, December: 12 };
 function toISODate(spelledDate) {
-  const d = new Date(spelledDate);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+  const m = spelledDate.match(/([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})$/);
+  if (!m) return null;
+  const month = MONTH_NUM[m[1]];
+  if (!month) return null;
+  return `${m[3]}-${String(month).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
 }
 
 const client = new Client({ connectionString: url });

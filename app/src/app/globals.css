@@ -143,6 +143,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 .card {
   border: 1px solid var(--card-bd); border-radius: 16px; background: var(--surface);
   box-shadow: var(--elev); padding: 0.9rem 1rem; margin: 0.65rem 0;
+  scroll-margin-top: 4rem; /* clears the sticky .topbar so scroll-into-view / anchor jumps don't tuck a card's heading under it */
 }
 .card.raised { background: var(--surface-2); box-shadow: none; border-color: var(--line); }
 
@@ -219,7 +220,7 @@ a.seat:active, a.cand:active { transform: scale(0.99); background: var(--surface
 .privnote { display: flex; gap: 0.45rem; align-items: center; font-size: 0.8rem; color: var(--muted); margin: 0.55rem 0; }
 .privnote .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ev); flex: 0 0 auto; }
 
-.grouph { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 0.3rem; }
+.grouph { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 0.3rem; scroll-margin-top: 4rem; }
 .nopos { font-size: 0.86rem; color: var(--muted); font-style: italic; }
 
 .topicrow { border-top: 1px solid var(--line); padding: 0.8rem 0; }

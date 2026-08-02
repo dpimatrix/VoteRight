@@ -109,10 +109,21 @@ function findSummaryLinks(html) {
 // a bundled Chair's motion through as if it were individual attribution.
 const BATCH_RE = /items?\s*#?\d+[\s\S]{0,60}(?:and|,)[\s\S]{0,20}#?\d+/i;
 const MOVER_RE = /(Supervisor|Chairman) ([A-Za-z .]+?)(?:, jointly with (?:Supervisor |Chairman )?([A-Za-z .]+?),)? moved (?:that the Board |approval of )/g;
-const HEADING_RE = /\n\s*(\d+)\.\s+([^\n]+)/g;
+// Marks only WHERE a heading starts ("N. ") -- deliberately does not capture
+// a single line of title text. Real headings routinely wrap across 2-3
+// lines before their timestamp (confirmed live: 47 of 48 real headings in
+// one meeting's summary), so capturing "up to the first \n" was silently
+// truncating almost every title to its first line -- e.g. a real heading
+// "RESOLUTION OF RECOGNITION CELEBRATING THE\n36TH ANNIVERSARY OF THE
+// AMERICANS WITH DISABILITIES ACT\n(10:03 a.m.)" was stored as just
+// "RESOLUTION OF RECOGNITION CELEBRATING THE". The full title is instead
+// reassembled per-motion below, using the real content boundary (the
+// timestamp marker, or the motion sentence itself) rather than a line break.
+const HEADING_RE = /(?:\n|^)\s*(\d+)\.\s+/dg;
+const TIME_MARKER_RE = /\(\s*\d{1,2}(?::\d{2})?\s*(?:a\.m\.|p\.m\.|noon|midnight)\s*\)/i;
 
 function extractMotions(text) {
-  const headings = [...text.matchAll(HEADING_RE)].map((m) => ({ num: m[1], title: m[2].trim(), index: m.index }));
+  const headings = [...text.matchAll(HEADING_RE)].map((m) => ({ num: m[1], contentStart: m.indices[0][1], index: m.index }));
   const motions = [];
   let seq = 0;
   for (const m of text.matchAll(MOVER_RE)) {
@@ -129,7 +140,17 @@ function extractMotions(text) {
     if (!heading) continue; // no identifiable single item context
     const scanWindow = text.slice(m.index, nextHeadingIndex);
     if (BATCH_RE.test(scanWindow)) continue; // consent-batch, not individual attribution
-    motions.push({ itemNum: heading.num, itemTitle: heading.title.slice(0, 500), mover: mover.trim(), jointMover: jointMover?.trim() ?? null, seq });
+
+    // Full title: everything between the heading number and whichever comes
+    // first -- a timestamp marker (the normal case) or the motion sentence
+    // itself (belt-and-suspenders if a heading has no timestamp) -- with
+    // wrapped newlines collapsed to spaces so it reads as one clean title.
+    const rawSpan = text.slice(heading.contentStart, m.index);
+    const timeMatch = rawSpan.match(TIME_MARKER_RE);
+    const rawTitle = timeMatch ? rawSpan.slice(0, timeMatch.index) : rawSpan;
+    const itemTitle = rawTitle.replace(/\s+/g, " ").trim().slice(0, 500);
+
+    motions.push({ itemNum: heading.num, itemTitle, mover: mover.trim(), jointMover: jointMover?.trim() ?? null, seq });
   }
   return motions;
 }

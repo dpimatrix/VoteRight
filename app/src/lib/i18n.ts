@@ -162,7 +162,8 @@ const DICT = {
     sponsorships_seconder: "Seconded by",
     sponsorships_video: "Video",
     sponsorships_staff_report: "Staff report",
-    sponsorships_captions: "Full session captions (auto-generated, may contain errors)",
+    sponsorships_captions: "Session captions",
+    sponsorships_captions_note: "Caption links are auto-generated and may contain errors.",
     sponsorships_through: "Council record current through",
     sponsorships_note:
       "Who introduced or co-sponsored each item, from the county's official Granicus agenda index — with a link to the exact video moment and the staff report. Not a scored position: sponsoring a bill isn't the same as taking a stance on it.",
@@ -472,7 +473,8 @@ const DICT = {
     sponsorships_seconder: "Secundado por",
     sponsorships_video: "Video",
     sponsorships_staff_report: "Informe técnico",
-    sponsorships_captions: "Subtítulos completos de la sesión (generados automáticamente, pueden contener errores)",
+    sponsorships_captions: "Subtítulos de la sesión",
+    sponsorships_captions_note: "Los enlaces de subtítulos se generan automáticamente y pueden contener errores.",
     sponsorships_through: "Registro del concejo actualizado hasta",
     sponsorships_note:
       "Quién presentó o copatrocinó cada punto, según el índice oficial de agendas de Granicus del condado — con un enlace al momento exacto del video y al informe técnico. No es una postura puntuada: patrocinar un proyecto de ley no equivale a tomar una posición sobre él.",

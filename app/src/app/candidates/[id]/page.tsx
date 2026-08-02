@@ -179,37 +179,47 @@ export default async function CandidatePage({
                 lead_sponsor: d.sponsorships_lead, co_sponsor: d.sponsorships_co,
                 mover: d.sponsorships_mover, seconder: d.sponsorships_seconder,
               };
+              const hasCaptions = s.clip_id !== "unresolved" && GRANICUS_CAPTIONS_HOST[s.jurisdiction_id];
               return (
-              <div key={s.agenda_item_external_id} style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap", margin: "0.4rem 0" }}>
-                <span className={`chip band ${SPONSORSHIP_ROLE_CLASS[s.role] ?? "b0"}`}>
-                  {ROLE_LABEL[s.role] ?? s.role}
-                </span>
-                <span style={{ flex: 1, fontSize: "0.88rem", minWidth: "14ch" }}>
-                  {s.item_title} · {s.date}
-                </span>
-                <a className="chip cite" href={s.video_url} target="_blank" rel="noreferrer">
-                  ▣ {d.sponsorships_video}
-                </a>
-                {s.staff_report_url && (
-                  <a className="chip cite" href={s.staff_report_url} target="_blank" rel="noreferrer">
-                    ▣ {d.sponsorships_staff_report}
+              <div key={s.agenda_item_external_id} style={{ margin: "0.55rem 0" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
+                  <span className={`chip band ${SPONSORSHIP_ROLE_CLASS[s.role] ?? "b0"}`}>
+                    {ROLE_LABEL[s.role] ?? s.role}
+                  </span>
+                  {/* Some jurisdictions' source documents (e.g. Fairfax's Clerk
+                      summaries) write headings in ALL CAPS -- kept verbatim
+                      since altering an official citation's wording isn't this
+                      app's call to make, but eased visually via spacing/line-
+                      height alone, never by changing the text. */}
+                  <span style={{ flex: 1, fontSize: "0.86rem", lineHeight: 1.45, letterSpacing: "0.005em", minWidth: "14ch" }}>{s.item_title}</span>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap", marginTop: "0.3rem" }}>
+                  <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{s.date}</span>
+                  <a className="chip cite" href={s.video_url} target="_blank" rel="noreferrer">
+                    ▣ {d.sponsorships_video}
                   </a>
-                )}
-                {s.clip_id !== "unresolved" && GRANICUS_CAPTIONS_HOST[s.jurisdiction_id] && (
-                  <a
-                    className="chip cite"
-                    href={`https://${GRANICUS_CAPTIONS_HOST[s.jurisdiction_id]}/videos/${s.clip_id}/captions.vtt`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    ▣ {d.sponsorships_captions}
-                  </a>
-                )}
+                  {s.staff_report_url && (
+                    <a className="chip cite" href={s.staff_report_url} target="_blank" rel="noreferrer">
+                      ▣ {d.sponsorships_staff_report}
+                    </a>
+                  )}
+                  {hasCaptions && (
+                    <a
+                      className="chip cite"
+                      href={`https://${GRANICUS_CAPTIONS_HOST[s.jurisdiction_id]}/videos/${s.clip_id}/captions.vtt`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      ▣ {d.sponsorships_captions}
+                    </a>
+                  )}
+                </div>
               </div>
               );
             })}
             <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
               {d.sponsorships_note}
+              {sponsorships.some((s) => s.clip_id !== "unresolved" && GRANICUS_CAPTIONS_HOST[s.jurisdiction_id]) ? ` ${d.sponsorships_captions_note}` : ""}
               {sponsorshipFreshness?.data_through ? ` ${d.sponsorships_through} ${sponsorshipFreshness.data_through}.` : ""}
             </p>
           </>
