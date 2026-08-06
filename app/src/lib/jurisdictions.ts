@@ -78,9 +78,21 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
     // Rockville" — neither is a prefix of the other, so match on the bare place
     // name as a substring of the stored name rather than requiring an exact form.
     const bareName = geo.placeName.replace(/\s+(city|town|cdp|village|borough)$/i, "").trim();
+    // Plain substring matching is ambiguous when one municipality's name is a
+    // suffix of another's (e.g. "Town of Brentwood" vs "Town of North
+    // Brentwood" — both match a bare substring search for "Brentwood", and
+    // without an ORDER BY, rows[0] below is whichever row Postgres happens to
+    // return first, not a deterministic pick). A real Brentwood resident could
+    // silently land on North Brentwood's jurisdiction (wrong ballot, wrong
+    // referendum eligibility) or vice versa. Fixed by preferring an exact
+    // "<prefix> of <bareName>" suffix match — "Town of Brentwood" ends with
+    // "of Brentwood", "Town of North Brentwood" does not — with shortest-name
+    // as a secondary tiebreak for any other future ambiguity.
     const muni = await db().query(
       `SELECT ocd_id FROM jurisdictions
-        WHERE level = 'municipal' AND parent_ocd_id = $1 AND name ILIKE '%' || $2 || '%'`,
+        WHERE level = 'municipal' AND parent_ocd_id = $1 AND name ILIKE '%' || $2 || '%'
+        ORDER BY (name ILIKE '%of ' || $2) DESC, length(name) ASC
+        LIMIT 1`,
       [countyOcdId, bareName],
     );
     if ((muni.rowCount ?? 0) > 0) return muni.rows[0].ocd_id as string;
