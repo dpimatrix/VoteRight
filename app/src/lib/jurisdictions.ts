@@ -77,7 +77,22 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
     // Census returns e.g. "Rockville city"; jurisdictions.name stores "City of
     // Rockville" — neither is a prefix of the other, so match on the bare place
     // name as a substring of the stored name rather than requiring an exact form.
-    const bareName = geo.placeName.replace(/\s+(city|town|cdp|village|borough)$/i, "").trim();
+    // Census also spells small numbers out in some place names (e.g. "Chevy
+    // Chase Section Three village") while this schema's stored names use
+    // numerals ("Village of Chevy Chase Section 3", matching every other
+    // numbered-seat name in this project) — normalize word-form numbers to
+    // digits before matching, or a real Section 3/5 resident's address would
+    // silently fail to match their own municipality and fall through to the
+    // bare county (caught live: the substring search returned zero rows for
+    // "Chevy Chase Section Three" against the stored "Section 3" row).
+    const NUMBER_WORDS: Record<string, string> = {
+      one: "1", two: "2", three: "3", four: "4", five: "5",
+      six: "6", seven: "7", eight: "8", nine: "9", ten: "10",
+    };
+    const bareName = geo.placeName
+      .replace(/\s+(city|town|cdp|village|borough)$/i, "")
+      .trim()
+      .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/gi, (w) => NUMBER_WORDS[w.toLowerCase()] ?? w);
     // Plain substring matching is ambiguous when one municipality's name is a
     // suffix of another's (e.g. "Town of Brentwood" vs "Town of North
     // Brentwood" — both match a bare substring search for "Brentwood", and
