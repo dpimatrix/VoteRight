@@ -172,6 +172,24 @@ export default function BallotScreen() {
         })}
 
         {data && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Unscored seats stay on the list — an incomplete ballot must never look complete.
+          </ThemedText>
+        )}
+        {data && data.offices.some((o) => o.title.includes('District')) && (
+          <ThemedText type="small" themeColor="textSecondary">
+            U.S. House and state legislature seats are narrowed to your own district automatically. Some other
+            district seats (like county council) can't be yet — which one is yours depends on your exact address,
+            so every district is shown until that lookup arrives.
+          </ThemedText>
+        )}
+        {data && (
+          <ThemedText type="small" themeColor="textSecondary">
+            City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.
+          </ThemedText>
+        )}
+
+        {data && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <Pressable onPress={() => setShowPicker((s) => !s)}>
               <ThemedText type="smallBold">Browse another jurisdiction</ThemedText>
