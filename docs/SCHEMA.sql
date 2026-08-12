@@ -21,6 +21,7 @@ CREATE TABLE politicians (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     full_name       TEXT NOT NULL,
     bioguide_id     TEXT UNIQUE,                     -- Congress members only; UNIQUE added migration 060 after a real duplicate-ingestion bug
+    openstates_id   TEXT UNIQUE,                     -- state legislators only; identity anchor for db/ingest/openstates-legislature.mjs, added migration 062
     external_ids    JSONB NOT NULL DEFAULT '{}',     -- { "ballotready_id": "...", "ocd_person_id": "..." }
     current_office_id UUID,                         -- FK added after offices table exists; several politicians may share one office row (multi-seat at-large offices)
     party           TEXT,
