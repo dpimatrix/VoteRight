@@ -1,5 +1,5 @@
 import { currentUserId } from "@/lib/anon";
-import { ballotForJurisdiction, listBrowsableJurisdictions, userResidence } from "@/lib/jurisdictions";
+import { ballotForJurisdiction, filterToOwnDistricts, listBrowsableJurisdictions, userResidence } from "@/lib/jurisdictions";
 
 /* JSON read-side counterpart to the / (ballot) page — used by the native app,
    which can't import server-only page.tsx modules. Mirrors app/src/app/page.tsx's
@@ -20,7 +20,14 @@ export async function GET(request: Request) {
   const visited = visit ? (browsable.find((j) => j.ocd_id === visit && j.ocd_id !== residenceId) ?? null) : null;
   const jurisdictionId = visited ? visited.ocd_id : residenceId;
 
-  const offices = jurisdictionId ? await ballotForJurisdiction(jurisdictionId) : [];
+  const allOffices = jurisdictionId ? await ballotForJurisdiction(jurisdictionId) : [];
+  // Same district narrowing as the web ballot page (page.tsx) — only on the
+  // resident's own ballot, never while browsing another jurisdiction.
+  const offices = visited
+    ? allOffices
+    : filterToOwnDistricts(allOffices, residence
+        ? { congressional: residence.congressional_district, stateSenate: residence.state_senate_district, stateHouse: residence.state_house_district }
+        : null);
 
   const jurisdictions: { id: string; name: string }[] = [];
   for (const o of offices) {

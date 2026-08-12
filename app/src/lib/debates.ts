@@ -62,7 +62,16 @@ export async function verifyAddress(
     );
     // The resolved jurisdiction always follows the latest verified address —
     // moving from Silver Spring to Rockville changes what your address elects.
-    await client.query(`UPDATE users SET residence_jurisdiction_id = $2 WHERE id = $1`, [userId, residence]);
+    // Resolved districts (added migration 075) follow the same rule — a
+    // fresh re-verification always overwrites the old ones, including with
+    // null if this resolution didn't produce one (never leave a stale
+    // district from a previous address sitting around).
+    await client.query(
+      `UPDATE users SET residence_jurisdiction_id = $2,
+              congressional_district = $3, state_senate_district = $4, state_house_district = $5
+        WHERE id = $1`,
+      [userId, residence, res.districts.congressional, res.districts.stateSenate, res.districts.stateHouse],
+    );
     await client.query("COMMIT");
     return "ok";
   } catch (e) {

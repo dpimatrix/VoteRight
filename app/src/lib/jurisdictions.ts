@@ -26,7 +26,7 @@ export const CENSUS_RESOLVER = "census-geocoder-v1";
 export const FALLBACK_RESOLVER = "address-city-match-v0.1-fallback";
 
 export type Resolution =
-  | { outcome: "ok"; jurisdiction: string; method: string }
+  | { outcome: "ok"; jurisdiction: string; method: string; districts: ExtractedDistricts }
   | { outcome: "outside"; method: string } // real address, wrong county — not eligible
   | { outcome: "no_match"; method: string } // geocoder couldn't find the address
   | { outcome: "resolver_unavailable"; method: string }; // geocoder unreachable — never guess a jurisdiction
@@ -35,6 +35,7 @@ interface CensusGeography {
   STATE?: string;
   COUNTY?: string;
   NAME?: string;
+  BASENAME?: string;
 }
 export interface CensusResponse {
   result?: { addressMatches?: { geographies?: Record<string, CensusGeography[]> }[] };
@@ -57,6 +58,33 @@ export function extractCensusGeography(data: CensusResponse): "no_match" | Extra
   if (!county?.STATE || !county?.COUNTY) return "no_match";
   const place = (match.geographies?.["Incorporated Places"] ?? [])[0];
   return { stateFips: county.STATE, countyFips: county.COUNTY, placeName: place?.NAME ?? null };
+}
+
+export interface ExtractedDistricts {
+  congressional: string | null;
+  stateSenate: string | null;
+  stateHouse: string | null;
+}
+
+/** Pure extraction (unit-tested), same shape as extractCensusGeography: pulls
+    the per-address district numbers (Census BASENAME, e.g. "8", "17", "34A"
+    for Maryland's split sub-districts) out of the SAME geocoder response
+    already fetched for county/place resolution — no second API call. Any
+    layer the geocoder didn't return (a request that only asked for
+    Counties/Incorporated Places, or a jurisdiction the layer genuinely
+    doesn't cover) yields null for that field rather than throwing; callers
+    decide what a null district means (this project's answer: keep showing
+    every district in that tier and the existing disclosure banner, same as
+    before this feature existed — never a wrong guessed district). */
+export function extractDistricts(data: CensusResponse): ExtractedDistricts {
+  const match = data?.result?.addressMatches?.[0];
+  const geos = match?.geographies;
+  const basename = (layer: string) => (geos?.[layer] ?? [])[0]?.BASENAME ?? null;
+  return {
+    congressional: basename("119th Congressional Districts"),
+    stateSenate: basename("2024 State Legislative Districts - Upper"),
+    stateHouse: basename("2024 State Legislative Districts - Lower"),
+  };
 }
 
 /** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end
@@ -115,21 +143,33 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
   return countyOcdId;
 }
 
+// Congress renumbers every 2 years and states redistrict on their own
+// schedules — these layer names are dated/versioned by the Census Bureau
+// itself and WILL need bumping (119th → 120th after the 2026 election;
+// the "2024" legislative-district vintage after the next redistricting
+// cycle). A stale layer name here doesn't silently mismatch addresses to
+// the wrong district — the geocoder just returns nothing for that layer,
+// extractDistricts yields null, and the app falls back to its existing
+// "show every district + disclosure banner" behavior. Still worth a
+// periodic check rather than leaving it stale indefinitely.
+const DISTRICT_LAYERS = "119th Congressional Districts,2024 State Legislative Districts - Upper,2024 State Legislative Districts - Lower";
+
 export async function resolveJurisdiction(address: string): Promise<Resolution> {
   try {
     const u = new URL("https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress");
     u.searchParams.set("address", address);
     u.searchParams.set("benchmark", "Public_AR_Current");
     u.searchParams.set("vintage", "Current_Current");
-    u.searchParams.set("layers", "Counties,Incorporated Places");
+    u.searchParams.set("layers", `Counties,Incorporated Places,${DISTRICT_LAYERS}`);
     u.searchParams.set("format", "json");
     const res = await fetch(u, { signal: AbortSignal.timeout(6000) });
     if (!res.ok) throw new Error(`census ${res.status}`);
-    const geo = extractCensusGeography((await res.json()) as CensusResponse);
+    const data = (await res.json()) as CensusResponse;
+    const geo = extractCensusGeography(data);
     if (geo === "no_match") return { outcome: "no_match", method: CENSUS_RESOLVER };
     const mapped = await jurisdictionForGeography(geo);
     if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
-    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER };
+    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER, districts: extractDistricts(data) };
   } catch {
     // Local dev only: the crude Rockville/Montgomery regex matcher keeps
     // development working without network. In production this must NEVER
@@ -140,10 +180,45 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
     // ballot, referendum eligibility, and accountability-campaign access
     // wrong. An honest "try again" beats a wrong jurisdiction.
     if (process.env.NODE_ENV !== "production") {
-      return { outcome: "ok", jurisdiction: resolveJurisdictionFromAddress(address), method: FALLBACK_RESOLVER };
+      // The dev fallback has no geocoder response to pull districts from —
+      // districts stay null, same as a real address the district layers
+      // simply didn't cover. Never guessed.
+      return {
+        outcome: "ok",
+        jurisdiction: resolveJurisdictionFromAddress(address),
+        method: FALLBACK_RESOLVER,
+        districts: { congressional: null, stateSenate: null, stateHouse: null },
+      };
     }
     return { outcome: "resolver_unavailable", method: FALLBACK_RESOLVER };
   }
+}
+
+/** Narrows a resident's own ballot to their actual U.S. House and state-
+    legislature seats, dropping every OTHER district in their state — the
+    piece that finally makes `ballot_districts_note` unnecessary for federal
+    and state seats. Deliberately narrow: only titles this project's own
+    ingesters actually produce for these two tiers are matched ("U.S.
+    Representative — District N"; "State Senator/Representative/Delegate/
+    Assemblymember/Assembly Member — District N") — anything else
+    district-shaped (county council, Public Service Commission, judicial,
+    School Board seats, an office with no seat number at all like Governor)
+    passes through untouched, same as before this feature existed. A user
+    with no resolved district for a given tier (pre-migration-075 users,
+    the dev fallback resolver, or a real address the geocoder's district
+    layers didn't cover) sees every seat in that tier, same as before —
+    never a guessed district silently hiding real seats. */
+export function filterToOwnDistricts(offices: StackedOffice[], districts: ExtractedDistricts | null): StackedOffice[] {
+  return offices.filter((o) => {
+    const m = o.title.match(/^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)) — District (\S+)$/);
+    if (!m) return true; // not a seat this function knows how to narrow — leave it alone
+    const [, seatKind, districtInTitle] = m;
+    const mine = seatKind === "U.S. Representative" ? districts?.congressional
+      : seatKind === "State Senator" ? districts?.stateSenate
+      : districts?.stateHouse;
+    if (!mine) return true; // no resolved district for this tier — show them all, same as before
+    return districtInTitle === mine;
+  });
 }
 
 export interface StackedOffice {
@@ -180,9 +255,19 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
   return rows as StackedOffice[];
 }
 
-export async function userResidence(userId: string): Promise<{ ocd_id: string; name: string; level: string } | null> {
+export interface UserResidence {
+  ocd_id: string;
+  name: string;
+  level: string;
+  congressional_district: string | null;
+  state_senate_district: string | null;
+  state_house_district: string | null;
+}
+
+export async function userResidence(userId: string): Promise<UserResidence | null> {
   const { rows } = await db().query(
-    `SELECT j.ocd_id, j.name, j.level
+    `SELECT j.ocd_id, j.name, j.level,
+            u.congressional_district, u.state_senate_district, u.state_house_district
        FROM users u JOIN jurisdictions j ON j.ocd_id = u.residence_jurisdiction_id
       WHERE u.id = $1`,
     [userId],

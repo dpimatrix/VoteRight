@@ -6,6 +6,7 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
+  filterToOwnDistricts,
   listBrowsableJurisdictions,
   userResidence,
   type StackedOffice,
@@ -106,7 +107,16 @@ export default async function BallotPage({
   const visited = browsable.find((j) => j.ocd_id === visitCookie && j.ocd_id !== residenceId) ?? null;
   const displayId = visited ? visited.ocd_id : residenceId;
 
-  const offices = displayId ? await ballotForJurisdiction(displayId) : [];
+  const allOffices = displayId ? await ballotForJurisdiction(displayId) : [];
+  // Narrow to the resident's own U.S. House/state-legislature seats — but
+  // only on their own ballot, never while browsing another jurisdiction as
+  // a visitor: a visitor's own resolved district (if they have one at all)
+  // has nothing to do with the jurisdiction they're looking at.
+  const offices = visited
+    ? allOffices
+    : filterToOwnDistricts(allOffices, residence
+        ? { congressional: residence.congressional_district, stateSenate: residence.state_senate_district, stateHouse: residence.state_house_district }
+        : null);
 
   // Jurisdictions in stack order (deepest first), from the rows themselves.
   const jurisdictions: { id: string; name: string }[] = [];

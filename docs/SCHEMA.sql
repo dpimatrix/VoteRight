@@ -100,6 +100,9 @@ CREATE TABLE users (
     display_name            TEXT,
     email_hash              TEXT,                     -- hashed, not raw, if collected at all — pseudonymous, NOT anonymous: emails are dictionary-attackable (Section 10)
     residence_jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),  -- self-attested + address-format verified
+    congressional_district  TEXT,                      -- Census geocoder BASENAME (e.g. "8"); NULL until re-verified, added migration 075
+    state_senate_district   TEXT,                      -- Census geocoder BASENAME; NULL until re-verified, added migration 075
+    state_house_district    TEXT,                       -- Census geocoder BASENAME (e.g. "34A" for MD split sub-districts); NULL until re-verified, added migration 075
     verification_tier      TEXT NOT NULL DEFAULT 'unverified'
                               CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
     locale                  TEXT NOT NULL DEFAULT 'en',

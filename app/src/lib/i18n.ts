@@ -168,7 +168,7 @@ const DICT = {
     sponsorships_note:
       "Who introduced or co-sponsored each item, from the county's official Granicus agenda index — with a link to the exact video moment and the staff report. Not a scored position: sponsoring a bill isn't the same as taking a stance on it.",
     ballot_districts_note:
-      "Council district seats: which one is yours depends on your exact address — district-level lookup arrives in a later update, so all seven are shown.",
+      "U.S. House and state legislature seats are narrowed to your own district automatically. Some other district seats (like county council) can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
     verify_need: "Verify your address to participate in debates.",
     verify_done: "✓ Address verified — you can now propose, second, argue, and vote.",
     verify_current: "Currently verified as",
@@ -479,7 +479,7 @@ const DICT = {
     sponsorships_note:
       "Quién presentó o copatrocinó cada punto, según el índice oficial de agendas de Granicus del condado — con un enlace al momento exacto del video y al informe técnico. No es una postura puntuada: patrocinar un proyecto de ley no equivale a tomar una posición sobre él.",
     ballot_districts_note:
-      "Escaños de distrito del Concejo: el tuyo depende de tu dirección exacta — la búsqueda por distrito llegará en una actualización posterior, así que se muestran los siete.",
+      "Los escaños de la Cámara de EE. UU. y de la legislatura estatal se ajustan automáticamente a tu distrito. Otros escaños de distrito (como el concejo del condado) aún no — cuál es el tuyo depende de tu dirección exacta, así que se muestra cada distrito hasta que esa búsqueda esté disponible.",
     verify_need: "Verifica tu dirección para participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes proponer, apoyar, argumentar y votar.",
     verify_current: "Actualmente verificado como",
