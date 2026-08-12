@@ -44,14 +44,14 @@
 //    that is not safely guessable from a general rule. Rather than
 //    silently fabricate an anchor for a state nobody has checked, this
 //    script REFUSES to touch a state that isn't in STATE_TERM_INFO below
-//    -- same discipline as the missing-API-key check just below. Only
-//    Maryland and Virginia are populated so far, each hand-verified this
-//    session (MD: Senate+House both elected together every 4 years with
-//    the Governor, last 2022, https://ballotpedia.org/Maryland_General_Assembly
-//    and this project's own prior D1 roster work; VA: House of Delegates
-//    2-year terms last elected Nov 2025, Senate 4-year terms last elected
-//    Nov 2023 -- confirmed via Ballotpedia/Wikipedia search this session,
-//    not remembered from training data). Adding another state means
+//    -- same discipline as the missing-API-key check just below. As of
+//    2026-08-12, 46 states have at least their House covered and 23 have
+//    both chambers -- see the long comment directly above STATE_TERM_INFO
+//    for the full tier breakdown and what's deliberately still excluded
+//    (27 states' genuinely-staggered Senates + Nebraska + North Dakota,
+//    which need per-district cohort research, not a per-state year, and
+//    were an owner-approved scope cut this session, not an oversight).
+//    Adding another state means
 //    verifying its real election-cycle anchor first, not copying a
 //    neighbor's row.
 //
@@ -88,23 +88,96 @@ if (!stateFilter || !stateFilter.length) {
 }
 
 // slug -> { openstatesName, chambers: { upper?: {termYears, lastElectionYear}, lower?: {...}, legislature?: {...} } }
-// legislature = unicameral (Nebraska only among current US states). Every
-// entry here has been individually verified this session -- see header.
+// legislature = unicameral (Nebraska only among current US states).
+//
+// DELIBERATELY EXCLUDED FROM THIS TABLE (2026-08-12 research pass) --
+// staggered Senates, where only PART of the chamber is up each cycle,
+// assigned by a district-number cohort that isn't derivable from a single
+// "last election year": Alaska, Arkansas, California, Colorado, Delaware,
+// Florida, Hawaii, Illinois, Indiana, Iowa, Kentucky, Missouri, Montana,
+// Nevada, Ohio, Oklahoma, Oregon, Pennsylvania, Tennessee, Texas, Utah,
+// Washington, West Virginia, Wisconsin, Wyoming (confirmed via
+// https://ballotpedia.org/Length_of_terms_of_state_senators' "Conduct of
+// elections" column, itself cross-checked live for a few of these --
+// Delaware/Florida's 2026 cycle pages independently confirm ~half the
+// chamber up, not the whole thing). North Dakota staggers BOTH chambers
+// (pairs House+Senate by district). Nebraska's single chamber is also
+// flagged staggered. None of these seven are safe to assign a single
+// term_start without per-district cohort research -- a materially bigger
+// task than what's below, deferred by owner's explicit choice
+// (2026-08-12) rather than guessed. See git log for the full tier
+// breakdown at the point this decision was made.
+//
+// Confidence tiers for what IS below, disclosed rather than blurred
+// together: (a) independently verified via 2+ live sources this session
+// (MD, VA, MI, MN, NJ, LA, MS -- Senate side; AL/LA/MS's House anchor is
+// inferred to match their Senate's whole-ticket cycle, matching the
+// pattern already confirmed for MD/VA/MS/LA, not separately re-verified);
+// (b) plain 2-year whole-chamber terms in even-year states (the large
+// majority below) -- structurally safe by construction, a 2-year cycle
+// can't have a multi-year offset ambiguity, cross-checked against
+// Wikipedia's "2024 United States state legislative elections" page which
+// confirms all-seats-up in 2024 for every one of these except the ones
+// already carved out above; (c) Kansas/New Mexico/South Carolina's 4-year
+// Senate anchors rest on the Ballotpedia table alone, structurally
+// identical (non-2-4-4, explicit stated cycle) to the peers verified
+// under (a) but not independently re-confirmed one by one.
 const STATE_TERM_INFO = {
-  md: {
-    openstatesName: "Maryland",
-    chambers: {
-      upper: { termYears: 4, lastElectionYear: 2022 },
-      lower: { termYears: 4, lastElectionYear: 2022 },
-    },
-  },
-  va: {
-    openstatesName: "Virginia",
-    chambers: {
-      upper: { termYears: 4, lastElectionYear: 2023 },
-      lower: { termYears: 2, lastElectionYear: 2025 },
-    },
-  },
+  md: { openstatesName: "Maryland", chambers: { upper: { termYears: 4, lastElectionYear: 2022 }, lower: { termYears: 4, lastElectionYear: 2022 } } },
+  va: { openstatesName: "Virginia", chambers: { upper: { termYears: 4, lastElectionYear: 2023 }, lower: { termYears: 2, lastElectionYear: 2025 } } },
+  al: { openstatesName: "Alabama", chambers: { upper: { termYears: 4, lastElectionYear: 2022 }, lower: { termYears: 4, lastElectionYear: 2022 } } },
+  la: { openstatesName: "Louisiana", chambers: { upper: { termYears: 4, lastElectionYear: 2023 }, lower: { termYears: 4, lastElectionYear: 2023 } } },
+  ms: { openstatesName: "Mississippi", chambers: { upper: { termYears: 4, lastElectionYear: 2023 }, lower: { termYears: 4, lastElectionYear: 2023 } } },
+  nj: { openstatesName: "New Jersey", chambers: { upper: { termYears: 4, lastElectionYear: 2023 }, lower: { termYears: 2, lastElectionYear: 2025 } } },
+  mi: { openstatesName: "Michigan", chambers: { upper: { termYears: 4, lastElectionYear: 2022 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  mn: { openstatesName: "Minnesota", chambers: { upper: { termYears: 4, lastElectionYear: 2022 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ks: { openstatesName: "Kansas", chambers: { upper: { termYears: 4, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  nm: { openstatesName: "New Mexico", chambers: { upper: { termYears: 4, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  sc: { openstatesName: "South Carolina", chambers: { upper: { termYears: 4, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  // 2-year, whole-chamber, even-year Senates (structurally safe -- see tier (b) above)
+  az: { openstatesName: "Arizona", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ct: { openstatesName: "Connecticut", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ga: { openstatesName: "Georgia", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  id: { openstatesName: "Idaho", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  me: { openstatesName: "Maine", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ma: { openstatesName: "Massachusetts", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  nh: { openstatesName: "New Hampshire", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ny: { openstatesName: "New York", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  nc: { openstatesName: "North Carolina", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ri: { openstatesName: "Rhode Island", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  sd: { openstatesName: "South Dakota", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  vt: { openstatesName: "Vermont", chambers: { upper: { termYears: 2, lastElectionYear: 2024 }, lower: { termYears: 2, lastElectionYear: 2024 } } },
+  // House-only: these states' Senates are staggered (excluded above), but
+  // every one of these Houses is a plain 2-year whole-chamber term in an
+  // even-year state -- same structural-safety argument as tier (b).
+  ak: { openstatesName: "Alaska", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ar: { openstatesName: "Arkansas", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ca: { openstatesName: "California", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  co: { openstatesName: "Colorado", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  de: { openstatesName: "Delaware", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  fl: { openstatesName: "Florida", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  hi: { openstatesName: "Hawaii", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  il: { openstatesName: "Illinois", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  in: { openstatesName: "Indiana", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ia: { openstatesName: "Iowa", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ky: { openstatesName: "Kentucky", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  mo: { openstatesName: "Missouri", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  mt: { openstatesName: "Montana", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  nv: { openstatesName: "Nevada", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  oh: { openstatesName: "Ohio", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ok: { openstatesName: "Oklahoma", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  or: { openstatesName: "Oregon", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  pa: { openstatesName: "Pennsylvania", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  tn: { openstatesName: "Tennessee", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  tx: { openstatesName: "Texas", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  ut: { openstatesName: "Utah", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  wa: { openstatesName: "Washington", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  wv: { openstatesName: "West Virginia", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  wi: { openstatesName: "Wisconsin", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  wy: { openstatesName: "Wyoming", chambers: { lower: { termYears: 2, lastElectionYear: 2024 } } },
+  // NOT included at all (fully deferred, not just Senate-deferred):
+  // Nebraska (unicameral, staggered) and North Dakota (both chambers
+  // staggered, House+Senate paired by district).
 };
 
 const partyCode = (partyName) => (partyName === "Democratic" ? "D" : partyName === "Republican" ? "R" : partyName === "Independent" ? "I" : null);
@@ -114,20 +187,29 @@ await client.connect();
 const run = await client.query(`INSERT INTO ingestion_runs (source) VALUES ($1) RETURNING id`, [SOURCE]);
 const runId = run.rows[0].id;
 
-// Observed live this session: OpenStates' free tier is noticeably slow and
-// occasionally times out under back-to-back requests (no rate-limit
-// headers returned, single calls took 3-10s each) -- a small retry with
-// backoff, not a code bug workaround, so a transient slow response doesn't
-// fail an otherwise-idempotent run.
-async function fetchWithRetry(u, attempts = 3) {
+// Observed live this session: OpenStates' free tier is noticeably slow
+// under back-to-back requests (no rate-limit headers on a normal 200,
+// single calls took 3-10s each) and a full 48-state run tripped an actual
+// 429 partway through (Alabama's Senate landed, its House didn't). Writes
+// commit per-row as the script goes (no giant enclosing transaction), and
+// the whole thing is already proven idempotent, so a failed run is always
+// safely resumable by just running the same command again -- this retry
+// exists so a transient slow response or a brief rate-limit window
+// doesn't force that manual resume in the first place. 429s get a longer,
+// more patient backoff than a generic timeout since a rate limit needs
+// real wall-clock time to clear, not just an instant retry.
+async function fetchWithRetry(u, attempts = 6) {
   for (let i = 1; i <= attempts; i += 1) {
     try {
       const res = await fetch(u, { headers: { "X-API-KEY": API_KEY }, signal: AbortSignal.timeout(60000) });
+      if (res.status === 429) throw Object.assign(new Error("429"), { rateLimited: true });
       if (!res.ok) throw new Error(`${res.status}`);
       return res;
     } catch (e) {
       if (i === attempts) throw e;
-      await new Promise((r) => setTimeout(r, 2000 * i));
+      const wait = e.rateLimited ? 15000 * i : 2000 * i;
+      console.error(`  (retry ${i}/${attempts - 1} after ${e.message} -- waiting ${wait}ms)`);
+      await new Promise((r) => setTimeout(r, wait));
     }
   }
 }
