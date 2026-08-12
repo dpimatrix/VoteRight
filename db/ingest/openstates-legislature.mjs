@@ -198,9 +198,31 @@ const runId = run.rows[0].id;
 // doesn't force that manual resume in the first place. 429s get a longer,
 // more patient backoff than a generic timeout since a rate limit needs
 // real wall-clock time to clear, not just an instant retry.
+//
+// Found live running a real 48-state batch against a "Default (new user)"
+// OpenStates key (checked on the account dashboard: 500 requests/day, 1
+// request/sec): this function had NO proactive throttle at all, only the
+// reactive backoff above -- and typical response latency here is well
+// under a second, so back-to-back sequential calls blew straight through
+// the 1/sec ceiling and racked up repeated 429s (which still count against
+// the daily total on this tier) before the reactive backoff ever caught
+// up. A real 48-state run only needs on the order of 100-150 calls total
+// (48 states x ~1-2 chambers x ~1-2 pages at per_page=50) -- the 429
+// storm was the script wasting quota on rejected requests, not the real
+// data need exceeding the daily cap. Fixed by throttling every call
+// (first attempt AND retries) to at least ~1.1s since the previous one,
+// tracked via a shared module-level timestamp -- proactive spacing
+// instead of only reacting after a rejection.
+let lastCallAt = 0;
+async function throttle() {
+  const wait = lastCallAt + 1100 - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCallAt = Date.now();
+}
 async function fetchWithRetry(u, attempts = 6) {
   for (let i = 1; i <= attempts; i += 1) {
     try {
+      await throttle();
       const res = await fetch(u, { headers: { "X-API-KEY": API_KEY }, signal: AbortSignal.timeout(60000) });
       if (res.status === 429) throw Object.assign(new Error("429"), { rateLimited: true });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -243,6 +265,7 @@ try {
     const stateOcdId = `ocd-division/country:us/state:${slug}`;
 
     for (const [orgClassification, cycle] of Object.entries(info.chambers)) {
+      console.error(`  ${slug} / ${orgClassification} ...`);
       const people = await fetchAllPeople(info.openstatesName, orgClassification);
 
       // Pass 1: tally how many people share each literal district string,
