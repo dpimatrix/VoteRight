@@ -8,6 +8,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface EvidenceItem {
   value: number;
@@ -126,24 +128,24 @@ interface CandidateResponse {
   campaigns: CampaignRow[];
 }
 
-const AGREEMENT_LABEL: Record<string, string> = {
-  '2': 'Strongly agrees',
-  '1': 'Agrees',
-  '0': 'Neutral',
-  '-1': 'Disagrees',
-  '-2': 'Strongly disagrees',
-};
-
-const STANCE_LABEL: Record<string, string> = {
-  commit: 'Committed',
-  decline: 'Declined',
-  no_response: 'No response',
-};
-
 export default function CandidateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const AGREEMENT_LABEL: Record<string, string> = {
+    '2': d.agree_strongly,
+    '1': d.agree_yes,
+    '0': d.agree_neutral,
+    '-1': d.agree_no,
+    '-2': d.agree_strongly_no,
+  };
+  const STANCE_LABEL: Record<string, string> = {
+    commit: d.stance_committed,
+    decline: d.stance_declined,
+    no_response: d.stance_no_response,
+  };
   const [data, setData] = useState<CandidateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,13 +159,13 @@ export default function CandidateScreen() {
           if (!cancelled) setData(res);
         } catch (e) {
           console.error('Candidate load failed:', e);
-          if (!cancelled) setError('Could not load this candidate. Pull down to try again.');
+          if (!cancelled) setError(d.candidate_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, [id]),
+    }, [id, d.candidate_load_error]),
   );
 
   if (!data && !error) {
@@ -196,7 +198,7 @@ export default function CandidateScreen() {
           </ThemedText>
         </View>
         <ThemedText type="small" themeColor="textSecondary">
-          {data.sample ? 'Sample data' : 'Real data'}
+          {data.sample ? d.sample_data : d.real_data}
         </ThemedText>
 
         {data.topics
@@ -217,12 +219,12 @@ export default function CandidateScreen() {
               </View>
               {tp.priority && (
                 <ThemedText type="small" themeColor="textSecondary">
-                  You said “{tp.priority.statement}”
+                  {tf(d.you_said, { statement: tp.priority.statement })}
                 </ThemedText>
               )}
               {tp.evidence.length === 0 ? (
                 <ThemedText type="small" themeColor="textSecondary">
-                  No public position on record.
+                  {d.no_position}
                 </ThemedText>
               ) : (
                 tp.evidence.map((e, i) => (
@@ -237,17 +239,17 @@ export default function CandidateScreen() {
               )}
               {tp.conflict && (
                 <ThemedText type="small" themeColor="textSecondary">
-                  Votes and statements conflict on this issue — vote record governs the score.
+                  {d.conflict_note}
                 </ThemedText>
               )}
             </View>
           ))}
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Voting record</ThemedText>
+          <ThemedText type="smallBold">{d.voting_record_h}</ThemedText>
           {data.votes.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No recorded votes yet.
+              {d.no_votes_yet}
             </ThemedText>
           ) : (
             data.votes.map((v) => (
@@ -273,16 +275,16 @@ export default function CandidateScreen() {
           )}
           {data.votesDataThrough && (
             <ThemedText type="small" themeColor="textSecondary">
-              Voting data current through {data.votesDataThrough}.
+              {tf(d.votes_through, { date: data.votesDataThrough })}
             </ThemedText>
           )}
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Promises</ThemedText>
+          <ThemedText type="smallBold">{d.promises_h}</ThemedText>
           {data.promises.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No tracked promises yet.
+              {d.no_promises_yet}
             </ThemedText>
           ) : (
             data.promises.map((p) => (
@@ -306,10 +308,10 @@ export default function CandidateScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Integrity findings</ThemedText>
+          <ThemedText type="smallBold">{d.integrity_findings_h}</ThemedText>
           {data.flags.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No published findings.
+              {d.no_findings}
             </ThemedText>
           ) : (
             data.flags.map((f) => (
@@ -326,10 +328,10 @@ export default function CandidateScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Mandates</ThemedText>
+          <ThemedText type="smallBold">{d.candidate_mandates_h}</ThemedText>
           {data.commitments.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No mandate commitments yet.
+              {d.no_commitments_yet}
             </ThemedText>
           ) : (
             data.commitments.map((c) => (
@@ -343,12 +345,12 @@ export default function CandidateScreen() {
                   </View>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {c.office ?? ''} · {c.turnout_count.toLocaleString()} voters · +{c.margin_pct}% margin
+                  {c.office ?? ''} · {c.turnout_count.toLocaleString()} · +{c.margin_pct}%
                 </ThemedText>
                 {c.statement && <ThemedText type="small">“{c.statement}”</ThemedText>}
                 {c.became_promise && (
                   <ThemedText type="small" themeColor="textSecondary">
-                    This commitment became a tracked promise.
+                    {d.became_promise_note}
                   </ThemedText>
                 )}
               </View>
@@ -357,10 +359,10 @@ export default function CandidateScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Independent spending</ThemedText>
+          <ThemedText type="smallBold">{d.independent_spending_h}</ThemedText>
           {profile.expenditures.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No independent expenditures on record.
+              {d.no_expenditures}
             </ThemedText>
           ) : (
             profile.expenditures.map((e, i) => (
@@ -373,10 +375,10 @@ export default function CandidateScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Accountability</ThemedText>
+          <ThemedText type="smallBold">{d.candidate_accountability_h}</ThemedText>
           {!data.holdsOffice && (
             <ThemedText type="small" themeColor="textSecondary">
-              Not currently an officeholder.
+              {d.not_officeholder}
             </ThemedText>
           )}
           {data.pathways.map((p) => (
@@ -389,16 +391,16 @@ export default function CandidateScreen() {
           ))}
           {data.campaigns.map((c) => (
             <ThemedText key={c.id} type="small" themeColor="textSecondary">
-              {c.description} · {c.support_count} supporters
+              {c.description} · {c.support_count}
             </ThemedText>
           ))}
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Endorsements</ThemedText>
+          <ThemedText type="smallBold">{d.endorsements_h}</ThemedText>
           {profile.endorsements.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No endorsements on record.
+              {d.no_endorsements}
             </ThemedText>
           ) : (
             profile.endorsements.map((e, i) => (

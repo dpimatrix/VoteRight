@@ -9,6 +9,8 @@ import { canonicalProposalPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
 import { get, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t } from '@/lib/i18n';
 
 interface Topic {
   topic_id: string;
@@ -19,11 +21,13 @@ export default function NewProposalScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
   const [topics, setTopics] = useState<Topic[] | null>(null);
   const [topicId, setTopicId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<boolean | string>(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -34,14 +38,14 @@ export default function NewProposalScreen() {
       })
       .catch((e) => {
         console.error('Topics load failed:', e);
-        setError('Could not load issues. Pull down to try again.');
+        setError(true);
       });
   }, []);
 
   async function submit() {
     if (!topicId) return;
     setBusy(true);
-    setError(null);
+    setError(false);
     try {
       let signature: { signature: string; publicKeyFingerprint: string } | undefined;
       try {
@@ -59,13 +63,13 @@ export default function NewProposalScreen() {
         publicKeyFingerprint: signature?.publicKeyFingerprint,
       });
       if (res.signatureInvalid) {
-        setError('Your signature could not be verified. Try again.');
+        setError(d.signature_invalid_error);
         return;
       }
       router.replace({ pathname: '/debates/[id]', params: { id: res.id! } });
     } catch (e) {
       console.error('Proposal save failed:', e);
-      setError('Could not save your proposal. Try again.');
+      setError(d.proposal_save_error);
     } finally {
       setBusy(false);
     }
@@ -76,11 +80,11 @@ export default function NewProposalScreen() {
   return (
     <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
       <ThemedText type="title" style={styles.title}>
-        Propose an issue
+        {d.title_propose}
       </ThemedText>
 
         {!topics && !error && <ActivityIndicator style={styles.spinner} />}
-        {error && <ThemedText type="small">{error}</ThemedText>}
+        {error && <ThemedText type="small">{typeof error === 'string' ? error : d.topics_load_error}</ThemedText>}
 
         {topics && (
           <View style={styles.topicRow}>
@@ -105,14 +109,14 @@ export default function NewProposalScreen() {
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="Proposal title (10+ characters)"
+          placeholder={d.proposal_title_placeholder}
           placeholderTextColor={colors.textSecondary}
           style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
         />
         <TextInput
           value={body}
           onChangeText={setBody}
-          placeholder="Describe the proposal (30+ characters)"
+          placeholder={d.proposal_body_placeholder}
           placeholderTextColor={colors.textSecondary}
           multiline
           numberOfLines={6}
@@ -120,7 +124,7 @@ export default function NewProposalScreen() {
         />
 
         <ThemedText type="small" themeColor="textSecondary">
-          Proposals are public and attributed to your verified identity — needs 3 seconds to move to debate.
+          {d.proposal_attrib_note}
         </ThemedText>
 
         <Pressable
@@ -128,7 +132,7 @@ export default function NewProposalScreen() {
           onPress={submit}
           style={[styles.submitBtn, { backgroundColor: !canSubmit || busy ? colors.backgroundElement : colors.evidence }]}
         >
-          <ThemedText type="smallBold">Submit proposal</ThemedText>
+          <ThemedText type="smallBold">{d.submit_proposal}</ThemedText>
         </Pressable>
     </KeyboardAwareScreen>
   );

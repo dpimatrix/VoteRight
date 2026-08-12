@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface Referendum {
   id: string;
@@ -40,6 +42,8 @@ export default function MandatesScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
   const [referenda, setReferenda] = useState<Referendum[] | null>(null);
   const [mandates, setMandates] = useState<Mandate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,13 +60,13 @@ export default function MandatesScreen() {
           setMandates(res.mandates);
         } catch (e) {
           console.error('Mandates load failed:', e);
-          if (!cancelled) setError('Could not load mandates. Pull down to try again.');
+          if (!cancelled) setError(d.mandates_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [d.mandates_load_error]),
   );
 
   const open = referenda?.filter((r) => r.status === 'open') ?? [];
@@ -75,10 +79,10 @@ export default function MandatesScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
-          Mandates
+          {d.mandates_title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Advisory referenda become public voter mandates candidates are asked to answer on the record.
+          {d.mandates_sub}
         </ThemedText>
 
         {!referenda && !error && <ActivityIndicator style={styles.spinner} />}
@@ -86,7 +90,7 @@ export default function MandatesScreen() {
 
         {open.length > 0 && (
           <View style={styles.group}>
-            <ThemedText type="smallBold">Open referenda</ThemedText>
+            <ThemedText type="smallBold">{d.open_referenda_h}</ThemedText>
             {open.map((r) => (
               <Pressable
                 key={r.id}
@@ -96,10 +100,10 @@ export default function MandatesScreen() {
                 <ThemedText type="small">{r.question_text}</ThemedText>
                 <View style={styles.metaRow}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {r.topic} · {r.ballots} ballots · closes {r.closes}
+                    {r.topic} · {r.ballots} · {tf(d.closes_suffix, { date: r.closes }).replace(/^ · /, '')}
                   </ThemedText>
                   <View style={[styles.chip, { borderColor: r.voted ? colors.evidence : colors.textSecondary }]}>
-                    <ThemedText type="small">{r.voted ? '✓ Voted' : 'Cast ballot'}</ThemedText>
+                    <ThemedText type="small">{r.voted ? d.voted_chip : d.cast_ballot_chip}</ThemedText>
                   </View>
                 </View>
               </Pressable>
@@ -109,7 +113,7 @@ export default function MandatesScreen() {
 
         {scheduled.length > 0 && (
           <View style={styles.group}>
-            <ThemedText type="smallBold">Scheduled</ThemedText>
+            <ThemedText type="smallBold">{d.scheduled_h}</ThemedText>
             {scheduled.map((r) => (
               <Pressable
                 key={r.id}
@@ -118,7 +122,7 @@ export default function MandatesScreen() {
               >
                 <ThemedText type="small">{r.question_text}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {r.topic} · opens {r.opens}
+                  {r.topic} · {tf(d.opens_prefix, { date: r.opens })}
                 </ThemedText>
               </Pressable>
             ))}
@@ -127,7 +131,7 @@ export default function MandatesScreen() {
 
         {awaiting.length > 0 && (
           <View style={styles.group}>
-            <ThemedText type="smallBold">Awaiting certification</ThemedText>
+            <ThemedText type="smallBold">{d.awaiting_certification_h}</ThemedText>
             {awaiting.map((r) => (
               <Pressable
                 key={r.id}
@@ -136,7 +140,7 @@ export default function MandatesScreen() {
               >
                 <ThemedText type="small">{r.question_text}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {r.topic} · {r.ballots} ballots
+                  {r.topic} · {r.ballots}
                 </ThemedText>
               </Pressable>
             ))}
@@ -144,10 +148,10 @@ export default function MandatesScreen() {
         )}
 
         <View style={styles.group}>
-          <ThemedText type="smallBold">Published mandates</ThemedText>
+          <ThemedText type="smallBold">{d.published_mandates_h}</ThemedText>
           {published.length === 0 && (
             <ThemedText type="small" themeColor="textSecondary">
-              None yet.
+              {d.none_yet}
             </ThemedText>
           )}
           {published.map((m) => (
@@ -159,7 +163,7 @@ export default function MandatesScreen() {
               <ThemedText type="small">{m.mandate_summary}</ThemedText>
               <View style={styles.metaRow}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {m.office ?? ''} · {m.turnout_count.toLocaleString()} voters · +{m.margin_pct}% margin
+                  {m.office ?? ''} · {m.turnout_count.toLocaleString()} · +{m.margin_pct}%
                 </ThemedText>
                 <View style={[styles.chip, { borderColor: colors.evidence }]}>
                   <ThemedText type="small" style={{ color: colors.evidence }}>
@@ -172,17 +176,17 @@ export default function MandatesScreen() {
         </View>
 
         <Pressable onPress={() => router.push('/accountability/list')}>
-          <ThemedText type="linkPrimary">Accountability campaigns →</ThemedText>
+          <ThemedText type="linkPrimary">{d.accountability_link}</ThemedText>
         </Pressable>
 
         {below.length > 0 && (
           <View style={styles.group}>
-            <ThemedText type="smallBold">Below publication threshold</ThemedText>
+            <ThemedText type="smallBold">{d.below_threshold_h}</ThemedText>
             {below.map((m) => (
               <View key={m.id} style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
                 <ThemedText type="small">{m.question_text}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Turnout didn't meet the publication threshold ({m.turnout_pct ?? 0}% &lt; {m.threshold_pct}%).
+                  {tf(d.below_threshold_note, { turnout: m.turnout_pct ?? 0, threshold: m.threshold_pct })}
                 </ThemedText>
               </View>
             ))}

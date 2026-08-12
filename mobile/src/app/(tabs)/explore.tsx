@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ApiError, ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t } from '@/lib/i18n';
 
 interface Race {
   id: string;
@@ -32,18 +34,19 @@ interface MatchesResponse {
   results: MatchResult[];
 }
 
-const BAND_LABEL: Record<CandidateScore['overall'], string> = {
-  strong: 'Strong match',
-  good: 'Good match',
-  mixed: 'Mixed',
-  weak: 'Leans opposed',
-  insufficient: 'Not enough data',
-};
-
 export default function MatchesScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const BAND_LABEL: Record<CandidateScore['overall'], string> = {
+    strong: d.band_strong,
+    good: d.band_good,
+    mixed: d.band_mixed,
+    weak: d.band_weak,
+    insufficient: d.band_insufficient,
+  };
   const [races, setRaces] = useState<Race[] | null>(null);
   const [raceId, setRaceId] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchesResponse | null>(null);
@@ -57,9 +60,9 @@ export default function MatchesScreen() {
       if (res.races[0]) setRaceId(res.races[0].id);
     } catch (e) {
       console.error('Races load failed:', e);
-      setError('Could not load races. Pull down to try again.');
+      setError(d.races_load_error);
     }
-  }, []);
+  }, [d.races_load_error]);
 
   useEffect(() => {
     loadRaces();
@@ -76,16 +79,16 @@ export default function MatchesScreen() {
           if (!(e instanceof ApiError && e.status === 409)) {
             console.error('Matches load failed:', e);
           }
-          setError('Set at least 3 priorities on the Priorities tab to see matches.');
+          setError(d.need_priorities_error);
         });
-    }, [raceId]),
+    }, [raceId, d.need_priorities_error]),
   );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
-          Matches
+          {d.matches_title}
         </ThemedText>
 
         {!races && !error && <ActivityIndicator style={styles.spinner} />}
@@ -133,7 +136,7 @@ export default function MatchesScreen() {
                 {m.score.dealbreaker && (
                   <View style={[styles.chip, styles.dealbreakerChip]}>
                     <ThemedText type="small" style={styles.dealbreakerText}>
-                      ⚠ Dealbreaker issue
+                      {d.dealbreaker_chip}
                     </ThemedText>
                   </View>
                 )}

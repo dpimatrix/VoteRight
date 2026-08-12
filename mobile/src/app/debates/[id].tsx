@@ -11,6 +11,8 @@ import { canonicalSecondPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface Citation {
   publisher: string;
@@ -57,13 +59,14 @@ interface DebateDetail {
   ctq: Ctq | null;
 }
 
-const SIDE_LABEL: Record<string, string> = { for: 'For', against: 'Against', neutral_info: 'Neutral' };
-
 export default function DebateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const SIDE_LABEL: Record<string, string> = { for: d.side_for, against: d.side_against, neutral_info: d.side_neutral };
   const [detail, setDetail] = useState<DebateDetail | null>(null);
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,17 +75,17 @@ export default function DebateScreen() {
   const load = useCallback(async () => {
     try {
       if (!hasSession()) await ensureSession();
-      const [d, who] = await Promise.all([
+      const [dd, who] = await Promise.all([
         get<DebateDetail>(`/api/debates/${id}`),
         get<{ tier: string }>('/api/whoami'),
       ]);
-      setDetail(d);
+      setDetail(dd);
       setTier(who.tier);
     } catch (e) {
       console.error('Debate load failed:', e);
-      setError('Could not load this debate. Pull down to try again.');
+      setError(d.debate_load_error);
     }
-  }, [id]);
+  }, [id, d.debate_load_error]);
 
   useFocusEffect(
     useCallback(() => {
@@ -174,30 +177,30 @@ export default function DebateScreen() {
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <View style={[styles.chip, { borderColor: colors.evidence, alignSelf: 'flex-start' }]}>
               <ThemedText type="small" style={{ color: colors.evidence }}>
-                {detail.seconds}/{detail.second_threshold} seconds
+                {tf(d.seconds_progress, { have: detail.seconds, need: detail.second_threshold })}
               </ThemedText>
             </View>
             {detail.is_author ? (
               <ThemedText type="small" themeColor="textSecondary">
-                You proposed this — authors can't second their own proposal.
+                {d.author_cant_second}
               </ThemedText>
             ) : detail.has_seconded ? (
-              <ThemedText type="small">You've already seconded this proposal.</ThemedText>
+              <ThemedText type="small">{d.already_seconded}</ThemedText>
             ) : verified ? (
               <Pressable
                 disabled={busy}
                 onPress={second}
                 style={[styles.actionBtn, { backgroundColor: colors.evidence }]}
               >
-                <ThemedText type="smallBold">Second this proposal</ThemedText>
+                <ThemedText type="smallBold">{d.second_proposal_btn}</ThemedText>
               </Pressable>
             ) : (
               <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                <ThemedText type="smallBold">Verify to second</ThemedText>
+                <ThemedText type="smallBold">{d.verify_to_second}</ThemedText>
               </Pressable>
             )}
             <ThemedText type="small" themeColor="textSecondary">
-              Seconding is public and attributed.
+              {d.seconding_attrib_note}
             </ThemedText>
           </View>
         )}
@@ -206,31 +209,31 @@ export default function DebateScreen() {
           <>
             {detail.thread_status === 'open' && detail.ctq && (
               <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-                <ThemedText type="smallBold">Call the question</ThemedText>
+                <ThemedText type="smallBold">{d.call_the_question}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {detail.ctq.votes} / {detail.ctq.active} active participants
-                  {detail.closes ? ` · closes ${detail.closes}` : ''}
+                  {tf(d.ctq_progress, { votes: detail.ctq.votes, active: detail.ctq.active })}
+                  {detail.closes ? tf(d.closes_suffix, { date: detail.closes }) : ''}
                 </ThemedText>
                 {detail.ctq.voted ? (
-                  <ThemedText type="small">You've voted to close debate early.</ThemedText>
+                  <ThemedText type="small">{d.already_ctq_voted}</ThemedText>
                 ) : detail.ctq.eligible && verified ? (
                   <Pressable
                     disabled={busy}
                     onPress={ctqVote}
                     style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]}
                   >
-                    <ThemedText type="smallBold">Call the question</ThemedText>
+                    <ThemedText type="smallBold">{d.call_the_question}</ThemedText>
                   </Pressable>
                 ) : (
                   <ThemedText type="small" themeColor="textSecondary">
-                    Post an argument or vote on 2+ arguments to become eligible.
+                    {d.ctq_eligibility_note}
                   </ThemedText>
                 )}
               </View>
             )}
             {detail.thread_status !== 'open' && (
               <ThemedText type="small" themeColor="textSecondary">
-                This debate thread is closed.
+                {d.thread_closed}
               </ThemedText>
             )}
 
@@ -260,7 +263,7 @@ export default function DebateScreen() {
                   </ThemedText>
                 ))}
                 {a.moderation_status === 'pending' ? (
-                  <ThemedText type="small">⟳ Pending moderation review</ThemedText>
+                  <ThemedText type="small">{d.pending_moderation}</ThemedText>
                 ) : detail.thread_status === 'open' && verified ? (
                   <View style={styles.voteRow}>
                     {(['agree', 'disagree', 'pass'] as const).map((r) => (
@@ -273,14 +276,18 @@ export default function DebateScreen() {
                         ]}
                       >
                         <ThemedText type="small">
-                          {r === 'agree' ? `Agree ${a.agree_count}` : r === 'disagree' ? `Disagree ${a.disagree_count}` : 'Pass'}
+                          {r === 'agree'
+                            ? tf(d.agree_count, { n: a.agree_count })
+                            : r === 'disagree'
+                              ? tf(d.disagree_count, { n: a.disagree_count })
+                              : d.pass}
                         </ThemedText>
                       </Pressable>
                     ))}
                   </View>
                 ) : (
                   <ThemedText type="small" themeColor="textSecondary">
-                    Agree {a.agree_count} · Disagree {a.disagree_count}
+                    {tf(d.agree_disagree_readonly, { agree: a.agree_count, disagree: a.disagree_count })}
                   </ThemedText>
                 )}
               </View>
@@ -291,7 +298,7 @@ export default function DebateScreen() {
                 <DebateComposer threadId={detail.thread_id} onPosted={load} />
               ) : (
                 <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                  <ThemedText type="smallBold">Verify to argue</ThemedText>
+                  <ThemedText type="smallBold">{d.verify_to_argue}</ThemedText>
                 </Pressable>
               ))}
           </>

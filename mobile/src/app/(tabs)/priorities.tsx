@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface Topic {
   topic_id: string;
@@ -34,6 +36,8 @@ export default function PrioritiesScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
   const [topics, setTopics] = useState<Topic[] | null>(null);
   const [sel, setSel] = useState<Record<string, Selection>>({});
   const [error, setError] = useState<string | null>(null);
@@ -66,13 +70,13 @@ export default function PrioritiesScreen() {
           }
         } catch (e) {
           console.error('Topics load failed:', e);
-          if (!cancelled) setError('Could not load issues. Pull down to try again.');
+          if (!cancelled) setError(d.topics_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [d.topics_load_error]),
   );
 
   function pick(axisId: string, direction: 1 | -1, poleText: string) {
@@ -100,7 +104,7 @@ export default function PrioritiesScreen() {
       router.replace('/explore');
     } catch (e) {
       console.error('Priorities save failed:', e);
-      setError('Could not save your priorities. Try again.');
+      setError(d.priorities_save_error);
     } finally {
       setBusy(false);
     }
@@ -110,10 +114,10 @@ export default function PrioritiesScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
-          Your priorities
+          {d.priorities_title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Pick a side on at least 3 issues to see how candidates match you.
+          {d.priorities_sub}
         </ThemedText>
 
         {!topics && !error && <ActivityIndicator style={styles.spinner} />}
@@ -188,7 +192,7 @@ export default function PrioritiesScreen() {
           ]}
         >
           <ThemedText type="smallBold" themeColor={count < 3 || busy ? 'textSecondary' : undefined}>
-            {count >= 3 ? 'See matches' : `Pick ${3 - count} more`}
+            {count >= 3 ? d.see_matches : tf(d.pick_more, { n: 3 - count })}
           </ThemedText>
         </Pressable>
       </ScrollView>

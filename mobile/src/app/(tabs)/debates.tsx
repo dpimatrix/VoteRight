@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface Proposal {
   id: string;
@@ -20,15 +22,13 @@ interface Proposal {
   args: number;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  debating: 'Debating',
-  seconding: 'Seconding',
-};
-
 export default function DebatesScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const STATUS_LABEL: Record<string, string> = { debating: d.status_debating, seconding: d.status_seconding };
   const [proposals, setProposals] = useState<Proposal[] | null>(null);
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,21 +48,21 @@ export default function DebatesScreen() {
           setTier(who.tier);
         } catch (e) {
           console.error('Debates load failed:', e);
-          if (!cancelled) setError('Could not load debates. Pull down to try again.');
+          if (!cancelled) setError(d.debates_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [d.debates_load_error]),
   );
 
   const groups = proposals && [
-    { key: 'debating', label: 'Debating', items: proposals.filter((p) => p.status === 'debating') },
-    { key: 'seconding', label: 'Seconding', items: proposals.filter((p) => p.status === 'seconding') },
+    { key: 'debating', label: d.status_debating, items: proposals.filter((p) => p.status === 'debating') },
+    { key: 'seconding', label: d.status_seconding, items: proposals.filter((p) => p.status === 'seconding') },
     {
       key: 'other',
-      label: 'Closed / other',
+      label: d.status_closed_other,
       items: proposals.filter((p) => !['debating', 'seconding'].includes(p.status)),
     },
   ];
@@ -71,10 +71,10 @@ export default function DebatesScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
-          Debates
+          {d.debates_title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Advisory — residents propose, second, and debate issues; the county isn't bound by outcomes.
+          {d.debates_sub}
         </ThemedText>
 
         {tier === 'unverified' && (
@@ -83,7 +83,7 @@ export default function DebatesScreen() {
             style={[styles.verifyBtn, { borderColor: colors.evidence }]}
           >
             <ThemedText type="small" style={{ color: colors.evidence }}>
-              Verify your address to participate
+              {d.verify_to_participate}
             </ThemedText>
           </Pressable>
         )}
@@ -106,8 +106,8 @@ export default function DebatesScreen() {
                     <View style={styles.metaRow}>
                       <ThemedText type="small" themeColor="textSecondary">
                         {p.status === 'seconding'
-                          ? `${p.seconds}/${p.second_threshold} seconds`
-                          : `${p.args} arguments${p.closes ? ` · closes ${p.closes}` : ''}`}
+                          ? tf(d.seconds_progress, { have: p.seconds, need: p.second_threshold })
+                          : tf(d.arguments_count, { n: p.args }) + (p.closes ? tf(d.closes_suffix, { date: p.closes }) : '')}
                       </ThemedText>
                       <View
                         style={[
@@ -134,7 +134,7 @@ export default function DebatesScreen() {
             onPress={() => router.push('/debates/new')}
             style={[styles.newBtn, { backgroundColor: colors.evidence }]}
           >
-            <ThemedText type="smallBold">Propose an issue</ThemedText>
+            <ThemedText type="smallBold">{d.propose_issue_btn}</ThemedText>
           </Pressable>
         )}
       </ScrollView>

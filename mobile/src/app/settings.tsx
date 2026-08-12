@@ -5,24 +5,34 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemePreference, type ThemePreference } from '@/hooks/theme-preference';
-
-const OPTIONS: { value: ThemePreference; label: string; description: string }[] = [
-  { value: 'system', label: 'System', description: "Follow your device's setting" },
-  { value: 'light', label: 'Light', description: 'Always use the light theme' },
-  { value: 'dark', label: 'Dark', description: 'Always use the dark theme' },
-];
+import { useLanguagePreference, type LanguagePreference } from '@/hooks/language-preference';
+import { t } from '@/lib/i18n';
 
 export default function SettingsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
   const { preference, setPreference } = useThemePreference();
+  const { preference: langPreference, setPreference: setLangPreference, lang } = useLanguagePreference();
+  const d = t(lang);
+
+  const THEME_OPTIONS: { value: ThemePreference; label: string; description: string }[] = [
+    { value: 'system', label: d.theme_system, description: d.theme_system_desc },
+    { value: 'light', label: d.theme_light, description: d.theme_light_desc },
+    { value: 'dark', label: d.theme_dark, description: d.theme_dark_desc },
+  ];
+
+  const LANG_OPTIONS: { value: LanguagePreference; label: string; description: string }[] = [
+    { value: 'system', label: d.lang_system, description: d.lang_system_desc },
+    { value: 'en', label: d.lang_en, description: d.lang_en_desc },
+    { value: 'es', label: d.lang_es, description: d.lang_es_desc },
+  ];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <ThemedText type="smallBold">Appearance</ThemedText>
+        <ThemedText type="smallBold">{d.appearance_h}</ThemedText>
         <View style={styles.group}>
-          {OPTIONS.map((o) => (
+          {THEME_OPTIONS.map((o) => (
             <Pressable
               key={o.value}
               onPress={() => setPreference(o.value)}
@@ -39,6 +49,33 @@ export default function SettingsScreen() {
                 </ThemedText>
               </View>
               {preference === o.value && (
+                <ThemedText type="smallBold" style={{ color: colors.evidence }}>
+                  ✓
+                </ThemedText>
+              )}
+            </Pressable>
+          ))}
+        </View>
+
+        <ThemedText type="smallBold">{d.language_h}</ThemedText>
+        <View style={styles.group}>
+          {LANG_OPTIONS.map((o) => (
+            <Pressable
+              key={o.value}
+              onPress={() => setLangPreference(o.value)}
+              style={[
+                styles.row,
+                { backgroundColor: colors.backgroundElement, borderColor: colors.evidence },
+                langPreference === o.value && styles.rowSelected,
+              ]}
+            >
+              <View style={styles.rowText}>
+                <ThemedText type="small">{o.label}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {o.description}
+                </ThemedText>
+              </View>
+              {langPreference === o.value && (
                 <ThemedText type="smallBold" style={{ color: colors.evidence }}>
                   ✓
                 </ThemedText>

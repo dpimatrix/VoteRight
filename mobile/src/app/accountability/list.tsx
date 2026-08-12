@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t } from '@/lib/i18n';
 
 interface Campaign {
   id: string;
@@ -35,17 +37,18 @@ interface Politician {
   party: string | null;
 }
 
-const MECH_LABEL: Record<string, string> = {
-  charter_amendment_petition: 'Charter amendment petition',
-  recall_petition: 'Recall petition',
-  next_election_defeat: 'Defeat at next election',
-  no_removal_mechanism_exists: 'No removal mechanism',
-};
-
 export default function AccountabilityScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const MECH_LABEL: Record<string, string> = {
+    charter_amendment_petition: d.mech_charter,
+    recall_petition: d.mech_recall,
+    next_election_defeat: d.mech_defeat,
+    no_removal_mechanism_exists: d.mech_none,
+  };
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [pathways, setPathways] = useState<Pathway[] | null>(null);
   const [politicians, setPoliticians] = useState<Politician[] | null>(null);
@@ -76,13 +79,13 @@ export default function AccountabilityScreen() {
           setTier(who.tier);
         } catch (e) {
           console.error('Accountability load failed:', e);
-          if (!cancelled) setError('Could not load accountability campaigns. Pull down to try again.');
+          if (!cancelled) setError(d.accountability_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [d.accountability_load_error]),
   );
 
   const officePathways = pathways?.filter((p) => p.mechanism_type !== 'charter_amendment_petition') ?? [];
@@ -128,10 +131,10 @@ export default function AccountabilityScreen() {
   return (
     <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
       <ThemedText type="title" style={styles.title}>
-        Accountability
+        {d.accountability_title}
       </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Organize around real mechanisms — not signature petitions. In-app support has no legal effect.
+          {d.accountability_sub}
         </ThemedText>
 
         {!campaigns && !error && <ActivityIndicator style={styles.spinner} />}
@@ -139,7 +142,7 @@ export default function AccountabilityScreen() {
 
         {campaigns?.length === 0 && (
           <ThemedText type="small" themeColor="textSecondary">
-            No campaigns yet.
+            {d.no_campaigns_yet}
           </ThemedText>
         )}
         {campaigns?.map((c) => (
@@ -151,10 +154,10 @@ export default function AccountabilityScreen() {
             <ThemedText type="small">{c.target_type === 'politician' ? c.politician_name : c.reform_title}</ThemedText>
             <View style={styles.metaRow}>
               <ThemedText type="small" themeColor="textSecondary">
-                {MECH_LABEL[c.mechanism_type] ?? c.mechanism_type} · {c.support_count} supporters
+                {MECH_LABEL[c.mechanism_type] ?? c.mechanism_type} · {c.support_count}
               </ThemedText>
               <View style={[styles.chip, { borderColor: c.is_binding ? colors.evidence : colors.textSecondary }]}>
-                <ThemedText type="small">{c.is_binding ? 'Binding' : 'Organizing'}</ThemedText>
+                <ThemedText type="small">{c.is_binding ? d.binding_chip : d.organizing_chip}</ThemedText>
               </View>
             </View>
           </Pressable>
@@ -162,10 +165,10 @@ export default function AccountabilityScreen() {
 
         {verified ? (
           <>
-            <ThemedText type="smallBold">Start a campaign</ThemedText>
+            <ThemedText type="smallBold">{d.start_campaign_h}</ThemedText>
 
             <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-              <ThemedText type="small">Target a politician</ThemedText>
+              <ThemedText type="small">{d.target_politician_h}</ThemedText>
               <View style={styles.pickerRow}>
                 {officePathways.map((p) => (
                   <Pressable
@@ -208,7 +211,7 @@ export default function AccountabilityScreen() {
               <TextInput
                 value={politicianDescription}
                 onChangeText={setPoliticianDescription}
-                placeholder="Why this campaign?"
+                placeholder={d.why_campaign_placeholder}
                 placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
@@ -219,24 +222,24 @@ export default function AccountabilityScreen() {
                 onPress={submitPoliticianCampaign}
                 style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
               >
-                <ThemedText type="smallBold">Start campaign</ThemedText>
+                <ThemedText type="smallBold">{d.start_campaign_btn}</ThemedText>
               </Pressable>
             </View>
 
             {petitionPathway && (
               <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-                <ThemedText type="small">Target a charter or law change</ThemedText>
+                <ThemedText type="small">{d.target_reform_h}</ThemedText>
                 <TextInput
                   value={reformTitle}
                   onChangeText={setReformTitle}
-                  placeholder="Reform title"
+                  placeholder={d.reform_title_placeholder}
                   placeholderTextColor={colors.textSecondary}
                   style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
                 />
                 <TextInput
                   value={reformDescription}
                   onChangeText={setReformDescription}
-                  placeholder="Why this campaign?"
+                  placeholder={d.why_campaign_placeholder}
                   placeholderTextColor={colors.textSecondary}
                   multiline
                   numberOfLines={3}
@@ -247,14 +250,14 @@ export default function AccountabilityScreen() {
                   onPress={submitReformCampaign}
                   style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
                 >
-                  <ThemedText type="smallBold">Start campaign</ThemedText>
+                  <ThemedText type="smallBold">{d.start_campaign_btn}</ThemedText>
                 </Pressable>
               </View>
             )}
           </>
         ) : (
           <Pressable onPress={() => router.push('/verify')} style={[styles.submitBtn, { backgroundColor: colors.evidence }]}>
-            <ThemedText type="smallBold">Verify to start a campaign</ThemedText>
+            <ThemedText type="smallBold">{d.verify_to_start_campaign}</ThemedText>
           </Pressable>
         )}
     </KeyboardAwareScreen>

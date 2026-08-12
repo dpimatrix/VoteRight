@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 import { ensureSession, get, hasSession } from '@/services/api';
 
 const VISIT_KEY = 'voteright_visit_jurisdiction';
@@ -47,6 +49,8 @@ export default function BallotScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
   const [data, setData] = useState<BallotResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
@@ -60,9 +64,9 @@ export default function BallotScreen() {
       setData(res);
     } catch (e) {
       console.error('Ballot load failed:', e);
-      setError('Could not load the ballot. Pull down to try again.');
+      setError(d.ballot_load_error);
     }
-  }, []);
+  }, [d.ballot_load_error]);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,7 +93,7 @@ export default function BallotScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>
-            Your ballot
+            {d.ballot_title}
           </ThemedText>
           <Pressable
             onPress={() => router.push('/settings')}
@@ -111,30 +115,25 @@ export default function BallotScreen() {
             }
           >
             <ThemedText type="small" themeColor="textSecondary">
-              Verified as {data.residenceName} · <ThemedText type="linkPrimary">Change address</ThemedText>
+              {d.verified_as} {data.residenceName} · <ThemedText type="linkPrimary">{d.change_address}</ThemedText>
             </ThemedText>
           </Pressable>
         )}
 
         {data && !data.jurisdictionId && (
           <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>
-            <ThemedText type="small">
-              Verify your address to see your ballot — it's the only way we know which real seats you elect.
-            </ThemedText>
+            <ThemedText type="small">{d.no_residence_note}</ThemedText>
             <Pressable onPress={() => router.push('/verify')}>
-              <ThemedText type="linkPrimary">Verify address</ThemedText>
+              <ThemedText type="linkPrimary">{d.verify_address_btn}</ThemedText>
             </Pressable>
           </View>
         )}
 
         {data?.visiting && (
           <View style={[styles.visitBanner, { borderColor: colors.evidence }]}>
-            <ThemedText type="small">
-              Visitor view — browsing {data.visiting.name}'s ballot. Your own residence and participation rights
-              are unaffected.
-            </ThemedText>
+            <ThemedText type="small">{tf(d.visitor_note, { name: data.visiting.name })}</ThemedText>
             <Pressable onPress={() => visit(null)}>
-              <ThemedText type="linkPrimary">Return to my ballot</ThemedText>
+              <ThemedText type="linkPrimary">{d.return_to_ballot}</ThemedText>
             </Pressable>
           </View>
         )}
@@ -162,7 +161,7 @@ export default function BallotScreen() {
                       type="small"
                       style={{ color: o.race_id ? colors.evidence : colors.textSecondary }}
                     >
-                      {o.race_id ? 'Tracked' : 'Not yet tracked'}
+                      {o.race_id ? d.seat_tracked : d.seat_not_tracked}
                     </ThemedText>
                   </View>
                 </View>
@@ -171,32 +170,22 @@ export default function BallotScreen() {
           );
         })}
 
-        {data && (
-          <ThemedText type="small" themeColor="textSecondary">
-            Unscored seats stay on the list — an incomplete ballot must never look complete.
-          </ThemedText>
-        )}
+        {data && <ThemedText type="small" themeColor="textSecondary">{d.ballot_unscored_note}</ThemedText>}
         {data && data.offices.some((o) => o.title.includes('District')) && (
           <ThemedText type="small" themeColor="textSecondary">
-            U.S. House and state legislature seats are narrowed to your own district automatically. Some other
-            district seats (like county council) can't be yet — which one is yours depends on your exact address,
-            so every district is shown until that lookup arrives.
+            {d.ballot_districts_note}
           </ThemedText>
         )}
-        {data && (
-          <ThemedText type="small" themeColor="textSecondary">
-            City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.
-          </ThemedText>
-        )}
+        {data && <ThemedText type="small" themeColor="textSecondary">{d.ballot_addr_note}</ThemedText>}
 
         {data && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <Pressable onPress={() => setShowPicker((s) => !s)}>
-              <ThemedText type="smallBold">Browse another jurisdiction</ThemedText>
+              <ThemedText type="smallBold">{d.browse_jurisdiction_h}</ThemedText>
             </Pressable>
             {showPicker && (
               <View style={{ gap: Spacing.two }}>
-                <ThemedText type="small" style={{ opacity: 0.7 }}>United States</ThemedText>
+                <ThemedText type="small" style={{ opacity: 0.7 }}>{d.united_states}</ThemedText>
                 {Object.entries(
                   data.browsable.reduce<Record<string, typeof data.browsable>>((groups, j) => {
                     (groups[j.group_name] ??= []).push(j);
@@ -222,7 +211,7 @@ export default function BallotScreen() {
                         >
                           <ThemedText type="small">
                             {j.level === "municipal" ? `↳ ${j.name}` : j.name}
-                            {j.isCurrent ? " (current)" : ""}
+                            {j.isCurrent ? d.current_suffix : ""}
                           </ThemedText>
                         </Pressable>
                       ))}

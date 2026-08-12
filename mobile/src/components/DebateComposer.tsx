@@ -8,17 +8,21 @@ import { post } from '@/services/api';
 
 import { ThemedText } from './themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 type Side = 'for' | 'against' | 'neutral_info';
-const SIDE_OPTIONS: { value: Side; label: string }[] = [
-  { value: 'for', label: 'For' },
-  { value: 'against', label: 'Against' },
-  { value: 'neutral_info', label: 'Neutral info' },
-];
 
 export function DebateComposer({ threadId, onPosted }: { threadId: string; onPosted: () => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const SIDE_OPTIONS: { value: Side; label: string }[] = [
+    { value: 'for', label: d.side_option_for },
+    { value: 'against', label: d.side_option_against },
+    { value: 'neutral_info', label: d.side_option_neutral },
+  ];
   const [side, setSide] = useState<Side>('for');
   const [body, setBody] = useState('');
   const [cite, setCite] = useState('');
@@ -71,9 +75,9 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
   if (posted) {
     return (
       <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-        <ThemedText type="small">⟳ Pending moderation review before it appears publicly.</ThemedText>
+        <ThemedText type="small">{d.pending_moderation_full}</ThemedText>
         <Pressable onPress={() => setPosted(false)}>
-          <ThemedText type="linkPrimary">Post another argument</ThemedText>
+          <ThemedText type="linkPrimary">{d.post_another_argument}</ThemedText>
         </Pressable>
       </View>
     );
@@ -81,7 +85,7 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
 
   return (
     <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-      <ThemedText type="smallBold">Add your argument</ThemedText>
+      <ThemedText type="smallBold">{d.add_your_argument}</ThemedText>
       <View style={styles.sideRow}>
         {SIDE_OPTIONS.map((o) => (
           <Pressable
@@ -102,7 +106,7 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       <TextInput
         value={body}
         onChangeText={setBody}
-        placeholder="Your argument (10+ characters)"
+        placeholder={d.argument_placeholder}
         placeholderTextColor={colors.textSecondary}
         multiline
         numberOfLines={4}
@@ -112,7 +116,7 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
         <TextInput
           value={cite}
           onChangeText={setCite}
-          placeholder="Source URL"
+          placeholder={d.source_url_placeholder}
           placeholderTextColor={colors.textSecondary}
           autoCapitalize="none"
           keyboardType="url"
@@ -121,9 +125,7 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       )}
       {claim && (
         <View style={[styles.claimBox, { borderColor: colors.textSecondary }]}>
-          <ThemedText type="small">
-            That reads like a factual claim — "{claim}". Add a source, mark it as opinion, or dismiss?
-          </ThemedText>
+          <ThemedText type="small">{tf(d.claim_prompt, { claim })}</ThemedText>
           <View style={styles.claimActions}>
             <Pressable
               disabled={busy}
@@ -132,13 +134,13 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
                 setClaim(null);
               }}
             >
-              <ThemedText type="linkPrimary">Add source</ThemedText>
+              <ThemedText type="linkPrimary">{d.add_source}</ThemedText>
             </Pressable>
             <Pressable disabled={busy} onPress={() => submit('marked_as_opinion')}>
-              <ThemedText type="linkPrimary">Mark as opinion</ThemedText>
+              <ThemedText type="linkPrimary">{d.mark_as_opinion}</ThemedText>
             </Pressable>
             <Pressable disabled={busy} onPress={() => submit('dismissed')}>
-              <ThemedText type="linkPrimary">Dismiss</ThemedText>
+              <ThemedText type="linkPrimary">{d.dismiss}</ThemedText>
             </Pressable>
           </View>
         </View>
@@ -152,11 +154,11 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
             { backgroundColor: busy || body.trim().length < 10 ? colors.background : colors.evidence },
           ]}
         >
-          <ThemedText type="smallBold">Post argument</ThemedText>
+          <ThemedText type="smallBold">{d.post_argument}</ThemedText>
         </Pressable>
       )}
       <ThemedText type="small" themeColor="textSecondary">
-        Public and attributed — not anonymous.
+        {d.composer_attrib_note}
       </ThemedText>
     </View>
   );

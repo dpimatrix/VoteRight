@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t } from '@/lib/i18n';
 
 interface Commitment {
   id: string;
@@ -42,18 +44,19 @@ interface MandateDetail {
   results: Tally;
 }
 
-const OPT_LABEL: Record<string, string> = { yes: 'Yes', no: 'No' };
-const STANCE: Record<string, { label: string; icon: string }> = {
-  commit: { label: 'Committed', icon: '✓' },
-  decline: { label: 'Declined', icon: '✗' },
-  no_response: { label: 'No response', icon: '—' },
-};
-
 export default function MandateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const OPT_LABEL: Record<string, string> = { yes: d.opt_yes, no: d.opt_no };
+  const STANCE: Record<string, { label: string; icon: string }> = {
+    commit: { label: d.stance_committed, icon: '✓' },
+    decline: { label: d.stance_declined, icon: '✗' },
+    no_response: { label: d.stance_no_response, icon: '—' },
+  };
   const [m, setM] = useState<MandateDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,13 +70,13 @@ export default function MandateScreen() {
           if (!cancelled) setM(res);
         } catch (e) {
           console.error('Mandate load failed:', e);
-          if (!cancelled) setError('Could not load this mandate. Pull down to try again.');
+          if (!cancelled) setError(d.mandate_load_error);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, [id]),
+    }, [id, d.mandate_load_error]),
   );
 
   if (!m && !error) {
@@ -103,10 +106,10 @@ export default function MandateScreen() {
         </ThemedText>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">Results</ThemedText>
+          <ThemedText type="smallBold">{d.results_h}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {m.turnout_count.toLocaleString()} voters
-            {m.turnout_pct !== null ? ` (${m.turnout_pct}% of registered)` : ''} · +{m.margin_pct}% margin
+            {m.turnout_count.toLocaleString()}
+            {m.turnout_pct !== null ? ` (${m.turnout_pct}%)` : ''} · +{m.margin_pct}%
           </ThemedText>
           {m.results.total > 0 &&
             m.results.counts.map((c) => (
@@ -122,11 +125,11 @@ export default function MandateScreen() {
               </View>
             ))}
           <Pressable onPress={() => router.push({ pathname: '/referenda/[id]', params: { id: m.referendum_id } })}>
-            <ThemedText type="linkPrimary">See the referendum →</ThemedText>
+            <ThemedText type="linkPrimary">{d.see_referendum_link}</ThemedText>
           </Pressable>
         </View>
 
-        <ThemedText type="smallBold">Candidate commitments</ThemedText>
+        <ThemedText type="smallBold">{d.candidate_commitments_h}</ThemedText>
         {m.commitments.map((c) => {
           const s = STANCE[c.stance] ?? STANCE.no_response;
           return (
@@ -157,7 +160,7 @@ export default function MandateScreen() {
               )}
               {c.became_promise && (
                 <ThemedText type="small" themeColor="textSecondary">
-                  This commitment became a tracked promise.
+                  {d.became_promise_note}
                 </ThemedText>
               )}
             </View>

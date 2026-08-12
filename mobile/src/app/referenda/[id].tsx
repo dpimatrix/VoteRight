@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 interface TallyCount {
   choice: string;
@@ -38,13 +40,14 @@ interface ReferendumDetail {
   results: Tally | null;
 }
 
-const OPT_LABEL: Record<string, string> = { yes: 'Yes', no: 'No' };
-
 export default function ReferendumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
+  const OPT_LABEL: Record<string, string> = { yes: d.opt_yes, no: d.opt_no };
   const [ref, setRef] = useState<ReferendumDetail | null>(null);
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +66,9 @@ export default function ReferendumScreen() {
       setTier(who.tier);
     } catch (e) {
       console.error('Referendum load failed:', e);
-      setError('Could not load this referendum. Pull down to try again.');
+      setError(d.referendum_load_error);
     }
-  }, [id]);
+  }, [id, d.referendum_load_error]);
 
   useFocusEffect(
     useCallback(() => {
@@ -148,13 +151,13 @@ export default function ReferendumScreen() {
 
         <ThemedText type="small">{ref.proposal_body}</ThemedText>
         <Pressable onPress={() => router.push({ pathname: '/debates/[id]', params: { id: ref.proposal_id } })}>
-          <ThemedText type="linkPrimary">→ See the live debate</ThemedText>
+          <ThemedText type="linkPrimary">{d.see_debate_link}</ThemedText>
         </Pressable>
 
         {ref.status === 'scheduled' && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Opens {ref.opens} · Closes {ref.closes}
+              {tf(d.opens_closes, { opens: ref.opens, closes: ref.closes })}
             </ThemedText>
           </View>
         )}
@@ -162,31 +165,26 @@ export default function ReferendumScreen() {
         {ref.status === 'open' && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <ThemedText type="small" themeColor="textSecondary">
-              {ref.ballots} ballots cast · closes {ref.closes}
+              {tf(d.ballots_cast_closes, { n: ref.ballots, date: ref.closes })}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Results are shown only after voting closes.
+              {d.results_hidden_note}
             </ThemedText>
-            {notEligible && <ThemedText type="small">Your residence isn't eligible for this referendum.</ThemedText>}
-            {tooRecent && (
-              <ThemedText type="small">
-                Your address was verified after this referendum opened — eligibility follows where you lived when
-                voting started, not a same-day address change.
-              </ThemedText>
-            )}
+            {notEligible && <ThemedText type="small">{d.not_eligible_note}</ThemedText>}
+            {tooRecent && <ThemedText type="small">{d.too_recent_note}</ThemedText>}
             {!verified ? (
               <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                <ThemedText type="smallBold">Verify to vote</ThemedText>
+                <ThemedText type="smallBold">{d.verify_to_vote}</ThemedText>
               </Pressable>
             ) : ref.voted ? (
-              <ThemedText type="small">You've already voted in this referendum.</ThemedText>
+              <ThemedText type="small">{d.already_voted}</ThemedText>
             ) : !ref.my_token ? (
               <>
                 <Pressable disabled={busy} onPress={getBallot} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                  <ThemedText type="smallBold">Get ballot</ThemedText>
+                  <ThemedText type="smallBold">{d.get_ballot_btn}</ThemedText>
                 </Pressable>
                 <ThemedText type="small" themeColor="textSecondary">
-                  One ballot per verified resident.
+                  {d.one_ballot_note}
                 </ThemedText>
               </>
             ) : (
@@ -205,7 +203,7 @@ export default function ReferendumScreen() {
             )}
             <View style={styles.privRow}>
               <ThemedText type="small" themeColor="textSecondary">
-                Secret ballot — your identity is never linked to your choice.
+                {d.secret_ballot_note}
               </ThemedText>
             </View>
           </View>
@@ -213,7 +211,7 @@ export default function ReferendumScreen() {
 
         {(ref.status === 'closed' || ref.status === 'published') && ref.results && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-            <ThemedText type="smallBold">Results</ThemedText>
+            <ThemedText type="smallBold">{d.results_h}</ThemedText>
             {ref.results.counts.map((c) => (
               <View key={c.choice} style={styles.resultRow}>
                 <ThemedText type="small">
@@ -234,14 +232,14 @@ export default function ReferendumScreen() {
               </View>
             ))}
             <ThemedText type="small" themeColor="textSecondary">
-              {ref.results.total.toLocaleString()} ballots cast
+              {tf(d.ballots_cast_total, { n: ref.results.total.toLocaleString() })}
             </ThemedText>
             {ref.mandate_id && ref.overlay_status !== 'below_threshold_unpublished' && (
               <Pressable
                 onPress={() => router.push({ pathname: '/mandates/[id]', params: { id: ref.mandate_id! } })}
                 style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]}
               >
-                <ThemedText type="smallBold">See candidate commitments</ThemedText>
+                <ThemedText type="smallBold">{d.see_commitments_btn}</ThemedText>
               </Pressable>
             )}
           </View>

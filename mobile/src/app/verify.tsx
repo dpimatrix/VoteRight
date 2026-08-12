@@ -7,11 +7,15 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguagePreference } from '@/hooks/language-preference';
+import { t, tf } from '@/lib/i18n';
 
 export default function VerifyScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { lang } = useLanguagePreference();
+  const d = t(lang);
   const { currentResidence } = useLocalSearchParams<{ currentResidence?: string }>();
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +32,15 @@ export default function VerifyScreen() {
       if (res.outcome === 'ok') {
         router.back();
       } else if (res.outcome === 'outside') {
-        setError("That address is outside our current coverage area — the pilot covers select DC/Maryland/Virginia jurisdictions only.");
+        setError(d.outside_error);
       } else if (res.outcome === 'resolver_unavailable') {
-        setError('Address verification is temporarily unavailable — please try again in a few minutes.');
+        setError(d.resolver_unavailable_error);
       } else {
-        setError('Could not match that address — check the street number, name, and state.');
+        setError(d.no_match_error);
       }
     } catch (e) {
       console.error('Verify failed:', e);
-      setError('Something went wrong. Try again.');
+      setError(d.generic_error);
     } finally {
       setBusy(false);
     }
@@ -45,28 +49,26 @@ export default function VerifyScreen() {
   return (
     <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
       <ThemedText type="title" style={styles.title}>
-        Verify your address
+        {d.verify_title}
       </ThemedText>
       {currentResidence ? (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            Currently verified as {currentResidence}.
+            {tf(d.currently_verified_as, { name: currentResidence })}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Verifying a new address moves your ballot and participation eligibility to the new location
-            immediately.
+            {d.reverify_note}
           </ThemedText>
         </>
       ) : (
         <ThemedText type="small" themeColor="textSecondary">
-          Proposing, seconding, and arguing are limited to residents of a covered jurisdiction. Your address is
-          used only to confirm your jurisdiction — never matched against any voter file.
+          {d.unverified_note}
         </ThemedText>
       )}
       <TextInput
         value={address}
         onChangeText={setAddress}
-        placeholder="123 Main St, Rockville, MD"
+        placeholder={d.address_placeholder}
         placeholderTextColor={colors.textSecondary}
         autoComplete="street-address"
         style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
@@ -84,7 +86,7 @@ export default function VerifyScreen() {
           { backgroundColor: busy || address.trim().length < 12 ? colors.backgroundElement : colors.evidence },
         ]}
       >
-        <ThemedText type="smallBold">Verify</ThemedText>
+        <ThemedText type="smallBold">{d.verify_btn}</ThemedText>
       </Pressable>
     </KeyboardAwareScreen>
   );
