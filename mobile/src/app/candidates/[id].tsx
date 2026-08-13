@@ -232,7 +232,7 @@ export default function CandidateScreen() {
                     <ThemedText type="small">{e.statement}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {e.sourceType} · {e.title ?? e.publisher} · {e.date}
-                      {e.archived ? ' · archived' : ''}
+                      {e.archived ? d.archived_suffix : ''}
                     </ThemedText>
                   </View>
                 ))
@@ -345,7 +345,8 @@ export default function CandidateScreen() {
                   </View>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {c.office ?? ''} · {c.turnout_count.toLocaleString()} · +{c.margin_pct}%
+                  {c.office ?? ''} · {tf(d.voters_count, { n: c.turnout_count.toLocaleString() })}
+                  {tf(d.margin_suffix, { n: c.margin_pct })}
                 </ThemedText>
                 {c.statement && <ThemedText type="small">“{c.statement}”</ThemedText>}
                 {c.became_promise && (
@@ -391,7 +392,7 @@ export default function CandidateScreen() {
           ))}
           {data.campaigns.map((c) => (
             <ThemedText key={c.id} type="small" themeColor="textSecondary">
-              {c.description} · {c.support_count}
+              {c.description} · {tf(d.supporters_word, { n: c.support_count })}
             </ThemedText>
           ))}
         </View>

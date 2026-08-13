@@ -8,7 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
-import { t } from '@/lib/i18n';
+import { t, tf } from '@/lib/i18n';
 
 interface Campaign {
   id: string;
@@ -154,7 +154,7 @@ export default function AccountabilityScreen() {
             <ThemedText type="small">{c.target_type === 'politician' ? c.politician_name : c.reform_title}</ThemedText>
             <View style={styles.metaRow}>
               <ThemedText type="small" themeColor="textSecondary">
-                {MECH_LABEL[c.mechanism_type] ?? c.mechanism_type} · {c.support_count}
+                {MECH_LABEL[c.mechanism_type] ?? c.mechanism_type} · {tf(d.supporters_word, { n: c.support_count })}
               </ThemedText>
               <View style={[styles.chip, { borderColor: c.is_binding ? colors.evidence : colors.textSecondary }]}>
                 <ThemedText type="small">{c.is_binding ? d.binding_chip : d.organizing_chip}</ThemedText>

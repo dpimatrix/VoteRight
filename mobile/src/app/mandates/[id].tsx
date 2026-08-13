@@ -8,7 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
-import { t } from '@/lib/i18n';
+import { t, tf } from '@/lib/i18n';
 
 interface Commitment {
   id: string;
@@ -108,8 +108,9 @@ export default function MandateScreen() {
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
           <ThemedText type="smallBold">{d.results_h}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {m.turnout_count.toLocaleString()}
-            {m.turnout_pct !== null ? ` (${m.turnout_pct}%)` : ''} · +{m.margin_pct}%
+            {tf(d.voters_count, { n: m.turnout_count.toLocaleString() })}
+            {m.turnout_pct !== null ? tf(d.of_registered, { pct: m.turnout_pct }) : ''}
+            {tf(d.margin_suffix, { n: m.margin_pct })}
           </ThemedText>
           {m.results.total > 0 &&
             m.results.counts.map((c) => (

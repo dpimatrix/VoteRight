@@ -100,7 +100,7 @@ export default function MandatesScreen() {
                 <ThemedText type="small">{r.question_text}</ThemedText>
                 <View style={styles.metaRow}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {r.topic} · {r.ballots} · {tf(d.closes_suffix, { date: r.closes }).replace(/^ · /, '')}
+                    {r.topic} · {tf(d.ballots_closes, { n: r.ballots, date: r.closes })}
                   </ThemedText>
                   <View style={[styles.chip, { borderColor: r.voted ? colors.evidence : colors.textSecondary }]}>
                     <ThemedText type="small">{r.voted ? d.voted_chip : d.cast_ballot_chip}</ThemedText>
@@ -140,7 +140,7 @@ export default function MandatesScreen() {
               >
                 <ThemedText type="small">{r.question_text}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {r.topic} · {r.ballots}
+                  {r.topic} · {tf(d.ballots_word, { n: r.ballots })}
                 </ThemedText>
               </Pressable>
             ))}
@@ -163,7 +163,8 @@ export default function MandatesScreen() {
               <ThemedText type="small">{m.mandate_summary}</ThemedText>
               <View style={styles.metaRow}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {m.office ?? ''} · {m.turnout_count.toLocaleString()} · +{m.margin_pct}%
+                  {m.office ?? ''} · {tf(d.voters_count, { n: m.turnout_count.toLocaleString() })}
+                  {tf(d.margin_suffix, { n: m.margin_pct })}
                 </ThemedText>
                 <View style={[styles.chip, { borderColor: colors.evidence }]}>
                   <ThemedText type="small" style={{ color: colors.evidence }}>
