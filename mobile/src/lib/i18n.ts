@@ -44,6 +44,8 @@ const DICT = {
     ballot_districts_note:
       "U.S. House and state legislature seats are narrowed to your own district automatically. Some other district seats (like county council) can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
     ballot_addr_note: "City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.",
+    ballot_state_only_note:
+      'We have your federal and state-level offices — county and city-level detail is not covered for your address yet, so this ballot is real but not the complete local picture.',
     browse_jurisdiction_h: 'Browse another jurisdiction',
     browse_jurisdiction_sub:
       'Read-only visitor view. Your own ballot, votes, and eligibility always follow your verified address — browsing never changes them.',
@@ -265,7 +267,7 @@ const DICT = {
     unverified_note:
       'Proposing, seconding, and arguing are limited to residents of a covered jurisdiction. Your address is used only to confirm your jurisdiction — never matched against any voter file.',
     address_placeholder: '123 Main St, Rockville, MD',
-    outside_error: 'That address is outside our current coverage area — the pilot covers select DC/Maryland/Virginia jurisdictions only.',
+    outside_error: "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     resolver_unavailable_error: 'Address verification is temporarily unavailable — please try again in a few minutes.',
     no_match_error: 'Could not match that address — check the street number, name, and state.',
     generic_error: 'Something went wrong. Try again.',
@@ -305,6 +307,8 @@ const DICT = {
     ballot_districts_note:
       'Los escaños de la Cámara de Representantes y la legislatura estatal se limitan automáticamente a tu propio distrito. Algunos otros escaños por distrito (como el concejo del condado) todavía no — cuál es el tuyo depende de tu dirección exacta, así que se muestran todos los distritos hasta que llegue esa búsqueda.',
     ballot_addr_note: 'Las direcciones de ciudad (p. ej., Rockville) añaden los escaños de esa ciudad. Verifica tu dirección para ver tu lista completa.',
+    ballot_state_only_note:
+      'Tenemos tus cargos federales y estatales — todavía no cubrimos el detalle a nivel de condado o ciudad para tu dirección, así que esta boleta es real pero no es el panorama local completo.',
     browse_jurisdiction_h: 'Explorar otra jurisdicción',
     browse_jurisdiction_sub:
       'Vista de solo lectura para visitantes. Tu propia boleta, votos y elegibilidad siempre siguen tu dirección verificada — explorar nunca los cambia.',
@@ -526,7 +530,7 @@ const DICT = {
     unverified_note:
       'Proponer, apoyar y argumentar están limitados a residentes de una jurisdicción cubierta. Tu dirección se usa solo para confirmar tu jurisdicción — nunca se compara con ningún padrón electoral.',
     address_placeholder: '123 Main St, Rockville, MD',
-    outside_error: 'Esa dirección está fuera de nuestra área de cobertura actual — el piloto cubre solo ciertas jurisdicciones de DC/Maryland/Virginia.',
+    outside_error: 'No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.',
     resolver_unavailable_error: 'La verificación de dirección no está disponible temporalmente — inténtalo de nuevo en unos minutos.',
     no_match_error: 'No se pudo encontrar esa dirección — revisa el número, el nombre de la calle y el estado.',
     generic_error: 'Algo salió mal. Intenta de nuevo.',

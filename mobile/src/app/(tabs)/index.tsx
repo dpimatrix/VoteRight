@@ -32,6 +32,7 @@ interface BallotResponse {
   jurisdictionId: string | null;
   residenceId: string | null;
   residenceName: string | null;
+  residenceLevel: string | null;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   visiting: Jurisdiction | null;
@@ -171,6 +172,11 @@ export default function BallotScreen() {
         })}
 
         {data && <ThemedText type="small" themeColor="textSecondary">{d.ballot_unscored_note}</ThemedText>}
+        {data && !data.visiting && data.residenceLevel === 'state' && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {d.ballot_state_only_note}
+          </ThemedText>
+        )}
         {data && data.offices.some((o) => o.title.includes('District')) && (
           <ThemedText type="small" themeColor="textSecondary">
             {d.ballot_districts_note}

@@ -196,6 +196,9 @@ export default async function BallotPage({
           );
         })}
         <p className="nopos">{d.ballot_note}</p>
+        {!visited && residence?.level === "state" && (
+          <p className="nopos">{d.ballot_state_only_note}</p>
+        )}
         {offices.some((o) => o.title.includes("District")) && (
           <p className="nopos">{d.ballot_districts_note}</p>
         )}

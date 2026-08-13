@@ -141,7 +141,7 @@ const DICT = {
     verify_btn: "Verify address",
     verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
     verify_outside:
-      "That address is outside our current coverage area. The pilot covers select DC/Maryland/Virginia jurisdictions only.",
+      "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     verify_unavailable: "Address verification is temporarily unavailable — please try again in a few minutes.",
     ballot_no_residence: "Verify your address to see your ballot.",
     realdata_note:
@@ -169,6 +169,8 @@ const DICT = {
       "Who introduced or co-sponsored each item, from the county's official Granicus agenda index — with a link to the exact video moment and the staff report. Not a scored position: sponsoring a bill isn't the same as taking a stance on it.",
     ballot_districts_note:
       "U.S. House and state legislature seats are narrowed to your own district automatically. Some other district seats (like county council) can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
+    ballot_state_only_note:
+      "We have your federal and state-level offices — county and city-level detail isn't covered for your address yet, so this ballot is real but not the complete local picture.",
     verify_need: "Verify your address to participate in debates.",
     verify_done: "✓ Address verified — you can now propose, second, argue, and vote.",
     verify_current: "Currently verified as",
@@ -452,7 +454,7 @@ const DICT = {
     verify_btn: "Verificar dirección",
     verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
     verify_outside:
-      "Esa dirección está fuera de nuestra área de cobertura actual. El piloto cubre solo ciertas jurisdicciones de DC/Maryland/Virginia.",
+      "No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.",
     verify_unavailable: "La verificación de direcciones no está disponible en este momento — inténtalo de nuevo en unos minutos.",
     ballot_no_residence: "Verifica tu dirección para ver tu boleta.",
     realdata_note:
@@ -480,6 +482,8 @@ const DICT = {
       "Quién presentó o copatrocinó cada punto, según el índice oficial de agendas de Granicus del condado — con un enlace al momento exacto del video y al informe técnico. No es una postura puntuada: patrocinar un proyecto de ley no equivale a tomar una posición sobre él.",
     ballot_districts_note:
       "Los escaños de la Cámara de EE. UU. y de la legislatura estatal se ajustan automáticamente a tu distrito. Otros escaños de distrito (como el concejo del condado) aún no — cuál es el tuyo depende de tu dirección exacta, así que se muestra cada distrito hasta que esa búsqueda esté disponible.",
+    ballot_state_only_note:
+      "Tenemos tus cargos federales y estatales — todavía no cubrimos el detalle a nivel de condado o ciudad para tu dirección, así que esta boleta es real pero no es el panorama local completo.",
     verify_need: "Verifica tu dirección para participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes proponer, apoyar, argumentar y votar.",
     verify_current: "Actualmente verificado como",

@@ -92,13 +92,33 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
     seeded municipality inside that county (e.g. Rockville inside Montgomery County)
     takes priority when the Census place name matches one — adding the next county,
     or the next municipality, is a data insert (docs/SCHEMA.sql `jurisdictions`
-    rows), never a code change here. */
+    rows), never a code change here.
+
+    County not seeded (true for every county outside the 5 municipal-detail pilot
+    areas) falls back to that state's own bare jurisdiction row rather than
+    "outside" -- since D6 (2026-08-12/13) every state has real federal + state-level
+    officeholder data seeded under exactly that row (Congress and state-legislature
+    offices are attached to the plain state jurisdiction id, not a per-county one;
+    the country row is its parent), so ballotForJurisdiction's existing recursive
+    walk already returns the correct federal+state ballot for free -- no county/
+    municipal detail, but never nothing. Only genuinely "outside" if even the state
+    row is missing, which shouldn't happen for a real US address post-migration 059
+    (all 50 states + DC + the 5 inhabited territories are seeded). Callers use the
+    returned level ('state' vs 'county'/'municipal') to disclose the difference --
+    see ballot_state_only_note in i18n.ts -- never silently upgrade a partial
+    ballot to look complete. */
 async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outside" | string> {
   const county = await db().query(
     `SELECT ocd_id FROM jurisdictions WHERE level = 'county' AND state_fips = $1 AND county_fips = $2`,
     [geo.stateFips, geo.countyFips],
   );
-  if (county.rowCount === 0) return "outside";
+  if (county.rowCount === 0) {
+    const state = await db().query(
+      `SELECT ocd_id FROM jurisdictions WHERE level = 'state' AND state_fips = $1`,
+      [geo.stateFips],
+    );
+    return state.rowCount ? (state.rows[0].ocd_id as string) : "outside";
+  }
   const countyOcdId = county.rows[0].ocd_id as string;
 
   if (geo.placeName) {

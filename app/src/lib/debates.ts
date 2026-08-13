@@ -26,15 +26,27 @@ export async function lastVerifiedAt(userId: string): Promise<Date | null> {
   return rows[0]?.verified_at ?? null;
 }
 
+// All 50 USPS state abbreviations + DC. Used only as a cheap plausibility
+// pre-check (see addressLooksValid below) -- the real gate is the live Census
+// geocoder call right after this, so a false positive here costs nothing (a
+// bogus "123 Main St OK" still won't resolve to a real jurisdiction), but a
+// false negative would silently reject a real address before that call ever
+// runs. Was hardcoded to just MD/VA/DC from the original DMV-pilot scope;
+// widened once nationwide state/federal coverage made every US address a
+// real candidate (see jurisdictionForGeography's state-level fallback).
+const US_STATE_ABBRS =
+  "al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy|dc";
+
 export function addressLooksValid(address: string): boolean {
   // Dev-grade format check standing in for the geocoding vendor (§2.6): a street
   // number, a street name, and something jurisdiction-plausible. Never matched
-  // against any voter file. Covers the DMV pilot area (MD/VA/DC) — the real gate
-  // is resolveJurisdiction's live Census geocoder call right after this; this is
-  // just a cheap pre-check to reject obviously-malformed input before that call.
+  // against any voter file. The real gate is resolveJurisdiction's live Census
+  // geocoder call right after this; this is just a cheap pre-check to reject
+  // obviously-malformed input before that call.
   return (
-    /\d+\s+\S+.*\s+(md|maryland|va|virginia|dc|d\.c\.|district of columbia)\b/i.test(address.trim()) &&
-    address.trim().length >= 12
+    new RegExp(`\\d+\\s+\\S+.*\\s+(?:${US_STATE_ABBRS}|d\\.c\\.|maryland|virginia|district of columbia)\\b`, "i").test(
+      address.trim(),
+    ) && address.trim().length >= 12
   );
 }
 

@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     jurisdictionId,
     residenceId,
     residenceName: residence?.name ?? null,
+    residenceLevel: residence?.level ?? null,
     jurisdictions,
     offices,
     visiting: visited ? { ocdId: visited.ocd_id, name: visited.name } : null,
