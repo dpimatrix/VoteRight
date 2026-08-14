@@ -435,6 +435,15 @@ export interface StackedOffice {
   // "who currently holds this seat" fact carries no such risk.
   officeholder_name: string | null;
   officeholder_photo_url: string | null;
+  // Same officeholder, same scoping -- party is documented public record
+  // for a sitting officeholder (not an editorial judgment the way a match
+  // score is), so it doesn't carry the photo's "picking a side in a
+  // contested race" risk -- as long as it stays scoped to exactly the
+  // same rows the photo does (never a specific candidate's party shown
+  // ahead of their opponents' on a tracked seat). 'D'/'R'/'I' from
+  // db/ingest/congress.mjs's partyCode(), or null if ungiven/unmapped --
+  // never guessed, just omitted.
+  officeholder_party: string | null;
 }
 
 // The current 2-year election cycle this project's ballot copy is written
@@ -459,7 +468,7 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
      SELECT o.id, o.title, o.level, o.seat_count, o.term_length_years,
             r.id AS race_id, r.seats_elected,
             ot.term_start_year, COALESCE(ot.congress_sourced, false) AS congress_sourced,
-            ot.officeholder_name, ot.officeholder_photo_url,
+            ot.officeholder_name, ot.officeholder_photo_url, ot.officeholder_party,
             s.ocd_id AS jurisdiction_id, s.name AS jurisdiction_name, s.depth
        FROM stack s
        JOIN offices o ON o.jurisdiction_id = s.ocd_id AND o.is_elected
@@ -471,7 +480,7 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
          -- aggregate).
          SELECT EXTRACT(YEAR FROM ot.term_start)::int AS term_start_year,
                 (p.bioguide_id IS NOT NULL) AS congress_sourced,
-                p.full_name AS officeholder_name, p.photo_url AS officeholder_photo_url
+                p.full_name AS officeholder_name, p.photo_url AS officeholder_photo_url, p.party AS officeholder_party
            FROM office_terms ot JOIN politicians p ON p.id = ot.politician_id
           WHERE ot.office_id = o.id
           ORDER BY ot.term_start DESC

@@ -168,7 +168,7 @@ describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/s
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
     jurisdiction_id: "x", jurisdiction_name: "x", depth: 0,
-    term_length_years: 4, term_start_year: null, congress_sourced: false, officeholder_name: null, officeholder_photo_url: null,
+    term_length_years: 4, term_start_year: null, congress_sourced: false, officeholder_name: null, officeholder_photo_url: null, officeholder_party: null,
   });
 
   it("keeps only the resident's own U.S. House district, drops the others in their state", () => {
@@ -251,7 +251,7 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
     jurisdiction_id: "x", jurisdiction_name: "x", depth: 0,
-    term_length_years: 4, term_start_year: null, congress_sourced: false, officeholder_name: null, officeholder_photo_url: null,
+    term_length_years: 4, term_start_year: null, congress_sourced: false, officeholder_name: null, officeholder_photo_url: null, officeholder_party: null,
   });
 
   it("is false when every district-shaped seat is one this project knows how to narrow, even if the title still says 'District'", () => {

@@ -65,8 +65,17 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
     icon
   );
   // The photo alone doesn't say who it's a photo OF -- a name right under
-  // the title is what actually makes it useful, not just decorative.
-  const holderName = hasOfficeholder ? <span className="sholder">{o.officeholder_name}</span> : null;
+  // the title is what actually makes it useful, not just decorative. Party
+  // is documented public record for a sitting officeholder (not an
+  // editorial judgment the way a match score is), so it's shown plainly
+  // as a letter -- no red/blue color-coding, which this app has no
+  // existing convention for and would risk reading as taking a side.
+  const holderName = hasOfficeholder ? (
+    <span className="sholder">
+      {o.officeholder_name}
+      {o.officeholder_party ? ` (${o.officeholder_party})` : ""}
+    </span>
+  ) : null;
   if (o.level === "judicial") {
     // Always "on ballot" text here regardless of `tracked` -- judicial
     // seats are never municipal, and the tracked||non-municipal condition
