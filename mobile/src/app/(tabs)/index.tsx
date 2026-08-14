@@ -31,6 +31,12 @@ interface StackedOffice {
   jurisdiction_name: string;
   term_length_years: number;
   term_start_year: number | null;
+  // See jurisdictions.ts's StackedOffice -- true when term_start_year came
+  // from the Congress.gov ingester, whose startYear marks continuous
+  // tenure in a chamber, not the current term -- unreliable for
+  // nextElectionYear past a member's first term. Gate on this before
+  // trusting a computed year, same as web.
+  congress_sourced: boolean;
 }
 
 interface Jurisdiction {
@@ -158,15 +164,24 @@ export default function BallotScreen() {
                 {j.name}
               </ThemedText>
               {rows.map((o) => {
-                // Same real bug fix as web (2026-08-14): an untracked
-                // non-municipal seat used to always read as "Not yet
-                // tracked" -- implying it's coming soon -- even for seats
-                // with multi-year terms not up this cycle at all (the
-                // President, a Senator mid-term, etc). Swap the chip to a
-                // plain "not this cycle" label instead of guessing.
+                // Same real bug fix as web (2026-08-14, later narrowed the
+                // same day -- see jurisdictions.ts's StackedOffice for the
+                // full story): an untracked non-municipal seat used to
+                // always read as "Not yet tracked" even for seats with
+                // multi-year terms not up this cycle (the President, a
+                // governor off this project's cycle, etc). term_length > 2
+                // skips House (always up next cycle regardless of data);
+                // !congress_sourced skips Senate (Congress.gov's
+                // term_start doesn't reset on reelection, so it can't be
+                // trusted for this math past a member's first term).
                 const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
                 const offCycle =
-                  o.level !== 'municipal' && !o.race_id && nextYear !== null && nextYear !== CURRENT_CYCLE_YEAR;
+                  o.level !== 'municipal' &&
+                  !o.race_id &&
+                  o.term_length_years > 2 &&
+                  !o.congress_sourced &&
+                  nextYear !== null &&
+                  nextYear !== CURRENT_CYCLE_YEAR;
                 const chipLabel = offCycle ? d.seat_off_cycle : o.race_id ? d.seat_tracked : d.seat_not_tracked;
                 const chipColor = o.race_id ? colors.evidence : colors.textSecondary;
                 return (

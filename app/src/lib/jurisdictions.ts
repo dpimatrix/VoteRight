@@ -401,6 +401,18 @@ export interface StackedOffice {
   // to deal with node-postgres's DATE-to-JS-Date timezone footgun for a
   // value that's only ever used as a year.
   term_start_year: number | null;
+  // True when that term_start_year came from the Congress.gov ingester
+  // (db/ingest/congress.mjs -- the politician has a bioguide_id). Real bug
+  // found live (2026-08-14): Congress.gov's startYear marks when a
+  // member's CONTINUOUS, unbroken tenure in that chamber began, not their
+  // CURRENT term's start -- a senator reelected without a gap keeps their
+  // original first-elected year forever. nextElectionYear's math only
+  // holds for a term_start that resets on reelection, which is true for
+  // this project's hand-verified single-office migrations (President,
+  // governors, ...) but NOT for Congress.gov-sourced terms. Callers must
+  // gate on this flag, not just term_length_years, before trusting a
+  // computed next-election year for a congress_sourced office.
+  congress_sourced: boolean;
 }
 
 // The current 2-year election cycle this project's ballot copy is written
@@ -423,19 +435,22 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
          FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
      )
      SELECT o.id, o.title, o.level, o.seat_count, o.term_length_years,
-            r.id AS race_id, r.seats_elected, ot.term_start_year,
+            r.id AS race_id, r.seats_elected,
+            ot.term_start_year, COALESCE(ot.congress_sourced, false) AS congress_sourced,
             s.ocd_id AS jurisdiction_id, s.name AS jurisdiction_name, s.depth
        FROM stack s
        JOIN offices o ON o.jurisdiction_id = s.ocd_id AND o.is_elected
        LEFT JOIN races r ON r.office_id = o.id
        LEFT JOIN LATERAL (
-         -- MAX, not the row for a specific politician: an office can carry
-         -- more than one office_terms row over time (a predecessor's
-         -- ended term, a re-election that inserted a fresh term_start
-         -- rather than reusing the old one) -- the most recent term_start
-         -- is always the one describing the CURRENT officeholder's term.
-         SELECT MAX(EXTRACT(YEAR FROM term_start))::int AS term_start_year
-           FROM office_terms WHERE office_id = o.id
+         -- The single most recent office_terms row for this office (not
+         -- just MAX(term_start) -- congress_sourced needs to come from
+         -- THAT SAME row's politician, not an unrelated aggregate).
+         SELECT EXTRACT(YEAR FROM ot.term_start)::int AS term_start_year,
+                (p.bioguide_id IS NOT NULL) AS congress_sourced
+           FROM office_terms ot JOIN politicians p ON p.id = ot.politician_id
+          WHERE ot.office_id = o.id
+          ORDER BY ot.term_start DESC
+          LIMIT 1
        ) ot ON true
       ORDER BY s.depth, o.level, o.title`,
     [jurisdictionId],

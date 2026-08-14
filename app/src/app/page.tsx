@@ -68,19 +68,36 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   }
   // An untracked non-municipal seat used to always claim "On your ballot in
   // 2026" -- true for most county seats (which is why that default still
-  // applies below), but flatly wrong for a real chunk of federal/state
-  // seats with multi-year terms not up this cycle: the President (next
-  // election 2028), a Senator mid-way through a 6-year term, a governor
-  // elected off-cycle from this project's home state, etc. Real, live bug
+  // applies below), but flatly wrong for offices with multi-year terms not
+  // up this cycle: the President (next election 2028), a governor elected
+  // off-cycle from this project's home state, etc. Real, live bug
   // (2026-08-14) -- a resident's ballot told them offices were up for
-  // election that plainly weren't. Where a term has actually been
-  // ingested (term_start_year non-null) and it doesn't land in the current
-  // cycle, say so plainly instead of guessing "on ballot". No ingested
-  // term at all (vacant seat, or a roster this project hasn't pulled
-  // dates for yet) falls back to the prior on-ballot assumption -- never
-  // guess a seat OFF the ballot from missing data either.
+  // election that plainly weren't.
+  //
+  // term_length_years > 2 excludes House seats on purpose, not as an
+  // approximation: a 2-year term is ALWAYS up next cycle regardless of
+  // when the incumbent was first elected, so no date math is even needed
+  // there. !congress_sourced excludes Senate for a real data reason, found
+  // the same day: Congress.gov's ingested term_start marks a member's
+  // CONTINUOUS tenure in that chamber, not their current term -- reelected
+  // without a gap, and it never resets. Computing "next election" from it
+  // is confidently wrong for any incumbent past their first term (a
+  // senator since 2017, reelected 2022, still reads as "started 2017" and
+  // would show a next-election year already in the past). No reliable
+  // per-senator term-start source exists yet (the ingester never labeled
+  // Senate Class for the same reason) -- Senate falls back to the same
+  // "on ballot" assumption as before this fix, honestly disclosing
+  // nothing rather than confidently claiming a wrong year. Hand-verified
+  // single-office migrations (President, governors, ...) aren't
+  // congress_sourced and keep the real fix below.
   const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
-  const offCycle = o.level !== "municipal" && !tracked && nextYear !== null && nextYear !== CURRENT_CYCLE_YEAR;
+  const offCycle =
+    o.level !== "municipal" &&
+    !tracked &&
+    o.term_length_years > 2 &&
+    !o.congress_sourced &&
+    nextYear !== null &&
+    nextYear !== CURRENT_CYCLE_YEAR;
   if (offCycle) {
     return (
       <div className="seat">
