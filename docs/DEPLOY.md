@@ -49,6 +49,13 @@ preferred consolidating onto it.
   is a real clone — SCPing individual files desyncs git's own bookkeeping from what's
   actually on disk (this happened once already; recovered via `git stash -u` + `git
   pull`, see the repo's commit history around 2026-07-30 for the full story).
+  **A running `next start` also needs a restart to see NEW files added under
+  `app/public/` even with no code/build change** (found live 2026-08-14: the Congress
+  officeholder-photo ingester writes new files straight into `app/public/politicians/`
+  on the VPS's own disk, no `npm run build` involved — every one of those files 404'd
+  until the next restart, complete with a misleadingly cache-flavored `x-nextjs-cache:
+  HIT` response header that has nothing to do with the real cause). Restart after ANY
+  ingester run that can add new `public/` files, not just after a code deploy.
 - **Secrets**: `app/.env.production` on the VPS carries `ADMIN_TOTP_SECRET` /
   `ADMIN_SESSION_SECRET` copied over from Vercel's values (so the owner's already-
   enrolled authenticator keeps working) plus the new local `DATABASE_URL`.
