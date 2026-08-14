@@ -80,42 +80,77 @@ const TIERS = [
   { titles: ["Auditor"], slug: "auditor", labels: (state) => [`Auditor of ${state}`, `State Auditor of ${state}`] },
 ];
 
+// Real gap found live 2026-08-14 building this: retry-with-backoff
+// existed for downloadPhoto but never for the lookup step itself, and a
+// tier with multiple label candidates (Comptroller/Controller) fired
+// them back-to-back with zero delay -- bursting requests on top of an
+// already-large day's worth of cumulative traffic to the same public
+// endpoint (Congress's 531 + Governor's ~190 + this tier's 241). Result:
+// 149 of 161 newly-attempted people failed on the first run of this
+// tier, dominated by 429/502/timeout -- transient infrastructure load,
+// not 149 genuine "no Wikidata photo" cases. Retries 429 (respecting
+// Retry-After) and 502 (fixed backoff, Wikidata's own upstream
+// hiccupping) up to 3 times per label candidate, same shape as
+// downloadPhoto's own retry logic; a small delay between label
+// candidates too, not just between people.
 async function wikidataPhotoUrl(fullName, labelCandidates) {
   for (const label of labelCandidates) {
-    try {
-      const escapedName = fullName.replace(/"/g, '\\"');
-      const escapedLabel = label.replace(/"/g, '\\"');
-      const query = `SELECT ?image WHERE {
-        ?person rdfs:label "${escapedName}"@en.
-        ?person wdt:P39 ?position.
-        ?position rdfs:label ?positionLabel.
-        FILTER(lang(?positionLabel) = "en").
-        FILTER(CONTAINS(?positionLabel, "${escapedLabel}")).
-        ?person wdt:P18 ?image.
-      } LIMIT 1`;
-      const u = new URL("https://query.wikidata.org/sparql");
-      u.searchParams.set("query", query);
-      u.searchParams.set("format", "json");
-      const res = await fetch(u, {
-        headers: { Accept: "application/json", "User-Agent": USER_AGENT },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) {
-        console.warn(`wikidata lookup for ${fullName} (${label}): HTTP ${res.status}`);
-        continue;
-      }
-      const data = await res.json();
-      const uri = data.results?.bindings?.[0]?.image?.value;
-      if (uri) {
-        const filePathUrl = new URL(uri.replace(/^http:/, "https:"));
-        filePathUrl.searchParams.set("width", "200");
-        return filePathUrl.toString();
-      }
-    } catch (e) {
-      console.warn(`wikidata lookup for ${fullName} (${label}) threw: ${e.message ?? e}`);
-    }
+    const imageUrl = await wikidataPhotoUrlForLabel(fullName, label);
+    if (imageUrl) return imageUrl;
+    await sleep(200);
   }
   return null; // no Wikidata entry, no matching position under any tried label, no P18 image, or the query service hiccuped -- never guess
+}
+
+async function wikidataPhotoUrlForLabel(fullName, label, attempt = 1) {
+  try {
+    const escapedName = fullName.replace(/"/g, '\\"');
+    const escapedLabel = label.replace(/"/g, '\\"');
+    const query = `SELECT ?image WHERE {
+      ?person rdfs:label "${escapedName}"@en.
+      ?person wdt:P39 ?position.
+      ?position rdfs:label ?positionLabel.
+      FILTER(lang(?positionLabel) = "en").
+      FILTER(CONTAINS(?positionLabel, "${escapedLabel}")).
+      ?person wdt:P18 ?image.
+    } LIMIT 1`;
+    const u = new URL("https://query.wikidata.org/sparql");
+    u.searchParams.set("query", query);
+    u.searchParams.set("format", "json");
+    const res = await fetch(u, {
+      headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(15000),
+    });
+    if ((res.status === 429 || res.status === 502) && attempt <= 3) {
+      const retryAfterMs = Number(res.headers.get("retry-after")) * 1000 || 2 ** attempt * 1000;
+      console.warn(`wikidata lookup for ${fullName} (${label}): HTTP ${res.status}, retrying in ${retryAfterMs}ms (attempt ${attempt})`);
+      await sleep(retryAfterMs);
+      return wikidataPhotoUrlForLabel(fullName, label, attempt + 1);
+    }
+    if (!res.ok) {
+      console.warn(`wikidata lookup for ${fullName} (${label}): HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    const uri = data.results?.bindings?.[0]?.image?.value;
+    if (!uri) return null;
+    const filePathUrl = new URL(uri.replace(/^http:/, "https:"));
+    filePathUrl.searchParams.set("width", "200");
+    return filePathUrl.toString();
+  } catch (e) {
+    // A thrown timeout was as common as an explicit 429/502 in practice
+    // (Wikidata's endpoint under sustained load, not a bad query -- other
+    // people's identical query shape succeeded fine around it) -- retried
+    // the same as an explicit 429/502, not treated as a permanent failure.
+    if (attempt <= 3) {
+      const retryMs = 2 ** attempt * 1000;
+      console.warn(`wikidata lookup for ${fullName} (${label}) threw: ${e.message ?? e}, retrying in ${retryMs}ms (attempt ${attempt})`);
+      await sleep(retryMs);
+      return wikidataPhotoUrlForLabel(fullName, label, attempt + 1);
+    }
+    console.warn(`wikidata lookup for ${fullName} (${label}) threw: ${e.message ?? e}`);
+    return null;
+  }
 }
 
 async function downloadPhoto(slug, commonsUrl, attempt = 1) {
@@ -176,7 +211,7 @@ try {
     const imageUrl = await wikidataPhotoUrl(row.full_name, tier.labels(stateName));
     if (!imageUrl) {
       stats.noMatch += 1;
-      await sleep(350);
+      await sleep(500);
       continue;
     }
     const slug = `${stateSlug}-${tier.slug}`;
@@ -187,7 +222,7 @@ try {
     } else {
       stats.downloadFailed += 1;
     }
-    await sleep(350);
+    await sleep(500);
   }
 
   await client.query(
