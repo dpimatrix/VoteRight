@@ -103,23 +103,36 @@ identity anchor. Re-run the ingester to pick up new/changed members'
 photos; idempotent by design (skips any file already on disk, so a re-run
 only does network work for members it hasn't photographed yet).
 
-## Governors + Lieutenant Governors (automated, 2026-08-14)
+## Statewide officials (automated, 2026-08-14, generalized same day)
 
-`db/ingest/governor-photos.mjs` — same Wikidata technique as Congress
-above, adapted for a source with no clean external ID like bioguide_id:
-Governors don't have one, so this matches by full_name AND cross-checks
-the person's actual Wikidata "position held" against the exact office
-("Governor of Maryland", not just any office containing the word
-"Governor") before trusting the match — verified live against Wes Moore
-before building this. Same P18 → Commons → re-hosted-webp pipeline as
-Congress. Idempotent (skips anyone who already has a photo_url) and
-much smaller in scale (95 people across 50 states, vs. Congress's 531),
-so this runs sequential per-person queries with a real delay + proper
-User-Agent rather than needing Congress's batched-VALUES-clause
-approach to stay under Wikidata's rate limit.
+`db/ingest/statewide-official-photos.mjs` — same Wikidata technique as
+Congress above, adapted for offices with no clean external ID like
+bioguide_id: matches by full_name AND cross-checks the person's actual
+Wikidata "position held" against the exact office+state ("Attorney
+General of Maryland", not just any office containing the word
+"Attorney") before trusting the match — verified live against Wes
+Moore/Governor of Maryland and Anthony G. Brown/Attorney General of
+Maryland before building this. Same P18 → Commons → re-hosted-webp
+pipeline as Congress. Idempotent (skips anyone who already has a
+photo_url) and small enough in scale that this runs sequential
+per-person queries with a real delay + proper User-Agent rather than
+needing Congress's batched-VALUES-clause approach.
 
-Filenames are `{stateSlug}-gov.webp` / `{stateSlug}-ltgov.webp`
-(e.g. `md-gov.webp` for Wes Moore) — state+office, not a name-derived
-slug, since it's guaranteed unique (one governor per state) and reads
+Started as a Governor/Lt. Governor-only script (95 people), generalized
+the same day into a TIERS list covering any single-seat, one-per-state
+office that fits the same "{title} of {state}" position shape —
+currently Governor, Lieutenant Governor, Attorney General, Secretary of
+State, Treasurer, Controller, and Auditor. Real naming quirk handled
+along the way: this project normalizes "Comptroller"/"Controller"
+(genuinely different real per-state terminology) into one generic DB
+title, but Wikidata uses each state's own term — that tier tries both
+labels in order rather than assuming one.
+
+Filenames are `{stateSlug}-{tier}.webp` (e.g. `md-gov.webp` for Wes
+Moore, `md-ag.webp` for Anthony G. Brown) — state+office, not a
+name-derived slug, since it's guaranteed unique per state and reads
 clearly on its own. Coverage isn't 100% — same never-guess fallback to
-the monogram as everywhere else.
+the monogram as everywhere else. Multi-seat bodies (e.g. Public Service
+Commissions) and differently-shaped tiers (district-based, judicial)
+aren't in TIERS yet — they need their own naming/shape verification
+before joining this list.
