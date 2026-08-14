@@ -79,55 +79,71 @@ const PHOTO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", 
 // existing processed/skipped line.
 const photoStats = { downloaded: 0, alreadyHad: 0, noWikidataMatch: 0, lookupFailed: 0, downloadFailed: 0 };
 
-async function wikidataPhotoUrl(bioguideId) {
-  try {
-    const query = `SELECT ?image WHERE { ?person wdt:P1157 "${bioguideId}". ?person wdt:P18 ?image. } LIMIT 1`;
+// Wikimedia's own usage policy asks bulk/automated clients to identify
+// themselves -- an unidentified client gets throttled harder. Real bug
+// found live (2026-08-14): the FIRST version of this queried Wikidata's
+// SPARQL endpoint once PER MEMBER (531 sequential requests, no delay, no
+// User-Agent) and got HTTP 429 on all 531. Batching many bioguideIds into
+// one query via a VALUES clause turns that into ~11 requests instead of
+// 531 -- fixes the rate-limit problem at the root instead of just adding
+// a longer delay to the same 531-request shape.
+const USER_AGENT = "VoteRight-civic-data-ingester/1.0 (https://voteright.dpimatrix.com; contact via repo)";
+const WIKIDATA_BATCH_SIZE = 50;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** bioguideIds -> Map<bioguideId, commons image URL>. Batched, not one
+    request per member -- see the header comment above. Skips any batch
+    that errors rather than failing the whole run; that batch's members
+    just get no photo this run (never guessed, retried cleanly next run). */
+async function wikidataPhotoUrls(bioguideIds) {
+  const found = new Map();
+  for (let i = 0; i < bioguideIds.length; i += WIKIDATA_BATCH_SIZE) {
+    const batch = bioguideIds.slice(i, i + WIKIDATA_BATCH_SIZE);
+    const values = batch.map((id) => `"${id}"`).join(" ");
+    const query = `SELECT ?bioguideId ?image WHERE { VALUES ?bioguideId { ${values} } ?person wdt:P1157 ?bioguideId. ?person wdt:P18 ?image. }`;
     const u = new URL("https://query.wikidata.org/sparql");
     u.searchParams.set("query", query);
     u.searchParams.set("format", "json");
-    const res = await fetch(u, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) {
-      console.warn(`wikidata lookup for ${bioguideId}: HTTP ${res.status}`);
-      photoStats.lookupFailed += 1;
-      return null;
+    try {
+      const res = await fetch(u, {
+        headers: { Accept: "application/json", "User-Agent": USER_AGENT },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) {
+        console.warn(`wikidata batch lookup (${batch.length} members starting ${batch[0]}): HTTP ${res.status}`);
+        photoStats.lookupFailed += batch.length;
+      } else {
+        const data = await res.json();
+        for (const row of data.results?.bindings ?? []) {
+          const id = row.bioguideId?.value;
+          const uri = row.image?.value;
+          if (id && uri) found.set(id, uri.replace(/^http:/, "https:"));
+        }
+      }
+    } catch (e) {
+      console.warn(`wikidata batch lookup threw: ${e.message ?? e}`);
+      photoStats.lookupFailed += batch.length;
     }
-    const data = await res.json();
-    const uri = data.results?.bindings?.[0]?.image?.value;
-    if (!uri) {
-      photoStats.noWikidataMatch += 1;
-      return null;
-    }
-    // uri looks like "http://commons.wikimedia.org/wiki/Special:FilePath/Foo.jpg"
-    // -- force https and ask for a small thumbnail rather than full-res.
-    const filePathUrl = new URL(uri.replace(/^http:/, "https:"));
-    filePathUrl.searchParams.set("width", "200");
-    return filePathUrl.toString();
-  } catch (e) {
-    console.warn(`wikidata lookup for ${bioguideId} threw: ${e.message ?? e}`);
-    photoStats.lookupFailed += 1;
-    return null; // no Wikidata entry, no P18 image, or the query service hiccuped -- never guess
+    await sleep(300); // be polite between batches, same spirit as the User-Agent
   }
+  return found;
 }
 
-// Idempotent by design: skips BOTH the Wikidata lookup and the download
-// entirely if the file already exists on disk, so a re-run only does any
-// network work at all for new/not-yet-photographed members.
-async function photoPathFor(bioguideId) {
+/** Downloads one member's photo (already resolved to a Commons URL) to
+    app/public/politicians/{bioguideId}.jpg and returns the local path, or
+    null on any failure -- logged, never thrown, same never-guess posture
+    as the rest of this ingester (see e.g. arcgisDistrictLookup in
+    jurisdictions.ts). Caller is responsible for the idempotency check
+    (does the file already exist) -- this always downloads when called. */
+async function downloadPhoto(bioguideId, commonsUrl) {
   const filename = `${bioguideId.toLowerCase()}.jpg`;
   const diskPath = path.join(PHOTO_DIR, filename);
+  const thumbUrl = new URL(commonsUrl);
+  thumbUrl.searchParams.set("width", "200");
   try {
-    await access(diskPath);
-    photoStats.alreadyHad += 1;
-    return `/politicians/${filename}`; // already downloaded, nothing to do
-  } catch {
-    // doesn't exist yet -- fall through and fetch it
-  }
-  const imageUrl = await wikidataPhotoUrl(bioguideId);
-  if (!imageUrl) return null;
-  try {
-    const res = await fetch(imageUrl, { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(thumbUrl, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
-      console.warn(`photo download for ${bioguideId}: HTTP ${res.status} from ${imageUrl}`);
+      console.warn(`photo download for ${bioguideId}: HTTP ${res.status} from ${thumbUrl}`);
       photoStats.downloadFailed += 1;
       return null;
     }
@@ -137,10 +153,6 @@ async function photoPathFor(bioguideId) {
     photoStats.downloaded += 1;
     return `/politicians/${filename}`;
   } catch (e) {
-    // Never let one member's bad/unreachable photo fail the whole run --
-    // same never-guess-but-never-block posture as the rest of this
-    // ingester (see e.g. arcgisDistrictLookup in jurisdictions.ts) -- but
-    // LOG it now instead of swallowing it silently.
     console.warn(`photo download for ${bioguideId} threw: ${e.message ?? e}`);
     photoStats.downloadFailed += 1;
     return null;
@@ -218,6 +230,11 @@ try {
   let processed = 0;
   let skippedStates = new Set();
   let dataThrough = null;
+  // {bioguideId, polId} pairs whose photo isn't on disk yet -- resolved
+  // in one batched pass AFTER the main loop below, not per-member inline
+  // (see wikidataPhotoUrls' header comment for why: 531 individual
+  // requests got rate-limited into oblivion the first time this ran).
+  const neededPhotos = [];
 
   for (let offset = 0; ; offset += 250) {
     const u = new URL(`https://api.congress.gov/v3/member/congress/${congress}`);
@@ -318,15 +335,28 @@ try {
         officeId = await findOrCreateOffice(stateOcdId, title, "district");
       }
 
-      const photoUrl = await photoPathFor(m.bioguideId);
+      // Cheap local existence check only here -- no network call. If we
+      // already have this member's photo on disk, reuse it (and skip
+      // queueing them below); otherwise queue them for the batched
+      // Wikidata pass after this whole loop finishes.
+      const photoFilename = `${m.bioguideId.toLowerCase()}.jpg`;
+      const photoDiskPath = path.join(PHOTO_DIR, photoFilename);
+      let photoUrl = null;
+      try {
+        await access(photoDiskPath);
+        photoUrl = `/politicians/${photoFilename}`;
+        photoStats.alreadyHad += 1;
+      } catch {
+        // not downloaded yet -- queued below once polId is known
+      }
 
       let polId;
       if (existingPol.rowCount) {
         polId = existingPol.rows[0].id;
         await client.query(
-          // COALESCE, not overwrite with NULL: a member with no depiction
-          // this run (or a network hiccup on this one photo) keeps
-          // whatever photo_url they already had rather than losing it.
+          // COALESCE, not overwrite with NULL: a member with no photo yet
+          // this run keeps whatever photo_url they already had rather
+          // than losing it.
           `UPDATE politicians SET full_name = $2, party = $3, current_office_id = $4, bio = $5,
                   photo_url = COALESCE($6, photo_url) WHERE id = $1`,
           [polId, fullName, party, officeId, bio, photoUrl],
@@ -338,6 +368,7 @@ try {
         );
         polId = pol.rows[0].id;
       }
+      if (!photoUrl) neededPhotos.push({ bioguideId: m.bioguideId, polId });
 
       const termStart = `${startYear}-01-03`;
       const ins = await client.query(
@@ -349,6 +380,24 @@ try {
       if (ins.rowCount) processed += 1;
     }
     if (members.length < 250) break;
+  }
+
+  // Batched photo pass, after the main roster loop -- see neededPhotos'
+  // declaration above for why this isn't done inline per-member.
+  if (neededPhotos.length > 0) {
+    const urlMap = await wikidataPhotoUrls(neededPhotos.map((n) => n.bioguideId));
+    for (const { bioguideId, polId } of neededPhotos) {
+      const commonsUrl = urlMap.get(bioguideId);
+      if (!commonsUrl) {
+        photoStats.noWikidataMatch += 1;
+        continue;
+      }
+      const localPath = await downloadPhoto(bioguideId, commonsUrl);
+      if (localPath) {
+        await client.query(`UPDATE politicians SET photo_url = $2 WHERE id = $1`, [polId, localPath]);
+      }
+      await sleep(150); // stagger downloads too -- polite to Commons, not just Wikidata's query service
+    }
   }
 
   await client.query(
