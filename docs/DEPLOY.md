@@ -41,11 +41,15 @@ preferred consolidating onto it.
   and `systemctl --user restart voteright` (with `XDG_RUNTIME_DIR=/run/user/$(id -u)`
   exported first if it's a fresh shell). Deliberately **not** automated via GitHub
   Actions (considered and declined). **Copying files without a build+restart does
-  nothing** — `next start` serves the pre-built `.next` folder, not the source files —
-  and any migration must be applied with `sudo -u postgres psql -f
-  db/migrations/NNN_*.sql` followed by `ALTER TABLE ... OWNER TO voteright;` on every
-  new table (a migration run as `postgres` creates tables the app's own `voteright`
-  role can't write to otherwise). Prefer `git pull` over raw SCP now that the VPS repo
+  nothing** — `next start` serves the pre-built `.next` folder, not the source files.
+  **Apply migrations with `node db/migrate.mjs up`** (`DATABASE_URL` sourced from
+  `app/.env.production` first) — corrected 2026-08-14: the `voteright` user is **not**
+  in sudoers on this VPS, so the previously-documented `sudo -u postgres psql -f
+  db/migrations/NNN_*.sql` fails outright (`voteright is not in the sudoers file`).
+  `db/migrate.mjs` connects as the app's own `voteright` role via the same
+  `DATABASE_URL` everything else uses, which already owns/can write every table the
+  app itself writes to — no ownership-transfer step needed for that role. Prefer
+  `git pull` over raw SCP now that the VPS repo
   is a real clone — SCPing individual files desyncs git's own bookkeeping from what's
   actually on disk (this happened once already; recovered via `git stash -u` + `git
   pull`, see the repo's commit history around 2026-07-30 for the full story).
