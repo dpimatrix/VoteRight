@@ -123,25 +123,22 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   // term_length_years > 2 excludes House seats on purpose, not as an
   // approximation: a 2-year term is ALWAYS up next cycle regardless of
   // when the incumbent was first elected, so no date math is even needed
-  // there. !congress_sourced excludes Senate for a real data reason, found
-  // the same day: Congress.gov's ingested term_start marks a member's
-  // CONTINUOUS tenure in that chamber, not their current term -- reelected
-  // without a gap, and it never resets. Computing "next election" from it
-  // is confidently wrong for any incumbent past their first term (a
-  // senator since 2017, reelected 2022, still reads as "started 2017" and
-  // would show a next-election year already in the past). No reliable
-  // per-senator term-start source exists yet (the ingester never labeled
-  // Senate Class for the same reason) -- Senate falls back to the same
-  // "on ballot" assumption as before this fix, honestly disclosing
-  // nothing rather than confidently claiming a wrong year. Hand-verified
-  // single-office migrations (President, governors, ...) aren't
-  // congress_sourced and keep the real fix below.
+  // there. term_start_precise (migration 081) gates everything else --
+  // widened same day from a narrower congress_sourced check after
+  // auditing found the SAME "continuous tenure, not current term"
+  // unreliability isn't just a Congress problem (Governors' migration
+  // discloses the identical caveat; most other hand-verified migrations'
+  // sourcing is simply unclear either way). Defaults false (untrusted) at
+  // the data layer -- only President/VP are currently marked precise, a
+  // genuinely unambiguous case. Untrusted offices fall back to the same
+  // "on ballot" assumption as before any of today's fixes, honestly
+  // disclosing nothing rather than confidently claiming a wrong year.
   const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
   const offCycle =
     o.level !== "municipal" &&
     !tracked &&
     o.term_length_years > 2 &&
-    !o.congress_sourced &&
+    o.term_start_precise &&
     nextYear !== null &&
     nextYear !== CURRENT_CYCLE_YEAR;
   if (offCycle) {

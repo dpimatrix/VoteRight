@@ -154,6 +154,7 @@ CREATE TABLE office_terms (
     term_end        DATE,                                 -- NULL = currently serving
     how_obtained    TEXT NOT NULL DEFAULT 'elected' CHECK (how_obtained IN ('elected','appointed','succeeded')),
     source_citation_id UUID REFERENCES citations(id),     -- swearing-in record / official roster
+    term_start_precise BOOLEAN NOT NULL DEFAULT false,    -- added migration 081: TRUE only when term_start is verified as the CURRENT term's actual start (safe for next-election-year math); default false is the safe direction -- most hand-verified migrations' term_start marks continuous tenure, not the current term, which reads confidently wrong for any reelected incumbent
     UNIQUE (office_id, politician_id, term_start)
 );
 

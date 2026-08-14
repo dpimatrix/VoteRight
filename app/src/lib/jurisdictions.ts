@@ -413,23 +413,29 @@ export interface StackedOffice {
   // to deal with node-postgres's DATE-to-JS-Date timezone footgun for a
   // value that's only ever used as a year.
   term_start_year: number | null;
-  // True when that term_start_year came from the Congress.gov ingester
-  // (db/ingest/congress.mjs -- the politician has a bioguide_id). Real bug
-  // found live (2026-08-14): Congress.gov's startYear marks when a
-  // member's CONTINUOUS, unbroken tenure in that chamber began, not their
-  // CURRENT term's start -- a senator reelected without a gap keeps their
-  // original first-elected year forever. nextElectionYear's math only
-  // holds for a term_start that resets on reelection, which is true for
-  // this project's hand-verified single-office migrations (President,
-  // governors, ...) but NOT for Congress.gov-sourced terms. Callers must
-  // gate on this flag, not just term_length_years, before trusting a
-  // computed next-election year for a congress_sourced office.
-  congress_sourced: boolean;
-  // Officeholder thumbnail pilot (2026-08-14), Congress-only for now: name
-  // + re-hosted-local photo_url (see PolAvatar.tsx) of the SAME officeholder
-  // congress_sourced/term_start_year describe -- null for every non-Congress
-  // office (never populated for those) and for a Congress seat with no
-  // ingested term at all. Deliberately NOT shown for tracked (real race)
+  // Whether term_start above is verified as the CURRENT term's actual
+  // start -- NOT inferred from source (e.g. "is this politician
+  // Congress-sourced"), an explicit per-term fact from office_terms.
+  // term_start_precise (migration 081). Defaults false (untrusted) at the
+  // DATA layer, the safe direction: real bug found live (2026-08-14) --
+  // Congress.gov's ingested term_start marks a member's CONTINUOUS,
+  // unbroken tenure in a chamber, not their current term -- a senator
+  // reelected without a gap keeps their original first-elected year
+  // forever, so nextElectionYear's math reads confidently wrong for any
+  // reelected incumbent. Auditing the OTHER hand-verified migrations
+  // (governors, AG/Treasurer, PSC, ...) for the same day turned up the
+  // identical disclosed caveat on governors specifically, and unclear
+  // sourcing on most of the rest -- not something safe to infer from a
+  // narrow proxy like "is this Congress data" (this flag's predecessor,
+  // congress_sourced, worked that way and got replaced by this). Only
+  // President/VP are currently marked precise -- a genuinely unambiguous
+  // case. Callers must gate on this flag before trusting a computed
+  // next-election year.
+  term_start_precise: boolean;
+  // Officeholder thumbnail pilot (2026-08-14): name + re-hosted-local
+  // photo_url (see PolAvatar.tsx) of the SAME officeholder term_start_year
+  // describes -- null for any office with no ingested/hand-verified term
+  // at all. Deliberately NOT shown for tracked (real race)
   // seats -- see SeatRow: a summary row can't pick one candidate's face out
   // of a contested field without implying an endorsement, but a plain
   // "who currently holds this seat" fact carries no such risk.
@@ -467,7 +473,7 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
      )
      SELECT o.id, o.title, o.level, o.seat_count, o.term_length_years,
             r.id AS race_id, r.seats_elected,
-            ot.term_start_year, COALESCE(ot.congress_sourced, false) AS congress_sourced,
+            ot.term_start_year, COALESCE(ot.term_start_precise, false) AS term_start_precise,
             ot.officeholder_name, ot.officeholder_photo_url, ot.officeholder_party,
             s.ocd_id AS jurisdiction_id, s.name AS jurisdiction_name, s.depth
        FROM stack s
@@ -475,11 +481,10 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
        LEFT JOIN races r ON r.office_id = o.id
        LEFT JOIN LATERAL (
          -- The single most recent office_terms row for this office (not
-         -- just MAX(term_start) -- congress_sourced/officeholder_* need to
-         -- come from THAT SAME row's politician, not an unrelated
-         -- aggregate).
+         -- just MAX(term_start) -- term_start_precise/officeholder_* need
+         -- to come from THAT SAME row, not an unrelated aggregate).
          SELECT EXTRACT(YEAR FROM ot.term_start)::int AS term_start_year,
-                (p.bioguide_id IS NOT NULL) AS congress_sourced,
+                ot.term_start_precise,
                 p.full_name AS officeholder_name, p.photo_url AS officeholder_photo_url, p.party AS officeholder_party
            FROM office_terms ot JOIN politicians p ON p.id = ot.politician_id
           WHERE ot.office_id = o.id
