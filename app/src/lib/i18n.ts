@@ -7,7 +7,7 @@ export function langFrom(v: string | string[] | undefined): Lang {
 
 const DICT = {
   en: {
-    county: "DC · MD · VA",
+    county: "Nationwide",
     tagline: "Matched to what you actually want",
     ballot_h: "Every seat your address elects",
     ballot_note:
@@ -320,7 +320,7 @@ const DICT = {
     },
   },
   es: {
-    county: "DC · MD · VA",
+    county: "Nacional",
     tagline: "Compatibilidad con lo que tú realmente quieres",
     ballot_h: "Cada cargo que elige tu dirección",
     ballot_note:
