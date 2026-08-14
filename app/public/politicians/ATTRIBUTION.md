@@ -4,6 +4,8 @@ Official portraits of current officeholders, re-hosted locally so visitors'
 browsers never fetch from third-party hosts (see the /privacy notice). Policy:
 **officeholders = official government portraits; challengers = monogram until
 they provide a photo through the candidate questionnaire (DATA-OPS D4).**
+One documented exception below (Mayor Ashman) where the official government
+source was unreachable -- see that section for the full disclosure.
 
 All eleven files below were retrieved 2026-07-19 from the Montgomery County
 Council's official roster page:
@@ -29,6 +31,20 @@ and visual verification govern.
 TODO: Marc Elrich — official Executive portrait not exposed on the exec
 landing page at retrieval time; monogram until sourced. Refresh portraits at
 each roster change (the monthly roster-diff cadence in DATA-OPS.md).
+
+## Mayor Jud Ashman — POLICY EXCEPTION (hand-curated, 2026-08-14)
+
+`ashman.webp` is **campaign material, not an official government portrait**
+— the one deliberate exception to this file's own stated policy above.
+Gaithersburg's own site (gaithersburgmd.gov) blocks automated access
+outright (Akamai 403, confirmed from two separate networks the same day
+congress.gov's image host hit the identical wall) and no Wikimedia Commons
+photo of him exists. Owner-approved 2026-08-14 to use his campaign site's
+own published headshot instead of leaving the sitting Mayor on a monogram:
+https://www.votejud.com/wp-content/uploads/2025/07/2025-Headshot-800x800-1.jpg
+(explicitly labeled "headshot" on the source page; visually verified as a
+real, current, professional portrait of him before use). Revisit if
+Gaithersburg's own site ever becomes reachable, or a Commons photo surfaces.
 
 ## President & Vice President (hand-curated, 2026-08-14)
 
