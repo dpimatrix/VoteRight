@@ -72,6 +72,13 @@ const { Client } = require("pg");
 // handles it gracefully.
 const PHOTO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "app", "public", "politicians");
 
+// Diagnostic counters, not just a single "processed" number -- a photo
+// pilot shipped 2026-08-14 that silently downloaded zero photos for over
+// an hour before anyone could tell WHY, since every failure mode here was
+// swallowed by a bare catch. Printed in the final summary alongside the
+// existing processed/skipped line.
+const photoStats = { downloaded: 0, alreadyHad: 0, noWikidataMatch: 0, lookupFailed: 0, downloadFailed: 0 };
+
 async function wikidataPhotoUrl(bioguideId) {
   try {
     const query = `SELECT ?image WHERE { ?person wdt:P1157 "${bioguideId}". ?person wdt:P18 ?image. } LIMIT 1`;
@@ -79,16 +86,25 @@ async function wikidataPhotoUrl(bioguideId) {
     u.searchParams.set("query", query);
     u.searchParams.set("format", "json");
     const res = await fetch(u, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`wikidata lookup for ${bioguideId}: HTTP ${res.status}`);
+      photoStats.lookupFailed += 1;
+      return null;
+    }
     const data = await res.json();
     const uri = data.results?.bindings?.[0]?.image?.value;
-    if (!uri) return null;
+    if (!uri) {
+      photoStats.noWikidataMatch += 1;
+      return null;
+    }
     // uri looks like "http://commons.wikimedia.org/wiki/Special:FilePath/Foo.jpg"
     // -- force https and ask for a small thumbnail rather than full-res.
     const filePathUrl = new URL(uri.replace(/^http:/, "https:"));
     filePathUrl.searchParams.set("width", "200");
     return filePathUrl.toString();
-  } catch {
+  } catch (e) {
+    console.warn(`wikidata lookup for ${bioguideId} threw: ${e.message ?? e}`);
+    photoStats.lookupFailed += 1;
     return null; // no Wikidata entry, no P18 image, or the query service hiccuped -- never guess
   }
 }
@@ -101,6 +117,7 @@ async function photoPathFor(bioguideId) {
   const diskPath = path.join(PHOTO_DIR, filename);
   try {
     await access(diskPath);
+    photoStats.alreadyHad += 1;
     return `/politicians/${filename}`; // already downloaded, nothing to do
   } catch {
     // doesn't exist yet -- fall through and fetch it
@@ -109,15 +126,23 @@ async function photoPathFor(bioguideId) {
   if (!imageUrl) return null;
   try {
     const res = await fetch(imageUrl, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`photo download for ${bioguideId}: HTTP ${res.status} from ${imageUrl}`);
+      photoStats.downloadFailed += 1;
+      return null;
+    }
     const bytes = Buffer.from(await res.arrayBuffer());
     await mkdir(PHOTO_DIR, { recursive: true });
     await writeFile(diskPath, bytes);
+    photoStats.downloaded += 1;
     return `/politicians/${filename}`;
-  } catch {
+  } catch (e) {
     // Never let one member's bad/unreachable photo fail the whole run --
     // same never-guess-but-never-block posture as the rest of this
-    // ingester (see e.g. arcgisDistrictLookup in jurisdictions.ts).
+    // ingester (see e.g. arcgisDistrictLookup in jurisdictions.ts) -- but
+    // LOG it now instead of swallowing it silently.
+    console.warn(`photo download for ${bioguideId} threw: ${e.message ?? e}`);
+    photoStats.downloadFailed += 1;
     return null;
   }
 }
@@ -334,6 +359,10 @@ try {
       skippedStates.size ? `skipped (no jurisdiction row yet): ${[...skippedStates].sort().join(", ")}` : null],
   );
   console.log(`${SOURCE}: processed ${processed} current member(s) of the ${congress}th Congress, skipped ${skippedStates.size} state/territory(ies) with no jurisdiction row yet`);
+  console.log(
+    `photos: ${photoStats.downloaded} downloaded, ${photoStats.alreadyHad} already had one, ` +
+      `${photoStats.noWikidataMatch} no Wikidata photo, ${photoStats.lookupFailed} lookup failed, ${photoStats.downloadFailed} download failed`,
+  );
 } catch (e) {
   await client.query(`UPDATE ingestion_runs SET finished_at = now(), status = 'failed', note = $2 WHERE id = $1`, [runId, String(e.message ?? e)]);
   console.error(`${SOURCE} FAILED: ${e.message ?? e}`);
