@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appellateCircuitForCounty,
   COUNTY,
   CURRENT_CYCLE_YEAR,
   extractCensusGeography,
@@ -17,10 +18,10 @@ import {
 } from "./jurisdictions";
 
 // Shorthand for filterToOwnDistricts test inputs — most tests only care about
-// one or two of the five district fields; this fills the rest with null so
+// one or two of the six district fields; this fills the rest with null so
 // each test case only needs to name what it's actually exercising.
 const districts = (overrides: Partial<ExtractedDistricts>): ExtractedDistricts => ({
-  congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null,
+  congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null, appellateCircuit: null,
   ...overrides,
 });
 
@@ -225,14 +226,30 @@ describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/s
     expect(filterToOwnDistricts(offices, districts({}))).toHaveLength(2);
   });
 
-  it("leaves non-federal/state/Montgomery district seats untouched — PSC, judicial, state board of education", () => {
+  it("leaves non-federal/state/Montgomery/appellate-circuit district seats untouched — PSC, state board of education, the multi-seat Appellate Court", () => {
     const offices = [
       office("Public Service Commission — District 1", "state"),
       office("State Board of Education — District 1", "state"),
-      office("Supreme Court — District 1", "judicial"),
+      office("Maryland Appellate Court", "judicial"),
     ];
-    const result = filterToOwnDistricts(offices, districts({ congressional: "1", stateSenate: "1", stateHouse: "1", countyCouncil: "1", boardOfEducation: "1" }));
+    const result = filterToOwnDistricts(offices, districts({ congressional: "1", stateSenate: "1", stateHouse: "1", countyCouncil: "1", boardOfEducation: "1", appellateCircuit: "1" }));
     expect(result).toHaveLength(3); // none dropped — this function doesn't know how to narrow these
+  });
+
+  it("narrows Maryland Supreme Court circuit seats to the resident's own circuit (2026-08-14) — a different title SHAPE than every other tier (ordinal + 'Circuit', no em dash, no literal 'District')", () => {
+    const offices = [
+      office("Supreme Court 1st Circuit", "judicial"),
+      office("Supreme Court 7th Circuit", "judicial"),
+      office("Governor", "state"), // untouched, sanity check
+    ];
+    const result = filterToOwnDistricts(offices, districts({ appellateCircuit: "7" }));
+    expect(result.map((o) => o.title)).toEqual(["Supreme Court 7th Circuit", "Governor"]);
+  });
+
+  it("shows every Supreme Court circuit for a non-Maryland resident, or when the circuit isn't resolved", () => {
+    const offices = [office("Supreme Court 1st Circuit", "judicial"), office("Supreme Court 7th Circuit", "judicial")];
+    expect(filterToOwnDistricts(offices, districts({}))).toHaveLength(2);
+    expect(filterToOwnDistricts(offices, null)).toHaveLength(2);
   });
 
   it("shows every seat in a tier when that tier's district wasn't resolved — never a guessed district hiding real seats", () => {
@@ -293,6 +310,33 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
       office("State Senator — District 17"),
     ];
     expect(hasUnnarrowedDistrictSeats(offices)).toBe(false);
+  });
+
+  it("catches a genuinely unnarrowed Supreme Court circuit slate (2026-08-14) — title has no literal 'District' word, needs its own pre-filter branch, not just .includes('District')", () => {
+    const offices = [office("Supreme Court 1st Circuit", "judicial"), office("Supreme Court 2nd Circuit", "judicial")];
+    expect(hasUnnarrowedDistrictSeats(offices)).toBe(true);
+  });
+
+  it("is false when Supreme Court circuit seats narrowed to exactly one row", () => {
+    expect(hasUnnarrowedDistrictSeats([office("Supreme Court 7th Circuit", "judicial")])).toBe(false);
+  });
+
+  it("is true for a circuit-shaped title this project doesn't recognize (ordinal + 'Circuit', but not literally 'Supreme Court')", () => {
+    expect(hasUnnarrowedDistrictSeats([office("District Court 3rd Circuit", "judicial")])).toBe(true);
+  });
+});
+
+describe("appellateCircuitForCounty (Maryland's 7 appellate judicial circuits, Md. Constitution Art. IV §14 — pure county-FIPS lookup, no GIS query)", () => {
+  it("maps a few known counties to their real circuit", () => {
+    expect(appellateCircuitForCounty("031")).toBe("7"); // Montgomery
+    expect(appellateCircuitForCounty("510")).toBe("6"); // Baltimore City
+    expect(appellateCircuitForCounty("033")).toBe("4"); // Prince George's
+    expect(appellateCircuitForCounty("011")).toBe("1"); // Caroline (1st circuit's 9-county group)
+  });
+
+  it("returns null for a county not in the lookup (non-Maryland, or a bad FIPS) — never guess", () => {
+    expect(appellateCircuitForCounty("999")).toBeNull();
+    expect(appellateCircuitForCounty(null)).toBeNull();
   });
 });
 

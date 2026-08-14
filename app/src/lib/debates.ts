@@ -81,11 +81,11 @@ export async function verifyAddress(
     await client.query(
       `UPDATE users SET residence_jurisdiction_id = $2,
               congressional_district = $3, state_senate_district = $4, state_house_district = $5,
-              county_council_district = $6, board_of_education_district = $7
+              county_council_district = $6, board_of_education_district = $7, appellate_circuit = $8
         WHERE id = $1`,
       [
         userId, residence, res.districts.congressional, res.districts.stateSenate, res.districts.stateHouse,
-        res.districts.countyCouncil, res.districts.boardOfEducation,
+        res.districts.countyCouncil, res.districts.boardOfEducation, res.districts.appellateCircuit,
       ],
     );
     await client.query("COMMIT");

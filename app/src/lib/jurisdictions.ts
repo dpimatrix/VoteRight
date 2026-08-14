@@ -85,6 +85,12 @@ export interface ExtractedDistricts {
   // else. See montgomeryLocalDistricts below.
   countyCouncil: string | null;
   boardOfEducation: string | null;
+  // Maryland-specific (migration 082) -- the state's 7 appellate judicial
+  // circuits (Md. Constitution Art. IV, §14), populated for any Maryland
+  // resident (not just Montgomery), stays null everywhere else. See
+  // appellateCircuitForCounty below -- a pure offline lookup, no GIS
+  // query needed, unlike countyCouncil/boardOfEducation above.
+  appellateCircuit: string | null;
 }
 
 /** Pure extraction (unit-tested), same shape as extractCensusGeography: pulls
@@ -107,7 +113,38 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
     stateHouse: basename("2024 State Legislative Districts - Lower"),
     countyCouncil: null, // filled in by montgomeryLocalDistricts, Montgomery County only
     boardOfEducation: null,
+    appellateCircuit: null, // filled in by appellateCircuitForCounty, Maryland only
   };
+}
+
+// Maryland's 7 Appellate Judicial Circuits (Md. Constitution Article IV,
+// §14 -- verified directly against the primary constitutional text,
+// 2026-08-14, after an earlier AI-summarized search result had already
+// gotten this exact county grouping right twice independently, but this
+// project doesn't trust that alone -- same discipline as migration 064's
+// own note about a prior AI-summarized fetch having hallucinated a real
+// fact). Defined by WHOLE COUNTY groupings, not custom GIS polygons --
+// meaning circuit assignment is a pure offline lookup from the county
+// FIPS this project's Census-geocoder pipeline already resolves for
+// every address, no network call needed at all (unlike Montgomery's own
+// County Council/Board of Education districts, which really do cut
+// across county lines and need a live GIS query). Keyed by the 3-digit
+// county-only FIPS (extractCensusGeography's own countyFips shape) --
+// callers are responsible for confirming stateFips is Maryland ("24")
+// first, same pattern as montgomeryLocalDistricts' own callers.
+const MD_APPELLATE_CIRCUIT_BY_COUNTY_FIPS: Record<string, string> = {
+  "011": "1", "015": "1", "019": "1", "029": "1", "035": "1", "039": "1", "041": "1", "045": "1", "047": "1", // 1st: Caroline, Cecil, Dorchester, Kent, Queen Anne's, Somerset, Talbot, Wicomico, Worcester
+  "005": "2", "025": "2", // 2nd: Baltimore, Harford
+  "001": "3", "013": "3", "021": "3", "023": "3", "027": "3", "043": "3", // 3rd: Allegany, Carroll, Frederick, Garrett, Howard, Washington
+  "033": "4", // 4th: Prince George's
+  "003": "5", "009": "5", "017": "5", "037": "5", // 5th: Anne Arundel, Calvert, Charles, St. Mary's
+  "510": "6", // 6th: Baltimore City
+  "031": "7", // 7th: Montgomery
+};
+
+export function appellateCircuitForCounty(countyFips: string | null): string | null {
+  if (!countyFips) return null;
+  return MD_APPELLATE_CIRCUIT_BY_COUNTY_FIPS[countyFips] ?? null;
 }
 
 // Montgomery County's OWN GIS server (montgomeryplans.org) confirmed live
@@ -291,6 +328,13 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
     const mapped = await jurisdictionForGeography(geo);
     if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
     const districts = extractDistricts(data);
+    // Any Maryland county, not just Montgomery -- a pure offline lookup,
+    // no network call, so there's no reason to scope this narrower than
+    // the state itself the way the Montgomery-only ArcGIS lookups below
+    // have to be.
+    if (geo.stateFips === "24") {
+      districts.appellateCircuit = appellateCircuitForCounty(geo.countyFips);
+    }
     // Montgomery County FIPS = 24031 -- only fire the extra ArcGIS lookups
     // for residents actually in that county (or one of its municipalities,
     // which share the same county FIPS), never nationwide.
@@ -320,7 +364,7 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
         outcome: "ok",
         jurisdiction: resolveJurisdictionFromAddress(address),
         method: FALLBACK_RESOLVER,
-        districts: { congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null },
+        districts: { congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null, appellateCircuit: null },
       };
     }
     return { outcome: "resolver_unavailable", method: FALLBACK_RESOLVER };
@@ -332,19 +376,40 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
 // title" must mean the same thing in both places. Deliberately narrow: only
 // titles this project's own ingesters/migrations actually produce for these
 // tiers are matched — anything else district-shaped (Public Service
-// Commission, judicial, an office with no seat number at all like Governor)
-// passes through untouched. County Council and Board of Education added
-// migration 078 (Montgomery County only, via montgomeryLocalDistricts);
-// every other pilot county's council/school-board districts still fall
-// through unmatched until their own GIS source is found.
+// Commission, an office with no seat number at all like Governor) passes
+// through untouched. County Council and Board of Education added migration
+// 078 (Montgomery County only, via montgomeryLocalDistricts); every other
+// pilot county's council/school-board districts still fall through
+// unmatched until their own GIS source is found.
 const OWN_DISTRICT_PATTERN =
   /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Board of Education) — District (\S+)$/;
+
+// Maryland Supreme Court circuit seats (migration 069, "Supreme Court 1st
+// Circuit" .. "7th Circuit") added 2026-08-14 -- a genuinely different
+// title SHAPE than everything above (no em dash, no literal "District"
+// word, an ordinal instead of a bare number), since these are existing
+// office titles this project doesn't control the wording of, not
+// something matched against OWN_DISTRICT_PATTERN's own convention.
+const OWN_CIRCUIT_PATTERN = /^(Supreme Court) (\d+)(?:st|nd|rd|th) Circuit$/;
+
+/** Tries both title shapes above and normalizes to the same {seatKind,
+    districtInTitle} regardless of which one matched -- the two functions
+    below only ever need to care about "did something match," not which
+    pattern. */
+function matchOwnDistrict(title: string): { seatKind: string; districtInTitle: string } | null {
+  const m1 = title.match(OWN_DISTRICT_PATTERN);
+  if (m1) return { seatKind: m1[1], districtInTitle: m1[2] };
+  const m2 = title.match(OWN_CIRCUIT_PATTERN);
+  if (m2) return { seatKind: m2[1], districtInTitle: m2[2] };
+  return null;
+}
 
 function districtFieldFor(seatKind: string): keyof ExtractedDistricts | null {
   if (seatKind === "U.S. Representative") return "congressional";
   if (seatKind === "State Senator") return "stateSenate";
   if (seatKind === "County Council") return "countyCouncil";
   if (seatKind === "Board of Education") return "boardOfEducation";
+  if (seatKind === "Supreme Court") return "appellateCircuit";
   if (seatKind.startsWith("State ")) return "stateHouse"; // Representative/Delegate/Assemblymember/Assembly Member
   return null;
 }
@@ -359,13 +424,12 @@ function districtFieldFor(seatKind: string): keyof ExtractedDistricts | null {
     district silently hiding real seats. */
 export function filterToOwnDistricts(offices: StackedOffice[], districts: ExtractedDistricts | null): StackedOffice[] {
   return offices.filter((o) => {
-    const m = o.title.match(OWN_DISTRICT_PATTERN);
+    const m = matchOwnDistrict(o.title);
     if (!m) return true; // not a seat this function knows how to narrow — leave it alone
-    const [, seatKind, districtInTitle] = m;
-    const field = districtFieldFor(seatKind);
+    const field = districtFieldFor(m.seatKind);
     const mine = field ? districts?.[field] : null;
     if (!mine) return true; // no resolved district for this tier — show them all, same as before
-    return districtInTitle === mine;
+    return m.districtInTitle === mine;
   });
 }
 
@@ -382,14 +446,18 @@ export function filterToOwnDistricts(offices: StackedOffice[], districts: Extrac
          narrowing actually succeeded this time (a network-unreachable GIS
          source, a genuine coverage gap, etc. all legitimately fall back to
          "show every row," and that fallback must still count as a gap the
-         banner discloses, not silently look complete). */
+         banner discloses, not silently look complete).
+    The cheap pre-filter below used to just check for the word "District"
+    -- broken by the Supreme Court circuit seats added 2026-08-14, whose
+    titles don't contain that word at all. Checks for either shape now. */
 export function hasUnnarrowedDistrictSeats(offices: StackedOffice[]): boolean {
   const seatKindCounts = new Map<string, number>();
   for (const o of offices) {
-    if (!o.title.includes("District")) continue;
-    const m = o.title.match(OWN_DISTRICT_PATTERN);
+    const looksDistrictShaped = o.title.includes("District") || /\d(?:st|nd|rd|th) Circuit$/.test(o.title);
+    if (!looksDistrictShaped) continue;
+    const m = matchOwnDistrict(o.title);
     if (!m) return true; // an unrecognized district-shaped title -- always a gap
-    seatKindCounts.set(m[1], (seatKindCounts.get(m[1]) ?? 0) + 1);
+    seatKindCounts.set(m.seatKind, (seatKindCounts.get(m.seatKind) ?? 0) + 1);
   }
   return [...seatKindCounts.values()].some((count) => count > 1);
 }
@@ -516,13 +584,14 @@ export interface UserResidence {
   state_house_district: string | null;
   county_council_district: string | null;
   board_of_education_district: string | null;
+  appellate_circuit: string | null;
 }
 
 export async function userResidence(userId: string): Promise<UserResidence | null> {
   const { rows } = await db().query(
     `SELECT j.ocd_id, j.name, j.level,
             u.congressional_district, u.state_senate_district, u.state_house_district,
-            u.county_council_district, u.board_of_education_district
+            u.county_council_district, u.board_of_education_district, u.appellate_circuit
        FROM users u JOIN jurisdictions j ON j.ocd_id = u.residence_jurisdiction_id
       WHERE u.id = $1`,
     [userId],

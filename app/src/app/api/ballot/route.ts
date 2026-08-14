@@ -38,6 +38,7 @@ export async function GET(request: Request) {
             stateHouse: residence.state_house_district,
             countyCouncil: residence.county_council_district,
             boardOfEducation: residence.board_of_education_district,
+            appellateCircuit: residence.appellate_circuit,
           }
         : null);
 

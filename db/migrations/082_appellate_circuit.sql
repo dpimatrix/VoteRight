@@ -1,0 +1,35 @@
+-- Maryland Supreme Court circuit precision on the ballot. Real gap flagged
+-- by the owner on day one of this whole thread ("Supreme Court (1st - 7th)
+-- circuits") and never addressed while county/state/federal narrowing was
+-- being built -- confirmed live 2026-08-14 it's not just an incomplete
+-- disclosure, it's an actually wrong ballot: Maryland's Constitution
+-- (Article IV, §14, verified directly against the primary text, not a
+-- search-engine summary) makes Supreme Court retention votes CIRCUIT-ONLY,
+-- not statewide -- "the registered voters of the appellate judicial
+-- circuit from which he was appointed."
+--
+-- Unlike Montgomery's County Council/Board of Education (migration 078),
+-- this needs NO GIS boundary source at all: Maryland's 7 appellate
+-- circuits are whole-COUNTY groupings defined right in the Constitution,
+-- not custom polygons --
+--   1st: Caroline, Cecil, Dorchester, Kent, Queen Anne's, Somerset,
+--        Talbot, Wicomico, Worcester
+--   2nd: Baltimore, Harford
+--   3rd: Allegany, Carroll, Frederick, Garrett, Howard, Washington
+--   4th: Prince George's
+--   5th: Anne Arundel, Calvert, Charles, St. Mary's
+--   6th: Baltimore City
+--   7th: Montgomery
+-- so this is a pure offline lookup from the county FIPS this project's
+-- Census-geocoder pipeline already resolves for every address (see
+-- appellateCircuitForCounty in jurisdictions.ts) -- no network call, no
+-- freshness/trust tradeoff the way the third-party Council mirror has.
+--
+-- Nationwide-shaped column name (matches congressional_district's own
+-- convention) but Maryland-only data for now, same as
+-- county_council_district was Montgomery-only at first -- other states'
+-- own appellate circuits (where they even have them) are a separate
+-- future research pass. Nullable: non-Maryland residents always stay
+-- NULL (not applicable); a pre-existing verified user has no value until
+-- their next re-verification; never guessed.
+ALTER TABLE users ADD COLUMN appellate_circuit TEXT;

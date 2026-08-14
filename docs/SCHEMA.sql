@@ -105,6 +105,7 @@ CREATE TABLE users (
     state_house_district    TEXT,                       -- Census geocoder BASENAME (e.g. "34A" for MD split sub-districts); NULL until re-verified, added migration 075
     county_council_district TEXT,                      -- Montgomery County ArcGIS lookup (third-party arcgis.com mirror -- montgomeryplans.org, the county's own planning-dept server, is unreachable from the production VPS); NULL unless resident is in Montgomery County, added migration 078
     board_of_education_district TEXT,                  -- Montgomery County ArcGIS lookup, added 2026-08-14: gis4.montgomerycountymd.gov (the county's OWN service, a different domain than the unreachable one above -- confirmed reachable); NULL unless resident is in Montgomery County
+    appellate_circuit TEXT,                             -- Maryland's 7 appellate judicial circuits (Md. Constitution Art. IV, §14), added migration 082 -- pure offline county-FIPS lookup, no GIS query needed; NULL unless resident is in Maryland
     verification_tier      TEXT NOT NULL DEFAULT 'unverified'
                               CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
     locale                  TEXT NOT NULL DEFAULT 'en',
