@@ -6,9 +6,11 @@ import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
+  CURRENT_CYCLE_YEAR,
   filterToOwnDistricts,
   hasUnnarrowedDistrictSeats,
   listBrowsableJurisdictions,
+  nextElectionYear,
   userResidence,
   type StackedOffice,
 } from "@/lib/jurisdictions";
@@ -43,13 +45,15 @@ function officeCode(title: string): string {
 
 function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: ReturnType<typeof t> }) {
   const tracked = o.race_id !== null;
-  // Municipal seats without a race genuinely aren't up in 2026 (odd-year city
-  // elections); county seats without a race are on the ballot, just untracked.
-  const meta =
-    (tracked || o.level !== "municipal" ? d.on_ballot : d.no_race_this_cycle) +
-    (o.seat_count > 1 ? ` · ${o.seat_count} ${lang === "es" ? "escaños" : "seats"}` : "");
+  const seatSuffix = o.seat_count > 1 ? ` · ${o.seat_count} ${lang === "es" ? "escaños" : "seats"}` : "";
   const icon = <span className="seat-ic">{officeCode(o.title)}</span>;
   if (o.level === "judicial") {
+    // Always "on ballot" text here regardless of `tracked` -- judicial
+    // seats are never municipal, and the tracked||non-municipal condition
+    // used below is therefore always true for this branch (TS narrows
+    // o.level to the literal "judicial" inside this block, which is why
+    // that condition can't just be inlined here the way it is below).
+    const meta = d.on_ballot + seatSuffix;
     return (
       <div className="seat wrap">
         {icon}
@@ -62,6 +66,34 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
       </div>
     );
   }
+  // An untracked non-municipal seat used to always claim "On your ballot in
+  // 2026" -- true for most county seats (which is why that default still
+  // applies below), but flatly wrong for a real chunk of federal/state
+  // seats with multi-year terms not up this cycle: the President (next
+  // election 2028), a Senator mid-way through a 6-year term, a governor
+  // elected off-cycle from this project's home state, etc. Real, live bug
+  // (2026-08-14) -- a resident's ballot told them offices were up for
+  // election that plainly weren't. Where a term has actually been
+  // ingested (term_start_year non-null) and it doesn't land in the current
+  // cycle, say so plainly instead of guessing "on ballot". No ingested
+  // term at all (vacant seat, or a roster this project hasn't pulled
+  // dates for yet) falls back to the prior on-ballot assumption -- never
+  // guess a seat OFF the ballot from missing data either.
+  const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
+  const offCycle = o.level !== "municipal" && !tracked && nextYear !== null && nextYear !== CURRENT_CYCLE_YEAR;
+  if (offCycle) {
+    return (
+      <div className="seat">
+        {icon}
+        <span className="sname">
+          {o.title}
+          <span className="smeta">{d.next_election_note.replace("%s", String(nextYear)) + seatSuffix}</span>
+        </span>
+        <span className="chip band bnull">{d.off_cycle}</span>
+      </div>
+    );
+  }
+  const meta = (tracked || o.level !== "municipal" ? d.on_ballot : d.no_race_this_cycle) + seatSuffix;
   if (!tracked) {
     return (
       <div className="seat">

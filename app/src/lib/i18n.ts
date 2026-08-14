@@ -18,6 +18,8 @@ const DICT = {
     jud_note:
       "Judges can’t campaign on issues, so this seat gets background and bar evaluations — never a match score.",
     on_ballot: "On your ballot in 2026",
+    off_cycle: "Not this cycle",
+    next_election_note: "Next election: %s",
     set_prios: "Set my priorities",
     prio_h: "What matters to you?",
     prio_p:
@@ -331,6 +333,8 @@ const DICT = {
     jud_note:
       "Los jueces no pueden hacer campaña sobre temas; este cargo recibe trayectoria y evaluaciones — nunca una puntuación.",
     on_ballot: "En tu boleta en 2026",
+    off_cycle: "No en este ciclo",
+    next_election_note: "Próxima elección: %s",
     set_prios: "Definir mis prioridades",
     prio_h: "¿Qué te importa?",
     prio_p:

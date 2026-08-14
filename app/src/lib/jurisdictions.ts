@@ -392,7 +392,24 @@ export interface StackedOffice {
   jurisdiction_id: string;
   jurisdiction_name: string;
   depth: number;
+  term_length_years: number;
+  // Year of the most recent office_terms.term_start for this office (the
+  // current officeholder's term), or null if no term has ever been
+  // ingested for it -- e.g. a seat that's genuinely vacant, or one whose
+  // roster ingester hasn't run yet. Only the year is pulled out in SQL
+  // (EXTRACT) rather than handing back a raw DATE, so callers never have
+  // to deal with node-postgres's DATE-to-JS-Date timezone footgun for a
+  // value that's only ever used as a year.
+  term_start_year: number | null;
 }
+
+// The current 2-year election cycle this project's ballot copy is written
+// for -- see i18n.ts's on_ballot ("On your ballot in 2026") and
+// no_race_this_cycle, both hardcoded to the same year for the same reason:
+// bump this alongside those strings when the next cycle starts, not on its
+// own (see nextElectionYear's doc comment for why this constant exists at
+// all).
+export const CURRENT_CYCLE_YEAR = 2026;
 
 /** Every elected seat in the user's jurisdiction stack, deepest (most local)
     jurisdiction first. */
@@ -405,15 +422,35 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
        SELECT j.ocd_id, j.name, j.parent_ocd_id, s.depth + 1
          FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
      )
-     SELECT o.id, o.title, o.level, o.seat_count, r.id AS race_id, r.seats_elected,
+     SELECT o.id, o.title, o.level, o.seat_count, o.term_length_years,
+            r.id AS race_id, r.seats_elected, ot.term_start_year,
             s.ocd_id AS jurisdiction_id, s.name AS jurisdiction_name, s.depth
        FROM stack s
        JOIN offices o ON o.jurisdiction_id = s.ocd_id AND o.is_elected
        LEFT JOIN races r ON r.office_id = o.id
+       LEFT JOIN LATERAL (
+         -- MAX, not the row for a specific politician: an office can carry
+         -- more than one office_terms row over time (a predecessor's
+         -- ended term, a re-election that inserted a fresh term_start
+         -- rather than reusing the old one) -- the most recent term_start
+         -- is always the one describing the CURRENT officeholder's term.
+         SELECT MAX(EXTRACT(YEAR FROM term_start))::int AS term_start_year
+           FROM office_terms WHERE office_id = o.id
+       ) ot ON true
       ORDER BY s.depth, o.level, o.title`,
     [jurisdictionId],
   );
   return rows as StackedOffice[];
+}
+
+/** The next year this office is up for election, from its current term's
+    start year + its term length -- e.g. a 4-year term that started in
+    2025 is next up in 2028 (term_start_year + term_length_years - 1: the
+    election happens the year BEFORE the new term's inauguration/start
+    date, not the same year). Null in, null out -- a seat with no ingested
+    term (never guess a real officeholder's election year from nothing). */
+export function nextElectionYear(termStartYear: number | null, termLengthYears: number): number | null {
+  return termStartYear === null ? null : termStartYear + termLengthYears - 1;
 }
 
 export interface UserResidence {

@@ -40,6 +40,8 @@ const DICT = {
     return_to_ballot: 'Return to my ballot',
     seat_tracked: 'Tracked',
     seat_not_tracked: 'Not yet tracked',
+    seat_off_cycle: 'Not this cycle',
+    next_election_note: 'Next election: {year}',
     ballot_unscored_note: 'Unscored seats stay on the list — an incomplete ballot must never look complete.',
     ballot_districts_note:
       "U.S. House, state legislature, and (in Montgomery County) County Council seats are narrowed to your own district automatically. Some other local district seats — including Montgomery's own Board of Education — can't be yet. Which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
@@ -303,6 +305,8 @@ const DICT = {
     return_to_ballot: 'Volver a mi boleta',
     seat_tracked: 'Con seguimiento',
     seat_not_tracked: 'Aún sin seguimiento',
+    seat_off_cycle: 'No en este ciclo',
+    next_election_note: 'Próxima elección: {year}',
     ballot_unscored_note: 'Los cargos sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa.',
     ballot_districts_note:
       'Los escaños de la Cámara de Representantes, la legislatura estatal y (en el condado de Montgomery) el Concejo del Condado se limitan automáticamente a tu propio distrito. Algunos otros escaños de distrito local — incluida la Junta Escolar del propio condado de Montgomery — todavía no. Cuál es el tuyo depende de tu dirección exacta, así que se muestran todos los distritos hasta que llegue esa búsqueda.',

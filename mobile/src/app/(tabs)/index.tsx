@@ -13,6 +13,14 @@ import { ensureSession, get, hasSession } from '@/services/api';
 
 const VISIT_KEY = 'voteright_visit_jurisdiction';
 
+// Mirrors app/src/lib/jurisdictions.ts's CURRENT_CYCLE_YEAR + nextElectionYear
+// (web-only module, can't be imported here) -- bump alongside that constant
+// and this screen's own on-ballot copy when the next cycle starts.
+const CURRENT_CYCLE_YEAR = 2026;
+function nextElectionYear(termStartYear: number | null, termLengthYears: number): number | null {
+  return termStartYear === null ? null : termStartYear + termLengthYears - 1;
+}
+
 interface StackedOffice {
   id: string;
   title: string;
@@ -21,6 +29,8 @@ interface StackedOffice {
   race_id: string | null;
   jurisdiction_id: string;
   jurisdiction_name: string;
+  term_length_years: number;
+  term_start_year: number | null;
 }
 
 interface Jurisdiction {
@@ -147,27 +157,32 @@ export default function BallotScreen() {
               <ThemedText type="smallBold" style={styles.groupHeading}>
                 {j.name}
               </ThemedText>
-              {rows.map((o) => (
-                <View
-                  key={o.id}
-                  style={[styles.seatRow, { backgroundColor: colors.backgroundElement }]}
-                >
-                  <ThemedText style={styles.seatTitle}>{o.title}</ThemedText>
+              {rows.map((o) => {
+                // Same real bug fix as web (2026-08-14): an untracked
+                // non-municipal seat used to always read as "Not yet
+                // tracked" -- implying it's coming soon -- even for seats
+                // with multi-year terms not up this cycle at all (the
+                // President, a Senator mid-term, etc). Swap the chip to a
+                // plain "not this cycle" label instead of guessing.
+                const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
+                const offCycle =
+                  o.level !== 'municipal' && !o.race_id && nextYear !== null && nextYear !== CURRENT_CYCLE_YEAR;
+                const chipLabel = offCycle ? d.seat_off_cycle : o.race_id ? d.seat_tracked : d.seat_not_tracked;
+                const chipColor = o.race_id ? colors.evidence : colors.textSecondary;
+                return (
                   <View
-                    style={[
-                      styles.chip,
-                      { borderColor: o.race_id ? colors.evidence : colors.textSecondary },
-                    ]}
+                    key={o.id}
+                    style={[styles.seatRow, { backgroundColor: colors.backgroundElement }]}
                   >
-                    <ThemedText
-                      type="small"
-                      style={{ color: o.race_id ? colors.evidence : colors.textSecondary }}
-                    >
-                      {o.race_id ? d.seat_tracked : d.seat_not_tracked}
-                    </ThemedText>
+                    <ThemedText style={styles.seatTitle}>{o.title}</ThemedText>
+                    <View style={[styles.chip, { borderColor: chipColor }]}>
+                      <ThemedText type="small" style={{ color: chipColor }}>
+                        {chipLabel}
+                      </ThemedText>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           );
         })}

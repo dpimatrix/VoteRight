@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   COUNTY,
+  CURRENT_CYCLE_YEAR,
   extractCensusGeography,
   extractCoordinates,
   extractDistricts,
   filterToOwnDistricts,
   hasUnnarrowedDistrictSeats,
+  nextElectionYear,
   parseDistrictNumberFromName,
   ROCKVILLE,
   resolveJurisdictionFromAddress,
@@ -166,6 +168,7 @@ describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/s
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
     jurisdiction_id: "x", jurisdiction_name: "x", depth: 0,
+    term_length_years: 4, term_start_year: null,
   });
 
   it("keeps only the resident's own U.S. House district, drops the others in their state", () => {
@@ -248,6 +251,7 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
     jurisdiction_id: "x", jurisdiction_name: "x", depth: 0,
+    term_length_years: 4, term_start_year: null,
   });
 
   it("is false when every district-shaped seat is one this project knows how to narrow, even if the title still says 'District'", () => {
@@ -289,5 +293,26 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
       office("State Senator — District 17"),
     ];
     expect(hasUnnarrowedDistrictSeats(offices)).toBe(false);
+  });
+});
+
+describe("nextElectionYear (2026-08-14 fix — 'On your ballot in 2026' used to be claimed unconditionally)", () => {
+  it("is null when no term has ever been ingested for the office — never guess a year from nothing", () => {
+    expect(nextElectionYear(null, 4)).toBeNull();
+  });
+
+  it("computes the election year as term_start_year + term_length_years - 1, not a plain sum", () => {
+    // President Trump: term_start 2025-01-20, 4-year term -- next real
+    // election is 2028 (2025 + 4 = 2029 would be one year late: the
+    // election happens the year BEFORE the new term's inauguration).
+    expect(nextElectionYear(2025, 4)).toBe(2028);
+  });
+
+  it("matches CURRENT_CYCLE_YEAR for a seat genuinely up this cycle (e.g. a governor elected in step with this year's cycle)", () => {
+    expect(nextElectionYear(2023, 4)).toBe(CURRENT_CYCLE_YEAR);
+  });
+
+  it("a 6-year Senate term started off-cycle lands on neither 2026 nor a round number", () => {
+    expect(nextElectionYear(2023, 6)).toBe(2028);
   });
 });
