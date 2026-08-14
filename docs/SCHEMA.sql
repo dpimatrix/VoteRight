@@ -103,8 +103,8 @@ CREATE TABLE users (
     congressional_district  TEXT,                      -- Census geocoder BASENAME (e.g. "8"); NULL until re-verified, added migration 075
     state_senate_district   TEXT,                      -- Census geocoder BASENAME; NULL until re-verified, added migration 075
     state_house_district    TEXT,                       -- Census geocoder BASENAME (e.g. "34A" for MD split sub-districts); NULL until re-verified, added migration 075
-    county_council_district TEXT,                      -- Montgomery County ArcGIS lookup (third-party arcgis.com mirror -- the county's own server blocks the production VPS); NULL unless resident is in Montgomery County, added migration 078
-    board_of_education_district TEXT,                  -- always NULL as of migration 078 -- no reachable data source found yet (county's own server unreachable from the VPS, no mirror exists); disclosed via ballot_districts_note, not a bug
+    county_council_district TEXT,                      -- Montgomery County ArcGIS lookup (third-party arcgis.com mirror -- montgomeryplans.org, the county's own planning-dept server, is unreachable from the production VPS); NULL unless resident is in Montgomery County, added migration 078
+    board_of_education_district TEXT,                  -- Montgomery County ArcGIS lookup, added 2026-08-14: gis4.montgomerycountymd.gov (the county's OWN service, a different domain than the unreachable one above -- confirmed reachable); NULL unless resident is in Montgomery County
     verification_tier      TEXT NOT NULL DEFAULT 'unverified'
                               CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
     locale                  TEXT NOT NULL DEFAULT 'en',

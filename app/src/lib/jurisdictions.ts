@@ -123,13 +123,22 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
 // third-party copy (last-modified mid-2025, not live-synced to the county's
 // own authoritative source) since the alternative is no Council narrowing
 // at all; this is a real, disclosed trust/freshness tradeoff, not a hidden
-// one. Board of Education has NO equivalent mirror found anywhere -- left
-// disabled (see boardOfEducationDistrict below) rather than guessed.
-// Montgomery County FIPS is 24031 (state 24 + county 031) -- callers only
-// invoke this for that specific county, never nationwide (see
+// one. Montgomery County FIPS is 24031 (state 24 + county 031) -- callers
+// only invoke this for that specific county, never nationwide (see
 // resolveJurisdiction).
 const MOCO_COUNCIL_DISTRICTS_URL =
   "https://services4.arcgis.com/eeULstZhYSemxYF5/arcgis/rest/services/Election_Boundaries_County_Council/FeatureServer/0/query";
+
+// Found live 2026-08-14: the county's OWN authoritative service, not a
+// third-party mirror -- montgomeryplans.org (the domain the Council URL's
+// original, still-unreachable source lived on) is unreachable from the
+// VPS, but this is a DIFFERENT county domain (gis4.montgomerycountymd.gov,
+// the county's own GIS server, not the planning department's separate
+// site) -- confirmed reachable from the VPS before shipping. BDED is
+// already a plain district number ("3"), no NAME-string parsing needed
+// the way the Council mirror requires.
+const MOCO_BOE_DISTRICTS_URL =
+  "https://gis4.montgomerycountymd.gov/arcgis/rest/services/elections/board_of_ed/FeatureServer/0/query";
 
 async function arcgisDistrictLookup(url: string, field: string, lon: number, lat: number): Promise<string | null> {
   try {
@@ -168,12 +177,15 @@ export function parseDistrictNumberFromName(name: string | null): string | null 
     municipalities -- these are NOT a nationwide Census layer the way
     congressional/state-legislative districts are, so this is real,
     per-county infrastructure, not something every state gets for free.
-    Board of Education intentionally does not attempt a network call at all
-    (no reachable source exists) -- always null, disclosed via the ballot
-    page's banner rather than silently omitted. */
+    Both lookups fire in parallel and independently fall back to null on
+    their own network failure -- one source being down never blocks the
+    other. */
 export async function montgomeryLocalDistricts(lon: number, lat: number): Promise<{ countyCouncil: string | null; boardOfEducation: string | null }> {
-  const name = await arcgisDistrictLookup(MOCO_COUNCIL_DISTRICTS_URL, "NAME", lon, lat);
-  return { countyCouncil: parseDistrictNumberFromName(name), boardOfEducation: null };
+  const [name, bded] = await Promise.all([
+    arcgisDistrictLookup(MOCO_COUNCIL_DISTRICTS_URL, "NAME", lon, lat),
+    arcgisDistrictLookup(MOCO_BOE_DISTRICTS_URL, "BDED", lon, lat),
+  ]);
+  return { countyCouncil: parseDistrictNumberFromName(name), boardOfEducation: bded };
 }
 
 /** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end

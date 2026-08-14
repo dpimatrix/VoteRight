@@ -271,7 +271,7 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
     expect(hasUnnarrowedDistrictSeats([office("Governor"), office("U.S. Senator", "federal")])).toBe(false);
   });
 
-  it("is true when a RECOGNIZED pattern still has more than one row present — e.g. Board of Education, whose lookup is always disabled (no reachable source), or Council if this specific lookup failed", () => {
+  it("is true when a RECOGNIZED pattern still has more than one row present — e.g. Council or Board of Education if that specific network lookup failed this time", () => {
     // A title match alone doesn't mean narrowing actually succeeded --
     // filterToOwnDistricts correctly falls back to "show every row" when a
     // district can't be resolved (network failure, no source, etc.), and
