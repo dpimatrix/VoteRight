@@ -30,6 +30,17 @@ TODO: Marc Elrich — official Executive portrait not exposed on the exec
 landing page at retrieval time; monogram until sourced. Refresh portraits at
 each roster change (the monthly roster-diff cadence in DATA-OPS.md).
 
+## President & Vice President (hand-curated, 2026-08-14)
+
+`trump.webp` / `vance.webp` — official White House-series portraits (January
+2025, photographer Daniel Torok), re-hosted from Wikimedia Commons:
+[File:January 2025 Official Presidential Portrait of Donald J. Trump.jpg](https://commons.wikimedia.org/wiki/File:January_2025_Official_Presidential_Portrait_of_Donald_J._Trump.jpg),
+[File:January 2025 Official Vice Presidential Portrait of JD Vance.jpg](https://commons.wikimedia.org/wiki/File:January_2025_Official_Vice_Presidential_Portrait_of_JD_Vance.jpg)
+— public-domain U.S. government works, same category as every other
+official portrait here. Migration 061 (2026-08-11) set their politicians
+rows but never `photo_url`; migration 079 closes that gap. Applied
+directly to those two known politician IDs, not by name-matching.
+
 ## U.S. Congress (automated, 2026-08-14 — source switched same day)
 
 Members of Congress get their portrait automatically, not hand-curated like
