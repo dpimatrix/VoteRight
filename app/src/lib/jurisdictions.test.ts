@@ -6,6 +6,7 @@ import {
   extractDistricts,
   filterToOwnDistricts,
   hasUnnarrowedDistrictSeats,
+  parseDistrictNumberFromName,
   ROCKVILLE,
   resolveJurisdictionFromAddress,
   type CensusResponse,
@@ -143,6 +144,24 @@ describe("extractCoordinates (feeds the Montgomery County ArcGIS lookups)", () =
   });
 });
 
+describe("parseDistrictNumberFromName (the third-party County Council mirror's schema has no clean numeric field)", () => {
+  it("extracts the district number from a 'District N' string", () => {
+    expect(parseDistrictNumberFromName("District 3")).toBe("3");
+    expect(parseDistrictNumberFromName("District 10")).toBe("10");
+  });
+
+  it("is case-insensitive and tolerant of the field's real spacing", () => {
+    expect(parseDistrictNumberFromName("district 3")).toBe("3");
+  });
+
+  it("returns null for anything that isn't a 'District N' string — never guess", () => {
+    expect(parseDistrictNumberFromName(null)).toBeNull();
+    expect(parseDistrictNumberFromName("")).toBeNull();
+    expect(parseDistrictNumberFromName("At-Large")).toBeNull();
+    expect(parseDistrictNumberFromName("Sidney Katz")).toBeNull();
+  });
+});
+
 describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/state district seats)", () => {
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
@@ -246,5 +265,29 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
 
   it("is false when there are no district-shaped seats at all", () => {
     expect(hasUnnarrowedDistrictSeats([office("Governor"), office("U.S. Senator", "federal")])).toBe(false);
+  });
+
+  it("is true when a RECOGNIZED pattern still has more than one row present — e.g. Board of Education, whose lookup is always disabled (no reachable source), or Council if this specific lookup failed", () => {
+    // A title match alone doesn't mean narrowing actually succeeded --
+    // filterToOwnDistricts correctly falls back to "show every row" when a
+    // district can't be resolved (network failure, no source, etc.), and
+    // that fallback must still count as a real gap for the banner, not be
+    // silently treated as "this project knows how to narrow it, so we're
+    // fine" just because the title pattern matches.
+    const offices = [
+      office("Board of Education — District 1", "school_board"),
+      office("Board of Education — District 2", "school_board"),
+      office("Board of Education — District 3", "school_board"),
+    ];
+    expect(hasUnnarrowedDistrictSeats(offices)).toBe(true);
+  });
+
+  it("is false when a recognized pattern correctly narrowed to exactly one row per seat kind, even with multiple recognized kinds present", () => {
+    const offices = [
+      office("U.S. Representative — District 8", "federal"),
+      office("County Council — District 3", "county"),
+      office("State Senator — District 17"),
+    ];
+    expect(hasUnnarrowedDistrictSeats(offices)).toBe(false);
   });
 });

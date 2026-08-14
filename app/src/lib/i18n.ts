@@ -168,7 +168,7 @@ const DICT = {
     sponsorships_note:
       "Who introduced or co-sponsored each item, from the county's official Granicus agenda index — with a link to the exact video moment and the staff report. Not a scored position: sponsoring a bill isn't the same as taking a stance on it.",
     ballot_districts_note:
-      "U.S. House, state legislature, and (in Montgomery County) County Council and Board of Education seats are narrowed to your own district automatically. Some other local district seats can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
+      "U.S. House, state legislature, and (in Montgomery County) County Council seats are narrowed to your own district automatically. Some other local district seats — including Montgomery's own Board of Education — can't be yet. Which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
     ballot_state_only_note:
       "We have your federal and state-level offices — county and city-level detail isn't covered for your address yet, so this ballot is real but not the complete local picture.",
     verify_need: "Verify your address to participate in debates.",
@@ -481,7 +481,7 @@ const DICT = {
     sponsorships_note:
       "Quién presentó o copatrocinó cada punto, según el índice oficial de agendas de Granicus del condado — con un enlace al momento exacto del video y al informe técnico. No es una postura puntuada: patrocinar un proyecto de ley no equivale a tomar una posición sobre él.",
     ballot_districts_note:
-      "Los escaños de la Cámara de EE. UU., la legislatura estatal y (en el condado de Montgomery) el Concejo del Condado y la Junta Escolar se ajustan automáticamente a tu distrito. Algunos otros escaños de distrito local aún no — cuál es el tuyo depende de tu dirección exacta, así que se muestra cada distrito hasta que esa búsqueda esté disponible.",
+      "Los escaños de la Cámara de EE. UU., la legislatura estatal y (en el condado de Montgomery) el Concejo del Condado se ajustan automáticamente a tu distrito. Algunos otros escaños de distrito local — incluida la Junta Escolar del propio condado de Montgomery — aún no. Cuál es el tuyo depende de tu dirección exacta, así que se muestra cada distrito hasta que esa búsqueda esté disponible.",
     ballot_state_only_note:
       "Tenemos tus cargos federales y estatales — todavía no cubrimos el detalle a nivel de condado o ciudad para tu dirección, así que esta boleta es real pero no es el panorama local completo.",
     verify_need: "Verifica tu dirección para participar en los debates.",

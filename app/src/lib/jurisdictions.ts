@@ -110,17 +110,26 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
   };
 }
 
-// Montgomery County's own public ArcGIS Server layers -- confirmed live this
-// session with a real point-in-polygon query against downtown
-// Gaithersburg's coordinates (39.1434, -77.2014): correctly returned
-// Council District 3 (COUNCIL field) and Board of Education District 1
-// (BDED field). No API key, no rate limit encountered. Montgomery County
-// FIPS is 24031 (state 24 + county 031) -- callers only invoke this for
-// that specific county, never nationwide (see resolveJurisdiction).
+// Montgomery County's OWN GIS server (montgomeryplans.org) confirmed live
+// this session with a real point-in-polygon query -- but confirmed live
+// AGAIN, separately, that it's entirely unreachable from the production VPS
+// (TCP connection timeout, not a DNS or app-level failure -- almost
+// certainly the county's small government server blocking hosting/VPS IP
+// ranges as basic anti-bot protection, common for servers at this scale).
+// County Council district boundaries are also mirrored on Esri's own
+// multi-tenant ArcGIS Online infrastructure by an unrelated third-party org
+// (an environmental-justice mapping project, not Montgomery County itself)
+// -- confirmed reachable from the VPS. Used deliberately despite being a
+// third-party copy (last-modified mid-2025, not live-synced to the county's
+// own authoritative source) since the alternative is no Council narrowing
+// at all; this is a real, disclosed trust/freshness tradeoff, not a hidden
+// one. Board of Education has NO equivalent mirror found anywhere -- left
+// disabled (see boardOfEducationDistrict below) rather than guessed.
+// Montgomery County FIPS is 24031 (state 24 + county 031) -- callers only
+// invoke this for that specific county, never nationwide (see
+// resolveJurisdiction).
 const MOCO_COUNCIL_DISTRICTS_URL =
-  "https://montgomeryplans.org/server/rest/services/Overlays/County_Council_Districts/FeatureServer/0/query";
-const MOCO_BOE_DISTRICTS_URL =
-  "https://montgomeryplans.org/server9/rest/services/Overlays/Election_Boundaries/MapServer/15/query";
+  "https://services4.arcgis.com/eeULstZhYSemxYF5/arcgis/rest/services/Election_Boundaries_County_Council/FeatureServer/0/query";
 
 async function arcgisDistrictLookup(url: string, field: string, lon: number, lat: number): Promise<string | null> {
   try {
@@ -145,19 +154,26 @@ async function arcgisDistrictLookup(url: string, field: string, lon: number, lat
   }
 }
 
+/** This mirror's schema differs from Montgomery County's own (confirmed
+    live): there's no clean numeric COUNCIL field, the district number is
+    embedded in a NAME string like "District 3". Pure extraction, unit-
+    tested independent of the network call. */
+export function parseDistrictNumberFromName(name: string | null): string | null {
+  const m = name?.match(/District\s+(\d+)/i);
+  return m ? m[1] : null;
+}
+
 /** Montgomery-County-specific district lookup (migration 078), fired only
     when the resolved jurisdiction is Montgomery County or one of its
     municipalities -- these are NOT a nationwide Census layer the way
     congressional/state-legislative districts are, so this is real,
     per-county infrastructure, not something every state gets for free.
-    Both queries run in parallel; either can independently come back null
-    without blocking the other. */
+    Board of Education intentionally does not attempt a network call at all
+    (no reachable source exists) -- always null, disclosed via the ballot
+    page's banner rather than silently omitted. */
 export async function montgomeryLocalDistricts(lon: number, lat: number): Promise<{ countyCouncil: string | null; boardOfEducation: string | null }> {
-  const [countyCouncil, boardOfEducation] = await Promise.all([
-    arcgisDistrictLookup(MOCO_COUNCIL_DISTRICTS_URL, "COUNCIL", lon, lat),
-    arcgisDistrictLookup(MOCO_BOE_DISTRICTS_URL, "BDED", lon, lat),
-  ]);
-  return { countyCouncil, boardOfEducation };
+  const name = await arcgisDistrictLookup(MOCO_COUNCIL_DISTRICTS_URL, "NAME", lon, lat);
+  return { countyCouncil: parseDistrictNumberFromName(name), boardOfEducation: null };
 }
 
 /** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end
@@ -342,13 +358,28 @@ export function filterToOwnDistricts(offices: StackedOffice[], districts: Extrac
 }
 
 /** Does this resident's stack include a district-shaped seat this project
-    doesn't yet know how to narrow (e.g. a non-Montgomery county council)?
-    Drives the ballot page's disclosure banner — shown only when there's a
-    real remaining gap, not just because a title happens to contain the
-    word "District" (which is still true even for a correctly-narrowed
-    seat, since narrowing selects one row rather than renaming it). */
+    doesn't successfully narrow to a single row? Drives the ballot page's
+    disclosure banner. Two distinct cases, both real gaps, both must show
+    the banner:
+      1. A title this project has no pattern for at all (e.g. a non-
+         Montgomery county council) — always un-narrowed by construction.
+      2. A RECOGNIZED pattern (e.g. Montgomery Board of Education, or even
+         County Council if a specific lookup failed) that still has more
+         than one row present after filterToOwnDistricts ran. Checking
+         recognition alone isn't enough here — a title match doesn't mean
+         narrowing actually succeeded this time (a network-unreachable GIS
+         source, a genuine coverage gap, etc. all legitimately fall back to
+         "show every row," and that fallback must still count as a gap the
+         banner discloses, not silently look complete). */
 export function hasUnnarrowedDistrictSeats(offices: StackedOffice[]): boolean {
-  return offices.some((o) => o.title.includes("District") && !OWN_DISTRICT_PATTERN.test(o.title));
+  const seatKindCounts = new Map<string, number>();
+  for (const o of offices) {
+    if (!o.title.includes("District")) continue;
+    const m = o.title.match(OWN_DISTRICT_PATTERN);
+    if (!m) return true; // an unrecognized district-shaped title -- always a gap
+    seatKindCounts.set(m[1], (seatKindCounts.get(m[1]) ?? 0) + 1);
+  }
+  return [...seatKindCounts.values()].some((count) => count > 1);
 }
 
 export interface StackedOffice {
