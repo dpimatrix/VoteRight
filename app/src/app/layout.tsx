@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VoteRight — DC / Maryland / Virginia",
+  title: "VoteRight — Nationwide",
   description:
     "Matched to what you actually want: sourced candidate positions, real voting records, published methodology.",
 };
