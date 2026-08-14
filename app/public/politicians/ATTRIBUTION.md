@@ -32,6 +32,20 @@ TODO: Marc Elrich — official Executive portrait not exposed on the exec
 landing page at retrieval time; monogram until sourced. Refresh portraits at
 each roster change (the monthly roster-diff cadence in DATA-OPS.md).
 
+## Clerk of the Circuit Court + Board of Education District 2 (hand-curated, 2026-08-14)
+
+`bushell.webp` — Karen A. Bushell, Clerk of the Circuit Court — official
+portrait from Montgomery County's own asset host
+(assets.montgomerycountymd.gov/files/kb24.jpg), the same host the County
+Council portraits above already use.
+
+`zimmerman.webp` — Natalie Zimmerman, Board of Education District 2 —
+official portrait from Montgomery County Public Schools' own site
+(montgomeryschoolsmd.org/siteassets/district/boe/members/2024-2025/natalie-zimmerman-20241122.jpg).
+
+Both close real data gaps flagged the same day (these two offices had no
+politicians/office_terms row at all, not a lookup failure) — migration 083.
+
 ## Mayor Jud Ashman — POLICY EXCEPTION (hand-curated, 2026-08-14)
 
 `ashman.webp` is **campaign material, not an official government portrait**
