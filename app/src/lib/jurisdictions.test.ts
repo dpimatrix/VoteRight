@@ -12,6 +12,7 @@ import {
   parseDistrictNumberFromName,
   ROCKVILLE,
   resolveJurisdictionFromAddress,
+  titleCaseDistrictName,
   type CensusResponse,
   type ExtractedDistricts,
   type StackedOffice,
@@ -165,6 +166,21 @@ describe("parseDistrictNumberFromName (the third-party County Council mirror's s
   });
 });
 
+describe("titleCaseDistrictName (Fairfax County's GIS source returns district names ALL CAPS)", () => {
+  it("converts a single-word ALL CAPS name to Title Case", () => {
+    expect(titleCaseDistrictName("BRADDOCK")).toBe("Braddock");
+  });
+
+  it("converts a multi-word ALL CAPS name, matching the office titles' own casing", () => {
+    expect(titleCaseDistrictName("HUNTER MILL")).toBe("Hunter Mill");
+    expect(titleCaseDistrictName("MOUNT VERNON")).toBe("Mount Vernon");
+  });
+
+  it("returns null for null — never guess", () => {
+    expect(titleCaseDistrictName(null)).toBeNull();
+  });
+});
+
 describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/state district seats)", () => {
   const office = (title: string, level = "state"): StackedOffice => ({
     id: title, title, level, seat_count: 1, race_id: null, seats_elected: null,
@@ -252,6 +268,26 @@ describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/s
     expect(filterToOwnDistricts(offices, null)).toHaveLength(2);
   });
 
+  it("narrows DC's Council — Ward seats to the resident's own ward (2026-08-14) — reuses countyCouncil, a different keyword ('Ward' not 'District') on a bare 'Council' seat kind (DC has no county to prefix it with)", () => {
+    const offices = [
+      office("Council — Ward 2", "county"),
+      office("Council — Ward 7", "county"),
+      office("Mayor", "county"), // untouched, sanity check
+    ];
+    const result = filterToOwnDistricts(offices, districts({ countyCouncil: "2" }));
+    expect(result.map((o) => o.title)).toEqual(["Council — Ward 2", "Mayor"]);
+  });
+
+  it("narrows Fairfax County's NAMED supervisor districts to the resident's own (2026-08-14) — a third title shape: the name comes BEFORE the word 'District', not a number after it", () => {
+    const offices = [
+      office("Board of Supervisors — Braddock District", "county"),
+      office("Board of Supervisors — Hunter Mill District", "county"),
+      office("Board of Supervisors — Chairman", "county"), // at-large, correctly untouched
+    ];
+    const result = filterToOwnDistricts(offices, districts({ countyCouncil: "Hunter Mill" }));
+    expect(result.map((o) => o.title)).toEqual(["Board of Supervisors — Hunter Mill District", "Board of Supervisors — Chairman"]);
+  });
+
   it("shows every seat in a tier when that tier's district wasn't resolved — never a guessed district hiding real seats", () => {
     const offices = [office("State Senator — District 17"), office("State Senator — District 3")];
     expect(filterToOwnDistricts(offices, districts({}))).toHaveLength(2);
@@ -323,6 +359,27 @@ describe("hasUnnarrowedDistrictSeats (drives the ballot page's disclosure banner
 
   it("is true for a circuit-shaped title this project doesn't recognize (ordinal + 'Circuit', but not literally 'Supreme Court')", () => {
     expect(hasUnnarrowedDistrictSeats([office("District Court 3rd Circuit", "judicial")])).toBe(true);
+  });
+
+  it("catches an unnarrowed DC Ward slate — title has no literal 'District' word either, same pre-filter gap Supreme Court circuits had", () => {
+    const offices = [office("Council — Ward 2", "county"), office("Council — Ward 7", "county")];
+    expect(hasUnnarrowedDistrictSeats(offices)).toBe(true);
+  });
+
+  it("is false when DC Ward seats narrowed to exactly one row", () => {
+    expect(hasUnnarrowedDistrictSeats([office("Council — Ward 2", "county")])).toBe(false);
+  });
+
+  it("catches an unnarrowed Fairfax named-district slate, and is false once narrowed to one — the at-large Chairman seat is correctly never counted", () => {
+    const offices = [
+      office("Board of Supervisors — Braddock District", "county"),
+      office("Board of Supervisors — Hunter Mill District", "county"),
+      office("Board of Supervisors — Chairman", "county"),
+    ];
+    expect(hasUnnarrowedDistrictSeats(offices)).toBe(true);
+    expect(
+      hasUnnarrowedDistrictSeats([office("Board of Supervisors — Braddock District", "county"), office("Board of Supervisors — Chairman", "county")]),
+    ).toBe(false);
   });
 });
 

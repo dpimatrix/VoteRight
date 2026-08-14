@@ -177,6 +177,64 @@ const MOCO_COUNCIL_DISTRICTS_URL =
 const MOCO_BOE_DISTRICTS_URL =
   "https://gis4.montgomerycountymd.gov/arcgis/rest/services/elections/board_of_ed/FeatureServer/0/query";
 
+// Prince George's County (2026-08-14) -- shares the EXACT SAME title
+// format as Montgomery's own County Council seats ("County Council —
+// District N"), so this reuses the countyCouncil field directly, no new
+// ExtractedDistricts field needed. The county's own GIS host
+// (gis.pgatlas.com), NOT onlinegis.princegeorgescountymd.gov (the other
+// candidate found -- unreachable, same class of county-server block as
+// montgomeryplans.org). DISTRICT_NUMBER is already a plain numeric string
+// ("3"), no NAME-string parsing needed. Confirmed live with a real
+// point-in-polygon query against a College Park address -- correctly
+// returned District 3 (matches the real current councilmember, Eric
+// Olson) -- but only checked from this environment, not the VPS;
+// verify before fully trusting the same way the BOE lookup above needed
+// a second, VPS-side check.
+const PG_COUNCIL_DISTRICTS_URL =
+  "https://gis.pgatlas.com/pgatlas/rest/services/DARTS/DARTS_MapService/MapServer/12/query";
+
+// DC (2026-08-14) -- DC's own official Open Data GIS host
+// (maps2.dcgis.dc.gov), confirmed reachable, real point-in-polygon query
+// against 1600 Pennsylvania Ave NW correctly returned Ward 2 (matches the
+// real current councilmember, Brooke Pinto, also in this same layer's
+// REP_NAME field). WARD is esriFieldTypeSmallInteger, not a string --
+// arcgisDistrictLookup converts it. DC's seat titles say "Council — Ward
+// N", not "County Council — District N" -- a different keyword ("Ward")
+// on a jurisdiction with no county layer of its own, but the same
+// underlying concept (the resident's own local legislative district), so
+// this reuses the countyCouncil field too rather than adding a DC-only
+// one.
+const DC_WARD_URL =
+  "https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Administrative_Other_Boundaries_WebMercator/MapServer/53/query";
+
+// Fairfax County (2026-08-14) -- the county's own authoritative service
+// (services1.arcgis.com/ioennV6PpG5Xodq0, owned by FX.AuthData), confirmed
+// reachable, real point-in-polygon queries against the County Government
+// Center (Braddock) and a Reston address (Hunter Mill) both correctly
+// matched the real current supervisor (this layer's own NAME field:
+// Rachna Sizemore Heizer, Walter L. Alcorn). DISTRICT comes back ALL CAPS
+// ("BRADDOCK", "HUNTER MILL") -- titleCaseDistrictName below normalizes
+// it to match the office titles' own casing ("Braddock", "Hunter Mill").
+// Unlike every other seat kind narrowed so far, Fairfax's own titles are
+// NAMED, not numbered ("Board of Supervisors — Hunter Mill District",
+// the name BEFORE the word "District" this time, not after) -- see
+// OWN_NAMED_DISTRICT_PATTERN below.
+const FAIRFAX_SUPERVISOR_DISTRICTS_URL =
+  "https://services1.arcgis.com/ioennV6PpG5Xodq0/arcgis/rest/services/Supervisor_Districts/FeatureServer/0/query";
+
+/** ALL CAPS from the GIS source ("HUNTER MILL") -> Title Case ("Hunter
+    Mill") to match how this project's own office titles are written.
+    Pure, unit-tested independent of the network call -- same shape as
+    parseDistrictNumberFromName. */
+export function titleCaseDistrictName(name: string | null): string | null {
+  if (!name) return null;
+  return name
+    .toLowerCase()
+    .split(" ")
+    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
 async function arcgisDistrictLookup(url: string, field: string, lon: number, lat: number): Promise<string | null> {
   try {
     const u = new URL(url);
@@ -190,6 +248,10 @@ async function arcgisDistrictLookup(url: string, field: string, lon: number, lat
     if (!res.ok) return null;
     const data = (await res.json()) as { features?: { attributes?: Record<string, unknown> }[] };
     const value = data.features?.[0]?.attributes?.[field];
+    // DC's WARD field is esriFieldTypeSmallInteger, not a string (unlike
+    // every other source used so far) -- found live 2026-08-14. Numbers
+    // are converted, not just strings passed through.
+    if (typeof value === "number") return String(value);
     return typeof value === "string" && value.length > 0 ? value : null;
   } catch {
     // Never guess -- an unreachable ArcGIS server (or a genuine non-match,
@@ -223,6 +285,27 @@ export async function montgomeryLocalDistricts(lon: number, lat: number): Promis
     arcgisDistrictLookup(MOCO_BOE_DISTRICTS_URL, "BDED", lon, lat),
   ]);
   return { countyCouncil: parseDistrictNumberFromName(name), boardOfEducation: bded };
+}
+
+/** Prince George's-County-specific (2026-08-14). No Board of Education
+    equivalent found for this county yet (unlike Montgomery) -- left
+    unattempted rather than guessed, same as Montgomery's own BOE was
+    before its source was found. */
+export async function pgCountyLocalDistricts(lon: number, lat: number): Promise<{ countyCouncil: string | null }> {
+  const districtNumber = await arcgisDistrictLookup(PG_COUNCIL_DISTRICTS_URL, "DISTRICT_NUMBER", lon, lat);
+  return { countyCouncil: districtNumber };
+}
+
+/** DC-specific (2026-08-14). */
+export async function dcWardDistrict(lon: number, lat: number): Promise<{ countyCouncil: string | null }> {
+  const ward = await arcgisDistrictLookup(DC_WARD_URL, "WARD", lon, lat);
+  return { countyCouncil: ward };
+}
+
+/** Fairfax-County-specific (2026-08-14). */
+export async function fairfaxLocalDistricts(lon: number, lat: number): Promise<{ countyCouncil: string | null }> {
+  const district = await arcgisDistrictLookup(FAIRFAX_SUPERVISOR_DISTRICTS_URL, "DISTRICT", lon, lat);
+  return { countyCouncil: titleCaseDistrictName(district) };
 }
 
 /** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end
@@ -346,6 +429,32 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
         districts.boardOfEducation = local.boardOfEducation;
       }
     }
+    // Prince George's County FIPS = 24033 (2026-08-14) -- same
+    // countyCouncil field as Montgomery above, different source.
+    if (geo.stateFips === "24" && geo.countyFips === "033") {
+      const coords = extractCoordinates(data);
+      if (coords) {
+        const local = await pgCountyLocalDistricts(coords.lon, coords.lat);
+        districts.countyCouncil = local.countyCouncil;
+      }
+    }
+    // DC FIPS = 11/001 (2026-08-14) -- DC is its own state-equivalent AND
+    // county-equivalent for Census purposes (migration 004).
+    if (geo.stateFips === "11" && geo.countyFips === "001") {
+      const coords = extractCoordinates(data);
+      if (coords) {
+        const local = await dcWardDistrict(coords.lon, coords.lat);
+        districts.countyCouncil = local.countyCouncil;
+      }
+    }
+    // Fairfax County, VA FIPS = 51059 (2026-08-14).
+    if (geo.stateFips === "51" && geo.countyFips === "059") {
+      const coords = extractCoordinates(data);
+      if (coords) {
+        const local = await fairfaxLocalDistricts(coords.lon, coords.lat);
+        districts.countyCouncil = local.countyCouncil;
+      }
+    }
     return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER, districts };
   } catch {
     // Local dev only: the crude Rockville/Montgomery regex matcher keeps
@@ -376,13 +485,18 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
 // title" must mean the same thing in both places. Deliberately narrow: only
 // titles this project's own ingesters/migrations actually produce for these
 // tiers are matched — anything else district-shaped (Public Service
-// Commission, an office with no seat number at all like Governor) passes
-// through untouched. County Council and Board of Education added migration
-// 078 (Montgomery County only, via montgomeryLocalDistricts); every other
-// pilot county's council/school-board districts still fall through
-// unmatched until their own GIS source is found.
+// Commission, an office with no seat number at all like Governor, Fairfax
+// County's own NAMED supervisor districts) passes through untouched until
+// its own source is found. County Council and Board of Education added
+// migration 078 (Montgomery County); Prince George's County reuses the
+// same "County Council — District N" seat kind with its own GIS source
+// (2026-08-14) -- no pattern change needed there, just a second lookup
+// wired into the same countyCouncil field. DC's "Council — Ward N" added
+// the same day needed a real pattern change: a bare "Council" seat kind
+// (DC has no county layer of its own to prefix it with) and "Ward"
+// alongside "District" as the tier keyword.
 const OWN_DISTRICT_PATTERN =
-  /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Board of Education) — District (\S+)$/;
+  /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Council|Board of Education) — (?:District|Ward) (\S+)$/;
 
 // Maryland Supreme Court circuit seats (migration 069, "Supreme Court 1st
 // Circuit" .. "7th Circuit") added 2026-08-14 -- a genuinely different
@@ -392,7 +506,17 @@ const OWN_DISTRICT_PATTERN =
 // something matched against OWN_DISTRICT_PATTERN's own convention.
 const OWN_CIRCUIT_PATTERN = /^(Supreme Court) (\d+)(?:st|nd|rd|th) Circuit$/;
 
-/** Tries both title shapes above and normalizes to the same {seatKind,
+// Fairfax County's own supervisor districts (migration 005, "Board of
+// Supervisors — Braddock District" .. "Sully District") added 2026-08-14
+// -- a THIRD distinct title shape: the district is NAMED, not numbered,
+// and the word "District" trails the name instead of leading it
+// ("Hunter Mill District", not "District Hunter Mill" or "District N").
+// "Board of Supervisors — Chairman" (the at-large seat) doesn't end in
+// " District" and correctly falls through unmatched, same as any other
+// at-large seat.
+const OWN_NAMED_DISTRICT_PATTERN = /^(Board of Supervisors) — (.+) District$/;
+
+/** Tries every title shape above and normalizes to the same {seatKind,
     districtInTitle} regardless of which one matched -- the two functions
     below only ever need to care about "did something match," not which
     pattern. */
@@ -401,13 +525,15 @@ function matchOwnDistrict(title: string): { seatKind: string; districtInTitle: s
   if (m1) return { seatKind: m1[1], districtInTitle: m1[2] };
   const m2 = title.match(OWN_CIRCUIT_PATTERN);
   if (m2) return { seatKind: m2[1], districtInTitle: m2[2] };
+  const m3 = title.match(OWN_NAMED_DISTRICT_PATTERN);
+  if (m3) return { seatKind: m3[1], districtInTitle: m3[2] };
   return null;
 }
 
 function districtFieldFor(seatKind: string): keyof ExtractedDistricts | null {
   if (seatKind === "U.S. Representative") return "congressional";
   if (seatKind === "State Senator") return "stateSenate";
-  if (seatKind === "County Council") return "countyCouncil";
+  if (seatKind === "County Council" || seatKind === "Council" || seatKind === "Board of Supervisors") return "countyCouncil";
   if (seatKind === "Board of Education") return "boardOfEducation";
   if (seatKind === "Supreme Court") return "appellateCircuit";
   if (seatKind.startsWith("State ")) return "stateHouse"; // Representative/Delegate/Assemblymember/Assembly Member
@@ -448,12 +574,14 @@ export function filterToOwnDistricts(offices: StackedOffice[], districts: Extrac
          "show every row," and that fallback must still count as a gap the
          banner discloses, not silently look complete).
     The cheap pre-filter below used to just check for the word "District"
-    -- broken by the Supreme Court circuit seats added 2026-08-14, whose
-    titles don't contain that word at all. Checks for either shape now. */
+    -- broken first by the Supreme Court circuit seats (no "District" at
+    all) and again the same day by DC's "Council — Ward N" seats (no
+    "District" either). Checks for every shape now. */
 export function hasUnnarrowedDistrictSeats(offices: StackedOffice[]): boolean {
   const seatKindCounts = new Map<string, number>();
   for (const o of offices) {
-    const looksDistrictShaped = o.title.includes("District") || /\d(?:st|nd|rd|th) Circuit$/.test(o.title);
+    const looksDistrictShaped =
+      o.title.includes("District") || o.title.includes("Ward") || /\d(?:st|nd|rd|th) Circuit$/.test(o.title);
     if (!looksDistrictShaped) continue;
     const m = matchOwnDistrict(o.title);
     if (!m) return true; // an unrecognized district-shaped title -- always a gap
