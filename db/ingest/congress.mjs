@@ -51,6 +51,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(new URL("../../app/package.json", import.meta.url));
 const { Client } = require("pg");
+// Already an existing dependency (Next.js's own built-in image optimizer
+// uses it) -- no new install needed on the VPS for this.
+const sharp = require("sharp");
 
 // Officeholder headshots (2026-08-14, source switched same day): re-hosted
 // locally under app/public/politicians/, same policy as the hand-curated
@@ -129,12 +132,17 @@ async function wikidataPhotoUrls(bioguideIds) {
   return found;
 }
 
-/** Downloads one member's photo (already resolved to a Commons URL) to
-    app/public/politicians/{bioguideId}.jpg and returns the local path, or
-    null on any failure -- logged, never thrown, same never-guess posture
-    as the rest of this ingester (see e.g. arcgisDistrictLookup in
-    jurisdictions.ts). Caller is responsible for the idempotency check
-    (does the file already exist) -- this always downloads when called.
+/** Downloads one member's photo (already resolved to a Commons URL),
+    converts it to .webp (2026-08-14 -- Commons serves JPEG/PNG; WebP runs
+    meaningfully smaller for the same visual quality at this tiny 200px
+    size, and every browser this app targets supports it natively in
+    <img>, so there's no reason to keep the original format around), and
+    saves it to app/public/politicians/{bioguideId}.webp. Returns the
+    local path, or null on any failure -- logged, never thrown, same
+    never-guess posture as the rest of this ingester (see e.g.
+    arcgisDistrictLookup in jurisdictions.ts). Caller is responsible for
+    the idempotency check (does the file already exist) -- this always
+    downloads when called.
 
     Retries on 429 specifically (not other failures -- a genuine 404 or a
     malformed URL will never succeed no matter how many times it's
@@ -145,7 +153,7 @@ async function wikidataPhotoUrls(bioguideIds) {
     Retry-After header if Commons sends one; otherwise backs off
     2s/4s/8s. */
 async function downloadPhoto(bioguideId, commonsUrl, attempt = 1) {
-  const filename = `${bioguideId.toLowerCase()}.jpg`;
+  const filename = `${bioguideId.toLowerCase()}.webp`;
   const diskPath = path.join(PHOTO_DIR, filename);
   const thumbUrl = new URL(commonsUrl);
   thumbUrl.searchParams.set("width", "200");
@@ -162,9 +170,10 @@ async function downloadPhoto(bioguideId, commonsUrl, attempt = 1) {
       photoStats.downloadFailed += 1;
       return null;
     }
-    const bytes = Buffer.from(await res.arrayBuffer());
+    const sourceBytes = Buffer.from(await res.arrayBuffer());
+    const webpBytes = await sharp(sourceBytes).webp({ quality: 80 }).toBuffer();
     await mkdir(PHOTO_DIR, { recursive: true });
-    await writeFile(diskPath, bytes);
+    await writeFile(diskPath, webpBytes);
     photoStats.downloaded += 1;
     return `/politicians/${filename}`;
   } catch (e) {
@@ -354,7 +363,7 @@ try {
       // already have this member's photo on disk, reuse it (and skip
       // queueing them below); otherwise queue them for the batched
       // Wikidata pass after this whole loop finishes.
-      const photoFilename = `${m.bioguideId.toLowerCase()}.jpg`;
+      const photoFilename = `${m.bioguideId.toLowerCase()}.webp`;
       const photoDiskPath = path.join(PHOTO_DIR, photoFilename);
       let photoUrl = null;
       try {

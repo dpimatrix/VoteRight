@@ -49,8 +49,15 @@ and Commons' own image host serve plain HTTP clients fine. Coverage isn't
 100% — a small fraction of members have no Wikidata photo at all — those
 fall back to the monogram, same as everyone else without a photo.
 
-Filenames are `{bioguideId}.jpg` (lowercased), e.g. `r000606.jpg` for Jamie
-Raskin — the same bioguide_id already used as the ingester's identity
-anchor. Re-run the ingester to pick up new/changed members' photos;
-idempotent by design (skips any file already on disk, so a re-run only
-does network work for members it hasn't photographed yet).
+Saved as `.webp`, not whatever format Commons happens to serve (usually
+JPEG/PNG) — smaller for the same visual quality at this tiny 200px size,
+and every browser this app targets renders it fine in a plain `<img>`, so
+there's no reason to keep the original. Converted via `sharp`, already an
+existing dependency (Next.js's own built-in image optimizer uses it), so
+no new install needed.
+
+Filenames are `{bioguideId}.webp` (lowercased), e.g. `r000606.webp` for
+Jamie Raskin — the same bioguide_id already used as the ingester's
+identity anchor. Re-run the ingester to pick up new/changed members'
+photos; idempotent by design (skips any file already on disk, so a re-run
+only does network work for members it hasn't photographed yet).
