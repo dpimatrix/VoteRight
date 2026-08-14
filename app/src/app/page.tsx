@@ -179,19 +179,45 @@ export default async function BallotPage({
           const rows = offices.filter((o) => o.jurisdiction_id === j.id);
           const hasSubGroups = rows.some((o) => (SUB_GROUP_LEVELS as readonly string[]).includes(o.level));
           if (hasSubGroups) {
-            return SUB_GROUP_LEVELS.map((level) => {
-              const lv = rows.filter((o) => o.level === level);
-              if (lv.length === 0) return null;
-              const label = SUB_GROUP_LABELS[level];
-              return (
-                <section key={level}>
-                  <div className="grouph">{label ? label[lang] : j.name}</div>
-                  {lv.map((o) => (
-                    <SeatRow key={o.id} o={o} lang={lang} d={d} />
-                  ))}
-                </section>
-              );
-            });
+            // Real bug fixed 2026-08-14: this used to render ONLY the three
+            // sub-group levels once any of them was present, silently
+            // dropping every office at any OTHER level in the same
+            // jurisdiction. Harmless while only county-level jurisdictions
+            // ever had a judicial/school_board sub-group (those offices
+            // never coexisted with federal/state-level ones) -- became a
+            // real, severe bug once state supreme/appellate court justices
+            // (level='judicial') started living on the same STATE
+            // jurisdiction row as that state's own federal (Congress) and
+            // state (Governor, etc.) offices, which then vanished from the
+            // ballot entirely for every state with judicial data. `other`
+            // now renders everything NOT in one of the three special
+            // levels, same as the no-sub-groups branch below would have.
+            const other = rows.filter((o) => !(SUB_GROUP_LEVELS as readonly string[]).includes(o.level));
+            return (
+              <div key={j.id}>
+                {other.length > 0 && (
+                  <section>
+                    <div className="grouph">{j.name}</div>
+                    {other.map((o) => (
+                      <SeatRow key={o.id} o={o} lang={lang} d={d} />
+                    ))}
+                  </section>
+                )}
+                {SUB_GROUP_LEVELS.map((level) => {
+                  const lv = rows.filter((o) => o.level === level);
+                  if (lv.length === 0) return null;
+                  const label = SUB_GROUP_LABELS[level];
+                  return (
+                    <section key={level}>
+                      <div className="grouph">{label ? label[lang] : j.name}</div>
+                      {lv.map((o) => (
+                        <SeatRow key={o.id} o={o} lang={lang} d={d} />
+                      ))}
+                    </section>
+                  );
+                })}
+              </div>
+            );
           }
           return (
             <section key={j.id}>
