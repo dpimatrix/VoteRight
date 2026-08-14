@@ -143,7 +143,20 @@ try {
       if (stateFilter && !stateFilter.includes(slug)) continue;
       const stateOcdId = `ocd-division/country:us/state:${slug}`;
 
-      const term = m.terms?.item?.at(-1);
+      // Real bug found live (2026-08-14): .at(-1) assumed Congress.gov
+      // lists a member's terms.item oldest-first, so the last entry is
+      // their current one -- true by luck for a freshman with a single
+      // term entry, wrong for anyone who's served multiple terms (e.g. a
+      // senator in office since 2017 with 5 entries, one per Congress).
+      // Picking the wrong entry didn't just skew the date -- term.chamber
+      // comes from the SAME entry, so a member who switched chambers
+      // earlier in their career could have been misclassified as their
+      // OLD chamber. Order-independent fix: find the entry with the
+      // actual highest startYear, regardless of array position.
+      const term = m.terms?.item?.reduce(
+        (latest, t) => (!latest || (t.startYear ?? -Infinity) > latest.startYear ? t : latest),
+        null,
+      );
       const startYear = term?.startYear;
       if (!term || !startYear) continue; // no usable term date — never guess one
       if (!dataThrough || startYear > dataThrough) dataThrough = startYear;
