@@ -137,7 +137,7 @@ const DICT = {
     verify_h: "Verify your address",
     verify_p:
       "Seconding, debating, and voting are one-per-verified-person. Your address is self-attested and format-checked only — never matched against any voter file, never shown to anyone.",
-    verify_ph: "Street address, city, state",
+    verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verify address",
     verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
     verify_outside:
@@ -450,7 +450,7 @@ const DICT = {
     verify_h: "Verifica tu dirección",
     verify_p:
       "Apoyar, debatir y votar es uno-por-persona-verificada. Tu dirección es autodeclarada y solo se valida su formato — nunca se compara con ningún padrón, nunca se muestra a nadie.",
-    verify_ph: "Dirección, ciudad, estado",
+    verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verificar dirección",
     verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
     verify_outside:
