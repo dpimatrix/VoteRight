@@ -46,8 +46,47 @@
 // Default: all 50 states seeded in migration 059, current (119th) Congress.
 
 import { createRequire } from "node:module";
+import { mkdir, writeFile, access } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(new URL("../../app/package.json", import.meta.url));
 const { Client } = require("pg");
+
+// Officeholder headshots (2026-08-14): re-hosted locally under
+// app/public/politicians/, same policy as the hand-curated County Council
+// portraits (app/public/politicians/ATTRIBUTION.md) -- visitors' browsers
+// never fetch third-party hosts, per the /privacy notice. Congress.gov's
+// member-list response already includes an official photo URL
+// (depiction.imageUrl) in the exact same call this ingester already makes,
+// so this is a straight download-and-store, not a new data source.
+// Idempotent by design: skips the download entirely if the file already
+// exists on disk, so a re-run only fetches new/changed members' photos.
+const PHOTO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "app", "public", "politicians");
+async function photoPathFor(bioguideId, imageUrl) {
+  if (!imageUrl) return null;
+  const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
+  const filename = `${bioguideId.toLowerCase()}${ext}`;
+  const diskPath = path.join(PHOTO_DIR, filename);
+  try {
+    await access(diskPath);
+    return `/politicians/${filename}`; // already downloaded, nothing to do
+  } catch {
+    // doesn't exist yet -- fall through and fetch it
+  }
+  try {
+    const res = await fetch(imageUrl, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const bytes = Buffer.from(await res.arrayBuffer());
+    await mkdir(PHOTO_DIR, { recursive: true });
+    await writeFile(diskPath, bytes);
+    return `/politicians/${filename}`;
+  } catch {
+    // Never let one member's bad/unreachable photo URL fail the whole
+    // run -- same never-guess-but-never-block posture as the rest of this
+    // ingester (see e.g. arcgisDistrictLookup in jurisdictions.ts).
+    return null;
+  }
+}
 
 const SOURCE = "congress-gov-roster";
 const API_KEY = process.env.CONGRESS_API_KEY;
@@ -220,17 +259,23 @@ try {
         officeId = await findOrCreateOffice(stateOcdId, title, "district");
       }
 
+      const photoUrl = await photoPathFor(m.bioguideId, m.depiction?.imageUrl);
+
       let polId;
       if (existingPol.rowCount) {
         polId = existingPol.rows[0].id;
         await client.query(
-          `UPDATE politicians SET full_name = $2, party = $3, current_office_id = $4, bio = $5 WHERE id = $1`,
-          [polId, fullName, party, officeId, bio],
+          // COALESCE, not overwrite with NULL: a member with no depiction
+          // this run (or a network hiccup on this one photo) keeps
+          // whatever photo_url they already had rather than losing it.
+          `UPDATE politicians SET full_name = $2, party = $3, current_office_id = $4, bio = $5,
+                  photo_url = COALESCE($6, photo_url) WHERE id = $1`,
+          [polId, fullName, party, officeId, bio, photoUrl],
         );
       } else {
         const pol = await client.query(
-          `INSERT INTO politicians (full_name, party, current_office_id, bio, bioguide_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [fullName, party, officeId, bio, m.bioguideId],
+          `INSERT INTO politicians (full_name, party, current_office_id, bio, bioguide_id, photo_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [fullName, party, officeId, bio, m.bioguideId, photoUrl],
         );
         polId = pol.rows[0].id;
       }

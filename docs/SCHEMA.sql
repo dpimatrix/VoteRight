@@ -25,7 +25,7 @@ CREATE TABLE politicians (
     external_ids    JSONB NOT NULL DEFAULT '{}',     -- { "ballotready_id": "...", "ocd_person_id": "..." }
     current_office_id UUID,                         -- FK added after offices table exists; several politicians may share one office row (multi-seat at-large offices)
     party           TEXT,
-    photo_url       TEXT,
+    photo_url       TEXT,                            -- re-hosted local path (app/public/politicians/), never a third-party URL -- see PolAvatar.tsx + politicians/ATTRIBUTION.md; auto-populated for Congress members (db/ingest/congress.mjs, 2026-08-14), hand-curated for County Council
     bio             TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

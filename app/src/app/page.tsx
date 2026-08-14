@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Chev } from "@/components/Chev";
+import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
@@ -47,6 +48,22 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   const tracked = o.race_id !== null;
   const seatSuffix = o.seat_count > 1 ? ` · ${o.seat_count} ${lang === "es" ? "escaños" : "seats"}` : "";
   const icon = <span className="seat-ic">{officeCode(o.title)}</span>;
+  // Officeholder thumbnail pilot (2026-08-14), Congress-only: swaps the
+  // plain office-code badge for the actual current officeholder's photo
+  // (or initials, via PolAvatar's own monogram fallback) -- but ONLY on
+  // rows below that have no live race (offCycle / plain !tracked). A
+  // TRACKED seat can have several real candidates in a contested primary;
+  // showing the incumbent's face on that summary row would look like this
+  // project is picking a side before the user's even clicked in, which
+  // cuts against the whole "matched to what you actually want, never
+  // editorialized" premise. "Who currently holds this seat" is a plain
+  // fact with no such risk -- that's the only claim this makes.
+  const avatar =
+    o.congress_sourced && o.officeholder_name ? (
+      <PolAvatar name={o.officeholder_name} photoUrl={o.officeholder_photo_url} size={40} />
+    ) : (
+      icon
+    );
   if (o.level === "judicial") {
     // Always "on ballot" text here regardless of `tracked` -- judicial
     // seats are never municipal, and the tracked||non-municipal condition
@@ -101,7 +118,7 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   if (offCycle) {
     return (
       <div className="seat">
-        {icon}
+        {avatar}
         <span className="sname">
           {o.title}
           <span className="smeta">{d.next_election_note.replace("%s", String(nextYear)) + seatSuffix}</span>
@@ -114,7 +131,7 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   if (!tracked) {
     return (
       <div className="seat">
-        {icon}
+        {avatar}
         <span className="sname">
           {o.title}
           <span className="smeta">{meta}</span>

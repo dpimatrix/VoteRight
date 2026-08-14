@@ -425,6 +425,16 @@ export interface StackedOffice {
   // gate on this flag, not just term_length_years, before trusting a
   // computed next-election year for a congress_sourced office.
   congress_sourced: boolean;
+  // Officeholder thumbnail pilot (2026-08-14), Congress-only for now: name
+  // + re-hosted-local photo_url (see PolAvatar.tsx) of the SAME officeholder
+  // congress_sourced/term_start_year describe -- null for every non-Congress
+  // office (never populated for those) and for a Congress seat with no
+  // ingested term at all. Deliberately NOT shown for tracked (real race)
+  // seats -- see SeatRow: a summary row can't pick one candidate's face out
+  // of a contested field without implying an endorsement, but a plain
+  // "who currently holds this seat" fact carries no such risk.
+  officeholder_name: string | null;
+  officeholder_photo_url: string | null;
 }
 
 // The current 2-year election cycle this project's ballot copy is written
@@ -449,16 +459,19 @@ export async function ballotForJurisdiction(jurisdictionId: string): Promise<Sta
      SELECT o.id, o.title, o.level, o.seat_count, o.term_length_years,
             r.id AS race_id, r.seats_elected,
             ot.term_start_year, COALESCE(ot.congress_sourced, false) AS congress_sourced,
+            ot.officeholder_name, ot.officeholder_photo_url,
             s.ocd_id AS jurisdiction_id, s.name AS jurisdiction_name, s.depth
        FROM stack s
        JOIN offices o ON o.jurisdiction_id = s.ocd_id AND o.is_elected
        LEFT JOIN races r ON r.office_id = o.id
        LEFT JOIN LATERAL (
          -- The single most recent office_terms row for this office (not
-         -- just MAX(term_start) -- congress_sourced needs to come from
-         -- THAT SAME row's politician, not an unrelated aggregate).
+         -- just MAX(term_start) -- congress_sourced/officeholder_* need to
+         -- come from THAT SAME row's politician, not an unrelated
+         -- aggregate).
          SELECT EXTRACT(YEAR FROM ot.term_start)::int AS term_start_year,
-                (p.bioguide_id IS NOT NULL) AS congress_sourced
+                (p.bioguide_id IS NOT NULL) AS congress_sourced,
+                p.full_name AS officeholder_name, p.photo_url AS officeholder_photo_url
            FROM office_terms ot JOIN politicians p ON p.id = ot.politician_id
           WHERE ot.office_id = o.id
           ORDER BY ot.term_start DESC

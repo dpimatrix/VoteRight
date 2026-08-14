@@ -29,3 +29,16 @@ and visual verification govern.
 TODO: Marc Elrich — official Executive portrait not exposed on the exec
 landing page at retrieval time; monogram until sourced. Refresh portraits at
 each roster change (the monthly roster-diff cadence in DATA-OPS.md).
+
+## U.S. Congress (automated, 2026-08-14)
+
+Members of Congress get their portrait automatically, not hand-curated like
+the table above: `db/ingest/congress.mjs` downloads each current member's
+official photo from Congress.gov's own member-list API response
+(`depiction.imageUrl`, e.g. `https://www.congress.gov/img/member/{id}_200.jpg`
+— an official government portrait, same source category as the hand-picked
+ones above, just fetched programmatically instead of by hand since there are
+531 of them). Filenames are `{bioguideId}.{ext}` (lowercased), e.g.
+`r000606.jpg` for Jamie Raskin — the same bioguide_id already used as the
+ingester's identity anchor. Re-run the ingester to pick up new/changed
+members' photos; idempotent by design (skips any file already on disk).
