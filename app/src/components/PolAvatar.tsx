@@ -20,7 +20,14 @@ export function PolAvatar({
         aria-hidden
         width={size}
         height={size}
-        style={{ borderRadius: "50%", objectFit: "cover", width: size, height: size, flex: "none" }}
+        style={{
+          borderRadius: "50%",
+          objectFit: "cover",
+          width: size,
+          height: size,
+          flex: "none",
+          boxShadow: "0 0 0 1px var(--line)", // thin frame -- a real photo reads as "photo" faster with an edge than floating loose on the row's own background
+        }}
       />
     );
   }

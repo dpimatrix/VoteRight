@@ -58,12 +58,15 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   // cuts against the whole "matched to what you actually want, never
   // editorialized" premise. "Who currently holds this seat" is a plain
   // fact with no such risk -- that's the only claim this makes.
-  const avatar =
-    o.congress_sourced && o.officeholder_name ? (
-      <PolAvatar name={o.officeholder_name} photoUrl={o.officeholder_photo_url} size={40} />
-    ) : (
-      icon
-    );
+  const hasOfficeholder = o.congress_sourced && o.officeholder_name;
+  const avatar = hasOfficeholder ? (
+    <PolAvatar name={o.officeholder_name!} photoUrl={o.officeholder_photo_url} size={40} />
+  ) : (
+    icon
+  );
+  // The photo alone doesn't say who it's a photo OF -- a name right under
+  // the title is what actually makes it useful, not just decorative.
+  const holderName = hasOfficeholder ? <span className="sholder">{o.officeholder_name}</span> : null;
   if (o.level === "judicial") {
     // Always "on ballot" text here regardless of `tracked` -- judicial
     // seats are never municipal, and the tracked||non-municipal condition
@@ -121,6 +124,7 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
         {avatar}
         <span className="sname">
           {o.title}
+          {holderName}
           <span className="smeta">{d.next_election_note.replace("%s", String(nextYear)) + seatSuffix}</span>
         </span>
         <span className="chip band bnull">{d.off_cycle}</span>
@@ -134,6 +138,7 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
         {avatar}
         <span className="sname">
           {o.title}
+          {holderName}
           <span className="smeta">{meta}</span>
         </span>
         <span className="chip band bnull">{d.later}</span>
