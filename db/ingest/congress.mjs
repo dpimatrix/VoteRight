@@ -52,20 +52,52 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(new URL("../../app/package.json", import.meta.url));
 const { Client } = require("pg");
 
-// Officeholder headshots (2026-08-14): re-hosted locally under
-// app/public/politicians/, same policy as the hand-curated County Council
-// portraits (app/public/politicians/ATTRIBUTION.md) -- visitors' browsers
-// never fetch third-party hosts, per the /privacy notice. Congress.gov's
-// member-list response already includes an official photo URL
-// (depiction.imageUrl) in the exact same call this ingester already makes,
-// so this is a straight download-and-store, not a new data source.
-// Idempotent by design: skips the download entirely if the file already
-// exists on disk, so a re-run only fetches new/changed members' photos.
+// Officeholder headshots (2026-08-14, source switched same day): re-hosted
+// locally under app/public/politicians/, same policy as the hand-curated
+// County Council portraits (app/public/politicians/ATTRIBUTION.md) --
+// visitors' browsers never fetch third-party hosts, per the /privacy
+// notice. ORIGINALLY pulled from Congress.gov's own member-list response
+// (depiction.imageUrl, same call this ingester already makes) -- reverted
+// live after confirming congress.gov's static image host 403s plain HTTP
+// clients (curl AND Node's fetch, from both the VPS and a completely
+// different network -- a TLS/bot-fingerprint block, not an IP block or a
+// missing-header problem, so no realistic User-Agent fixes it). Wikidata
+// is the replacement: property P1157 (US Congress Bio ID) maps a
+// bioguideId straight to a Wikidata item, and P18 (image) on that item
+// gives a Wikimedia Commons file -- confirmed both endpoints (the SPARQL
+// query service and Commons' own image host) serve plain curl/fetch
+// clients fine, no blocking. Coverage isn't 100% (a small fraction of
+// members have no Wikidata photo at all) -- those fall back to null, same
+// never-guess posture as everywhere else; PolAvatar's monogram fallback
+// handles it gracefully.
 const PHOTO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "app", "public", "politicians");
-async function photoPathFor(bioguideId, imageUrl) {
-  if (!imageUrl) return null;
-  const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
-  const filename = `${bioguideId.toLowerCase()}${ext}`;
+
+async function wikidataPhotoUrl(bioguideId) {
+  try {
+    const query = `SELECT ?image WHERE { ?person wdt:P1157 "${bioguideId}". ?person wdt:P18 ?image. } LIMIT 1`;
+    const u = new URL("https://query.wikidata.org/sparql");
+    u.searchParams.set("query", query);
+    u.searchParams.set("format", "json");
+    const res = await fetch(u, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const uri = data.results?.bindings?.[0]?.image?.value;
+    if (!uri) return null;
+    // uri looks like "http://commons.wikimedia.org/wiki/Special:FilePath/Foo.jpg"
+    // -- force https and ask for a small thumbnail rather than full-res.
+    const filePathUrl = new URL(uri.replace(/^http:/, "https:"));
+    filePathUrl.searchParams.set("width", "200");
+    return filePathUrl.toString();
+  } catch {
+    return null; // no Wikidata entry, no P18 image, or the query service hiccuped -- never guess
+  }
+}
+
+// Idempotent by design: skips BOTH the Wikidata lookup and the download
+// entirely if the file already exists on disk, so a re-run only does any
+// network work at all for new/not-yet-photographed members.
+async function photoPathFor(bioguideId) {
+  const filename = `${bioguideId.toLowerCase()}.jpg`;
   const diskPath = path.join(PHOTO_DIR, filename);
   try {
     await access(diskPath);
@@ -73,6 +105,8 @@ async function photoPathFor(bioguideId, imageUrl) {
   } catch {
     // doesn't exist yet -- fall through and fetch it
   }
+  const imageUrl = await wikidataPhotoUrl(bioguideId);
+  if (!imageUrl) return null;
   try {
     const res = await fetch(imageUrl, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return null;
@@ -81,8 +115,8 @@ async function photoPathFor(bioguideId, imageUrl) {
     await writeFile(diskPath, bytes);
     return `/politicians/${filename}`;
   } catch {
-    // Never let one member's bad/unreachable photo URL fail the whole
-    // run -- same never-guess-but-never-block posture as the rest of this
+    // Never let one member's bad/unreachable photo fail the whole run --
+    // same never-guess-but-never-block posture as the rest of this
     // ingester (see e.g. arcgisDistrictLookup in jurisdictions.ts).
     return null;
   }
@@ -259,7 +293,7 @@ try {
         officeId = await findOrCreateOffice(stateOcdId, title, "district");
       }
 
-      const photoUrl = await photoPathFor(m.bioguideId, m.depiction?.imageUrl);
+      const photoUrl = await photoPathFor(m.bioguideId);
 
       let polId;
       if (existingPol.rowCount) {

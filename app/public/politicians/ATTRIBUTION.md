@@ -30,15 +30,27 @@ TODO: Marc Elrich — official Executive portrait not exposed on the exec
 landing page at retrieval time; monogram until sourced. Refresh portraits at
 each roster change (the monthly roster-diff cadence in DATA-OPS.md).
 
-## U.S. Congress (automated, 2026-08-14)
+## U.S. Congress (automated, 2026-08-14 — source switched same day)
 
 Members of Congress get their portrait automatically, not hand-curated like
 the table above: `db/ingest/congress.mjs` downloads each current member's
-official photo from Congress.gov's own member-list API response
-(`depiction.imageUrl`, e.g. `https://www.congress.gov/img/member/{id}_200.jpg`
-— an official government portrait, same source category as the hand-picked
-ones above, just fetched programmatically instead of by hand since there are
-531 of them). Filenames are `{bioguideId}.{ext}` (lowercased), e.g.
-`r000606.jpg` for Jamie Raskin — the same bioguide_id already used as the
-ingester's identity anchor. Re-run the ingester to pick up new/changed
-members' photos; idempotent by design (skips any file already on disk).
+photo via Wikidata. ORIGINALLY tried Congress.gov's own member-list API
+response (`depiction.imageUrl`) — reverted after confirming live that
+congress.gov's static image host 403s any plain HTTP client (curl, Node's
+fetch) from both the VPS and an unrelated network; a TLS/bot-fingerprint
+block, not fixable with a realistic User-Agent header.
+
+Replacement: Wikidata property P1157 ("US Congress Bio ID") maps a
+bioguideId straight to a Wikidata item; that item's P18 ("image") claim
+points to an official portrait on Wikimedia Commons (same source category
+as the hand-picked photos above — most are literally the same government
+portrait, just already re-hosted on Commons). Both the SPARQL query service
+and Commons' own image host serve plain HTTP clients fine. Coverage isn't
+100% — a small fraction of members have no Wikidata photo at all — those
+fall back to the monogram, same as everyone else without a photo.
+
+Filenames are `{bioguideId}.jpg` (lowercased), e.g. `r000606.jpg` for Jamie
+Raskin — the same bioguide_id already used as the ingester's identity
+anchor. Re-run the ingester to pick up new/changed members' photos;
+idempotent by design (skips any file already on disk, so a re-run only
+does network work for members it hasn't photographed yet).
