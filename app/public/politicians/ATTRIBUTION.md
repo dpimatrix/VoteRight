@@ -102,3 +102,24 @@ Jamie Raskin — the same bioguide_id already used as the ingester's
 identity anchor. Re-run the ingester to pick up new/changed members'
 photos; idempotent by design (skips any file already on disk, so a re-run
 only does network work for members it hasn't photographed yet).
+
+## Governors + Lieutenant Governors (automated, 2026-08-14)
+
+`db/ingest/governor-photos.mjs` — same Wikidata technique as Congress
+above, adapted for a source with no clean external ID like bioguide_id:
+Governors don't have one, so this matches by full_name AND cross-checks
+the person's actual Wikidata "position held" against the exact office
+("Governor of Maryland", not just any office containing the word
+"Governor") before trusting the match — verified live against Wes Moore
+before building this. Same P18 → Commons → re-hosted-webp pipeline as
+Congress. Idempotent (skips anyone who already has a photo_url) and
+much smaller in scale (95 people across 50 states, vs. Congress's 531),
+so this runs sequential per-person queries with a real delay + proper
+User-Agent rather than needing Congress's batched-VALUES-clause
+approach to stay under Wikidata's rate limit.
+
+Filenames are `{stateSlug}-gov.webp` / `{stateSlug}-ltgov.webp`
+(e.g. `md-gov.webp` for Wes Moore) — state+office, not a name-derived
+slug, since it's guaranteed unique (one governor per state) and reads
+clearly on its own. Coverage isn't 100% — same never-guess fallback to
+the monogram as everywhere else.
