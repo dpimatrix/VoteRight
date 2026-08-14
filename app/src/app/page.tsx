@@ -48,25 +48,33 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   const tracked = o.race_id !== null;
   const seatSuffix = o.seat_count > 1 ? ` · ${o.seat_count} ${lang === "es" ? "escaños" : "seats"}` : "";
   const icon = <span className="seat-ic">{officeCode(o.title)}</span>;
-  // Officeholder thumbnail pilot (2026-08-14, widened same day): swaps the
-  // plain office-code badge for the actual current officeholder's photo
-  // (or initials, via PolAvatar's own monogram fallback) -- but ONLY on
-  // rows below that have no live race (offCycle / plain !tracked). A
-  // TRACKED seat can have several real candidates in a contested primary;
-  // showing the incumbent's face on that summary row would look like this
-  // project is picking a side before the user's even clicked in, which
-  // cuts against the whole "matched to what you actually want, never
-  // editorialized" premise. "Who currently holds this seat" is a plain
-  // fact with no such risk -- that's the only claim this makes.
+  // Officeholder thumbnail pilot (2026-08-14, widened twice same day):
+  // swaps the plain office-code badge for the actual current
+  // officeholder's photo (or initials, via PolAvatar's own monogram
+  // fallback) and shows their name + party underneath the title.
   //
-  // Gated on officeholder_name alone now, NOT congress_sourced -- that
-  // flag is about a completely different question (is term_start's
-  // semantics safe to use for the offCycle date math below) and was too
-  // narrow a proxy for "do we know who holds this seat and can we show
-  // them." President/VP and every hand-verified statewide office already
-  // have a real name + party in the DB (just no photo_url yet for most --
-  // PolAvatar's own monogram fallback covers that gracefully).
-  const hasOfficeholder = !!o.officeholder_name;
+  // Two gates, both load-bearing:
+  //  - officeholder_name must exist -- not congress_sourced, which is
+  //    about a completely different question (is term_start's semantics
+  //    safe to use for the offCycle date math below) and was too narrow a
+  //    proxy for "do we know who holds this seat."
+  //  - seat_count must be exactly 1. The underlying query picks a
+  //    single "most recent term_start" row per office; for a genuinely
+  //    multi-seat office (County Council At-Large's 4 seats, the
+  //    Appellate Court's 14) that's just ONE of several current holders,
+  //    picked arbitrarily -- showing their face as if they represent the
+  //    whole seat would be actively misleading, not just incomplete, so
+  //    multi-seat offices always keep the plain code badge regardless of
+  //    tracked/judicial status.
+  //
+  // Owner decision 2026-08-14: shown on EVERY seat type now, including
+  // tracked (contested-race) and judicial ones -- this is deliberately
+  // the sitting OFFICEHOLDER's photo, never a specific candidate's, so it
+  // doesn't pick a side among challengers the way showing one candidate's
+  // face would; a judge's photo carries no match-score implication
+  // either, so it doesn't conflict with judicial seats' "no scoring"
+  // policy. Superseded the previous tracked/judicial exclusion.
+  const hasOfficeholder = o.seat_count === 1 && !!o.officeholder_name;
   const avatar = hasOfficeholder ? (
     <PolAvatar name={o.officeholder_name!} photoUrl={o.officeholder_photo_url} size={40} />
   ) : (
@@ -93,9 +101,10 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
     const meta = d.on_ballot + seatSuffix;
     return (
       <div className="seat wrap">
-        {icon}
+        {avatar}
         <span className="sname">
           {o.title}
+          {holderName}
           <span className="smeta">{meta}</span>
         </span>
         <span className="chip band bnull">⚖ {d.judicial}</span>
@@ -164,9 +173,10 @@ function SeatRow({ o, lang, d }: { o: StackedOffice; lang: "en" | "es"; d: Retur
   }
   return (
     <Link className="seat" href={`/matches?race=${o.race_id}&lang=${lang}`}>
-      {icon}
+      {avatar}
       <span className="sname">
         {o.title}
+        {holderName}
         <span className="smeta">{meta}</span>
       </span>
       <span className="chip band b2">{d.tracked}</span>
