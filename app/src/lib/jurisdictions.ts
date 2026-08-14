@@ -193,19 +193,27 @@ const MOCO_BOE_DISTRICTS_URL =
 const PG_COUNCIL_DISTRICTS_URL =
   "https://gis.pgatlas.com/pgatlas/rest/services/DARTS/DARTS_MapService/MapServer/12/query";
 
-// DC (2026-08-14) -- DC's own official Open Data GIS host
-// (maps2.dcgis.dc.gov), confirmed reachable, real point-in-polygon query
-// against 1600 Pennsylvania Ave NW correctly returned Ward 2 (matches the
-// real current councilmember, Brooke Pinto, also in this same layer's
-// REP_NAME field). WARD is esriFieldTypeSmallInteger, not a string --
-// arcgisDistrictLookup converts it. DC's seat titles say "Council — Ward
-// N", not "County Council — District N" -- a different keyword ("Ward")
-// on a jurisdiction with no county layer of its own, but the same
-// underlying concept (the resident's own local legislative district), so
-// this reuses the countyCouncil field too rather than adding a DC-only
-// one.
+// DC (2026-08-14, source swapped same day): DC's own government server
+// (maps2.dcgis.dc.gov) confirmed unreachable from the VPS -- same class
+// of block as montgomeryplans.org and gaithersburgmd.gov hit earlier the
+// same day. Real point-in-polygon query against 1600 Pennsylvania Ave NW
+// correctly returned Ward 2 (matches the real current councilmember,
+// Brooke Pinto, also in this same layer's REP_NAME field) -- but that was
+// only ever confirmed from this environment, not the VPS, and the VPS
+// check came back empty. Replacement: DCGISgroup's own mirror on Esri's
+// shared cloud infrastructure (services.arcgis.com), identical schema,
+// confirmed to return the exact same correct result for the same test
+// point -- same fix shape as Montgomery's Council districts (a
+// third-party-hosted copy of the same official data, not the
+// government's own small server). WARD is esriFieldTypeSmallInteger, not
+// a string -- arcgisDistrictLookup converts it. DC's seat titles say
+// "Council — Ward N", not "County Council — District N" -- a different
+// keyword ("Ward") on a jurisdiction with no county layer of its own, but
+// the same underlying concept (the resident's own local legislative
+// district), so this reuses the countyCouncil field too rather than
+// adding a DC-only one.
 const DC_WARD_URL =
-  "https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Administrative_Other_Boundaries_WebMercator/MapServer/53/query";
+  "https://services.arcgis.com/neT9SoYxizqTHZPH/arcgis/rest/services/Wards_from_2022_FC/FeatureServer/0/query";
 
 // Fairfax County (2026-08-14) -- the county's own authoritative service
 // (services1.arcgis.com/ioennV6PpG5Xodq0, owned by FX.AuthData), confirmed
