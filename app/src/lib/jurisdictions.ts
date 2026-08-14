@@ -38,7 +38,22 @@ interface CensusGeography {
   BASENAME?: string;
 }
 export interface CensusResponse {
-  result?: { addressMatches?: { geographies?: Record<string, CensusGeography[]> }[] };
+  result?: {
+    addressMatches?: {
+      geographies?: Record<string, CensusGeography[]>;
+      coordinates?: { x?: number; y?: number }; // x=longitude, y=latitude
+    }[];
+  };
+}
+
+/** Pure extraction: the matched address's own coordinates, straight out of
+    the SAME Census response already fetched for county/place/district
+    resolution — no second geocode. Feeds the Montgomery County ArcGIS
+    lookups below (montgomeryLocalDistricts), which need a real lat/lon, not
+    a FIPS code. */
+export function extractCoordinates(data: CensusResponse): { lon: number; lat: number } | null {
+  const c = data?.result?.addressMatches?.[0]?.coordinates;
+  return typeof c?.x === "number" && typeof c?.y === "number" ? { lon: c.x, lat: c.y } : null;
 }
 
 export interface ExtractedGeography {
@@ -64,6 +79,12 @@ export interface ExtractedDistricts {
   congressional: string | null;
   stateSenate: string | null;
   stateHouse: string | null;
+  // Montgomery-County-specific (migration 078) -- unlike the three fields
+  // above, these are NOT nationwide Census layers, so they're only ever
+  // populated for a Montgomery County resident and stay null everywhere
+  // else. See montgomeryLocalDistricts below.
+  countyCouncil: string | null;
+  boardOfEducation: string | null;
 }
 
 /** Pure extraction (unit-tested), same shape as extractCensusGeography: pulls
@@ -84,7 +105,59 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
     congressional: basename("119th Congressional Districts"),
     stateSenate: basename("2024 State Legislative Districts - Upper"),
     stateHouse: basename("2024 State Legislative Districts - Lower"),
+    countyCouncil: null, // filled in by montgomeryLocalDistricts, Montgomery County only
+    boardOfEducation: null,
   };
+}
+
+// Montgomery County's own public ArcGIS Server layers -- confirmed live this
+// session with a real point-in-polygon query against downtown
+// Gaithersburg's coordinates (39.1434, -77.2014): correctly returned
+// Council District 3 (COUNCIL field) and Board of Education District 1
+// (BDED field). No API key, no rate limit encountered. Montgomery County
+// FIPS is 24031 (state 24 + county 031) -- callers only invoke this for
+// that specific county, never nationwide (see resolveJurisdiction).
+const MOCO_COUNCIL_DISTRICTS_URL =
+  "https://montgomeryplans.org/server/rest/services/Overlays/County_Council_Districts/FeatureServer/0/query";
+const MOCO_BOE_DISTRICTS_URL =
+  "https://montgomeryplans.org/server9/rest/services/Overlays/Election_Boundaries/MapServer/15/query";
+
+async function arcgisDistrictLookup(url: string, field: string, lon: number, lat: number): Promise<string | null> {
+  try {
+    const u = new URL(url);
+    u.searchParams.set("geometry", `${lon},${lat}`);
+    u.searchParams.set("geometryType", "esriGeometryPoint");
+    u.searchParams.set("inSR", "4326");
+    u.searchParams.set("spatialRel", "esriSpatialRelIntersects");
+    u.searchParams.set("outFields", field);
+    u.searchParams.set("f", "json");
+    const res = await fetch(u, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: { attributes?: Record<string, unknown> }[] };
+    const value = data.features?.[0]?.attributes?.[field];
+    return typeof value === "string" && value.length > 0 ? value : null;
+  } catch {
+    // Never guess -- an unreachable ArcGIS server (or a genuine non-match,
+    // e.g. a point just outside Montgomery County) yields null the same as
+    // any other unresolved district: the existing disclosure banner stays
+    // honest, filterToOwnDistricts falls back to showing every seat.
+    return null;
+  }
+}
+
+/** Montgomery-County-specific district lookup (migration 078), fired only
+    when the resolved jurisdiction is Montgomery County or one of its
+    municipalities -- these are NOT a nationwide Census layer the way
+    congressional/state-legislative districts are, so this is real,
+    per-county infrastructure, not something every state gets for free.
+    Both queries run in parallel; either can independently come back null
+    without blocking the other. */
+export async function montgomeryLocalDistricts(lon: number, lat: number): Promise<{ countyCouncil: string | null; boardOfEducation: string | null }> {
+  const [countyCouncil, boardOfEducation] = await Promise.all([
+    arcgisDistrictLookup(MOCO_COUNCIL_DISTRICTS_URL, "COUNCIL", lon, lat),
+    arcgisDistrictLookup(MOCO_BOE_DISTRICTS_URL, "BDED", lon, lat),
+  ]);
+  return { countyCouncil, boardOfEducation };
 }
 
 /** Data-driven (not unit-tested — hits the DB; covered by the live end-to-end
@@ -189,7 +262,19 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
     if (geo === "no_match") return { outcome: "no_match", method: CENSUS_RESOLVER };
     const mapped = await jurisdictionForGeography(geo);
     if (mapped === "outside") return { outcome: "outside", method: CENSUS_RESOLVER };
-    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER, districts: extractDistricts(data) };
+    const districts = extractDistricts(data);
+    // Montgomery County FIPS = 24031 -- only fire the extra ArcGIS lookups
+    // for residents actually in that county (or one of its municipalities,
+    // which share the same county FIPS), never nationwide.
+    if (geo.stateFips === "24" && geo.countyFips === "031") {
+      const coords = extractCoordinates(data);
+      if (coords) {
+        const local = await montgomeryLocalDistricts(coords.lon, coords.lat);
+        districts.countyCouncil = local.countyCouncil;
+        districts.boardOfEducation = local.boardOfEducation;
+      }
+    }
+    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER, districts };
   } catch {
     // Local dev only: the crude Rockville/Montgomery regex matcher keeps
     // development working without network. In production this must NEVER
@@ -207,38 +292,63 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
         outcome: "ok",
         jurisdiction: resolveJurisdictionFromAddress(address),
         method: FALLBACK_RESOLVER,
-        districts: { congressional: null, stateSenate: null, stateHouse: null },
+        districts: { congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null },
       };
     }
     return { outcome: "resolver_unavailable", method: FALLBACK_RESOLVER };
   }
 }
 
-/** Narrows a resident's own ballot to their actual U.S. House and state-
-    legislature seats, dropping every OTHER district in their state — the
-    piece that finally makes `ballot_districts_note` unnecessary for federal
-    and state seats. Deliberately narrow: only titles this project's own
-    ingesters actually produce for these two tiers are matched ("U.S.
-    Representative — District N"; "State Senator/Representative/Delegate/
-    Assemblymember/Assembly Member — District N") — anything else
-    district-shaped (county council, Public Service Commission, judicial,
-    School Board seats, an office with no seat number at all like Governor)
-    passes through untouched, same as before this feature existed. A user
-    with no resolved district for a given tier (pre-migration-075 users,
-    the dev fallback resolver, or a real address the geocoder's district
-    layers didn't cover) sees every seat in that tier, same as before —
-    never a guessed district silently hiding real seats. */
+// Shared between filterToOwnDistricts and hasUnnarrowedDistrictSeats so the
+// two can never drift apart — "does this function know how to narrow this
+// title" must mean the same thing in both places. Deliberately narrow: only
+// titles this project's own ingesters/migrations actually produce for these
+// tiers are matched — anything else district-shaped (Public Service
+// Commission, judicial, an office with no seat number at all like Governor)
+// passes through untouched. County Council and Board of Education added
+// migration 078 (Montgomery County only, via montgomeryLocalDistricts);
+// every other pilot county's council/school-board districts still fall
+// through unmatched until their own GIS source is found.
+const OWN_DISTRICT_PATTERN =
+  /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Board of Education) — District (\S+)$/;
+
+function districtFieldFor(seatKind: string): keyof ExtractedDistricts | null {
+  if (seatKind === "U.S. Representative") return "congressional";
+  if (seatKind === "State Senator") return "stateSenate";
+  if (seatKind === "County Council") return "countyCouncil";
+  if (seatKind === "Board of Education") return "boardOfEducation";
+  if (seatKind.startsWith("State ")) return "stateHouse"; // Representative/Delegate/Assemblymember/Assembly Member
+  return null;
+}
+
+/** Narrows a resident's own ballot to their actual district-based seats,
+    dropping every OTHER district in their state/county — the piece that
+    makes `ballot_districts_note` unnecessary for the tiers it covers. A
+    user with no resolved district for a given tier (pre-migration users,
+    the dev fallback resolver, a real address the geocoder's district
+    layers didn't cover, or a non-Montgomery resident for the county-level
+    fields) sees every seat in that tier, same as before — never a guessed
+    district silently hiding real seats. */
 export function filterToOwnDistricts(offices: StackedOffice[], districts: ExtractedDistricts | null): StackedOffice[] {
   return offices.filter((o) => {
-    const m = o.title.match(/^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)) — District (\S+)$/);
+    const m = o.title.match(OWN_DISTRICT_PATTERN);
     if (!m) return true; // not a seat this function knows how to narrow — leave it alone
     const [, seatKind, districtInTitle] = m;
-    const mine = seatKind === "U.S. Representative" ? districts?.congressional
-      : seatKind === "State Senator" ? districts?.stateSenate
-      : districts?.stateHouse;
+    const field = districtFieldFor(seatKind);
+    const mine = field ? districts?.[field] : null;
     if (!mine) return true; // no resolved district for this tier — show them all, same as before
     return districtInTitle === mine;
   });
+}
+
+/** Does this resident's stack include a district-shaped seat this project
+    doesn't yet know how to narrow (e.g. a non-Montgomery county council)?
+    Drives the ballot page's disclosure banner — shown only when there's a
+    real remaining gap, not just because a title happens to contain the
+    word "District" (which is still true even for a correctly-narrowed
+    seat, since narrowing selects one row rather than renaming it). */
+export function hasUnnarrowedDistrictSeats(offices: StackedOffice[]): boolean {
+  return offices.some((o) => o.title.includes("District") && !OWN_DISTRICT_PATTERN.test(o.title));
 }
 
 export interface StackedOffice {
@@ -282,12 +392,15 @@ export interface UserResidence {
   congressional_district: string | null;
   state_senate_district: string | null;
   state_house_district: string | null;
+  county_council_district: string | null;
+  board_of_education_district: string | null;
 }
 
 export async function userResidence(userId: string): Promise<UserResidence | null> {
   const { rows } = await db().query(
     `SELECT j.ocd_id, j.name, j.level,
-            u.congressional_district, u.state_senate_district, u.state_house_district
+            u.congressional_district, u.state_senate_district, u.state_house_district,
+            u.county_council_district, u.board_of_education_district
        FROM users u JOIN jurisdictions j ON j.ocd_id = u.residence_jurisdiction_id
       WHERE u.id = $1`,
     [userId],

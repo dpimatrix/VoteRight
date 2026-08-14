@@ -1,0 +1,34 @@
+-- Montgomery County Council + Board of Education district precision on the
+-- ballot. Migration 075's own header explicitly flagged this as NOT covered
+-- ("county council districts aren't a Census TIGER geography... no
+-- equivalent free layer to request") -- that's still true nationwide, but
+-- Montgomery County itself publishes both boundary sets as free, public,
+-- no-API-key ArcGIS Server feature layers on its own GIS infrastructure:
+--
+--   County Council Districts:
+--     https://montgomeryplans.org/server/rest/services/Overlays/County_Council_Districts/FeatureServer/0
+--   Board of Education Districts:
+--     https://montgomeryplans.org/server9/rest/services/Overlays/Election_Boundaries/MapServer/15
+--
+-- Both confirmed live this session with a real point-in-polygon query
+-- against downtown Gaithersburg's coordinates (39.1434, -77.2014):
+-- correctly returned County Council District 3 (COUNCIL field, member
+-- Sidney Katz) and Board of Education District 1 (BDED field, member
+-- contact matching the real current officeholder). Uses the SAME lat/lon
+-- already returned by the Census geocoder call in resolveJurisdiction --
+-- no second geocode, just an additional lookup fired only when the
+-- resolved jurisdiction is Montgomery County or one of its municipalities.
+--
+-- Montgomery-County-specific by construction (unlike migration 075's three
+-- columns, which are nationwide via a Census layer) -- owner explicitly
+-- scoped this to Montgomery County only for now, other pilot counties
+-- (Prince George's, Fairfax, Arlington, DC) get their own research pass
+-- later if/when their own equivalent GIS sources are found. Nullable for
+-- the same reasons as migration 075: a pre-existing verified user has no
+-- value until their next re-verification, a non-Montgomery resident always
+-- stays NULL (not applicable), and any lookup failure (the county's ArcGIS
+-- server being unreachable) must never guess -- NULL and the existing
+-- disclosure banner is the honest fallback.
+ALTER TABLE users
+  ADD COLUMN county_council_district TEXT,
+  ADD COLUMN board_of_education_district TEXT;

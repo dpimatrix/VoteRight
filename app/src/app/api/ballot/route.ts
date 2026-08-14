@@ -1,5 +1,11 @@
 import { currentUserId } from "@/lib/anon";
-import { ballotForJurisdiction, filterToOwnDistricts, listBrowsableJurisdictions, userResidence } from "@/lib/jurisdictions";
+import {
+  ballotForJurisdiction,
+  filterToOwnDistricts,
+  hasUnnarrowedDistrictSeats,
+  listBrowsableJurisdictions,
+  userResidence,
+} from "@/lib/jurisdictions";
 
 /* JSON read-side counterpart to the / (ballot) page — used by the native app,
    which can't import server-only page.tsx modules. Mirrors app/src/app/page.tsx's
@@ -26,7 +32,13 @@ export async function GET(request: Request) {
   const offices = visited
     ? allOffices
     : filterToOwnDistricts(allOffices, residence
-        ? { congressional: residence.congressional_district, stateSenate: residence.state_senate_district, stateHouse: residence.state_house_district }
+        ? {
+            congressional: residence.congressional_district,
+            stateSenate: residence.state_senate_district,
+            stateHouse: residence.state_house_district,
+            countyCouncil: residence.county_council_district,
+            boardOfEducation: residence.board_of_education_district,
+          }
         : null);
 
   const jurisdictions: { id: string; name: string }[] = [];
@@ -43,6 +55,7 @@ export async function GET(request: Request) {
     residenceLevel: residence?.level ?? null,
     jurisdictions,
     offices,
+    hasUnnarrowedDistrictSeats: hasUnnarrowedDistrictSeats(offices),
     visiting: visited ? { ocdId: visited.ocd_id, name: visited.name } : null,
     // Kept in full (not filtered out) so a jurisdiction with children --
     // Montgomery County with Rockville underneath -- still shows as the

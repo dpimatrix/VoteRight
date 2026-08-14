@@ -103,6 +103,8 @@ CREATE TABLE users (
     congressional_district  TEXT,                      -- Census geocoder BASENAME (e.g. "8"); NULL until re-verified, added migration 075
     state_senate_district   TEXT,                      -- Census geocoder BASENAME; NULL until re-verified, added migration 075
     state_house_district    TEXT,                       -- Census geocoder BASENAME (e.g. "34A" for MD split sub-districts); NULL until re-verified, added migration 075
+    county_council_district TEXT,                      -- Montgomery County ArcGIS lookup; NULL unless resident is in Montgomery County, added migration 078
+    board_of_education_district TEXT,                  -- Montgomery County ArcGIS lookup; NULL unless resident is in Montgomery County, added migration 078
     verification_tier      TEXT NOT NULL DEFAULT 'unverified'
                               CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
     locale                  TEXT NOT NULL DEFAULT 'en',

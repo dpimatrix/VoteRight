@@ -42,7 +42,7 @@ const DICT = {
     seat_not_tracked: 'Not yet tracked',
     ballot_unscored_note: 'Unscored seats stay on the list — an incomplete ballot must never look complete.',
     ballot_districts_note:
-      "U.S. House and state legislature seats are narrowed to your own district automatically. Some other district seats (like county council) can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
+      "U.S. House, state legislature, and (in Montgomery County) County Council and Board of Education seats are narrowed to your own district automatically. Some other local district seats can't be yet — which one is yours depends on your exact address, so every district is shown until that lookup arrives.",
     ballot_addr_note: "City addresses (e.g., Rockville) add that city's seats. Verify your address to see your full stack.",
     ballot_state_only_note:
       'We have your federal and state-level offices — county and city-level detail is not covered for your address yet, so this ballot is real but not the complete local picture.',
@@ -305,7 +305,7 @@ const DICT = {
     seat_not_tracked: 'Aún sin seguimiento',
     ballot_unscored_note: 'Los cargos sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa.',
     ballot_districts_note:
-      'Los escaños de la Cámara de Representantes y la legislatura estatal se limitan automáticamente a tu propio distrito. Algunos otros escaños por distrito (como el concejo del condado) todavía no — cuál es el tuyo depende de tu dirección exacta, así que se muestran todos los distritos hasta que llegue esa búsqueda.',
+      'Los escaños de la Cámara de Representantes, la legislatura estatal y (en el condado de Montgomery) el Concejo del Condado y la Junta Escolar se limitan automáticamente a tu propio distrito. Algunos otros escaños de distrito local todavía no — cuál es el tuyo depende de tu dirección exacta, así que se muestran todos los distritos hasta que llegue esa búsqueda.',
     ballot_addr_note: 'Las direcciones de ciudad (p. ej., Rockville) añaden los escaños de esa ciudad. Verifica tu dirección para ver tu lista completa.',
     ballot_state_only_note:
       'Tenemos tus cargos federales y estatales — todavía no cubrimos el detalle a nivel de condado o ciudad para tu dirección, así que esta boleta es real pero no es el panorama local completo.',

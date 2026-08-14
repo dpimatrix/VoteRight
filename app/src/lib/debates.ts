@@ -80,9 +80,13 @@ export async function verifyAddress(
     // district from a previous address sitting around).
     await client.query(
       `UPDATE users SET residence_jurisdiction_id = $2,
-              congressional_district = $3, state_senate_district = $4, state_house_district = $5
+              congressional_district = $3, state_senate_district = $4, state_house_district = $5,
+              county_council_district = $6, board_of_education_district = $7
         WHERE id = $1`,
-      [userId, residence, res.districts.congressional, res.districts.stateSenate, res.districts.stateHouse],
+      [
+        userId, residence, res.districts.congressional, res.districts.stateSenate, res.districts.stateHouse,
+        res.districts.countyCouncil, res.districts.boardOfEducation,
+      ],
     );
     await client.query("COMMIT");
     return "ok";

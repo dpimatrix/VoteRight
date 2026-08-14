@@ -35,6 +35,7 @@ interface BallotResponse {
   residenceLevel: string | null;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
+  hasUnnarrowedDistrictSeats: boolean;
   visiting: Jurisdiction | null;
   browsable: {
     ocd_id: string;
@@ -177,7 +178,7 @@ export default function BallotScreen() {
             {d.ballot_state_only_note}
           </ThemedText>
         )}
-        {data && data.offices.some((o) => o.title.includes('District')) && (
+        {data && data.hasUnnarrowedDistrictSeats && (
           <ThemedText type="small" themeColor="textSecondary">
             {d.ballot_districts_note}
           </ThemedText>

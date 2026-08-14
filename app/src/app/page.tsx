@@ -7,6 +7,7 @@ import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
   filterToOwnDistricts,
+  hasUnnarrowedDistrictSeats,
   listBrowsableJurisdictions,
   userResidence,
   type StackedOffice,
@@ -108,14 +109,20 @@ export default async function BallotPage({
   const displayId = visited ? visited.ocd_id : residenceId;
 
   const allOffices = displayId ? await ballotForJurisdiction(displayId) : [];
-  // Narrow to the resident's own U.S. House/state-legislature seats — but
-  // only on their own ballot, never while browsing another jurisdiction as
-  // a visitor: a visitor's own resolved district (if they have one at all)
-  // has nothing to do with the jurisdiction they're looking at.
+  // Narrow to the resident's own district-based seats — but only on their
+  // own ballot, never while browsing another jurisdiction as a visitor: a
+  // visitor's own resolved district (if they have one at all) has nothing
+  // to do with the jurisdiction they're looking at.
   const offices = visited
     ? allOffices
     : filterToOwnDistricts(allOffices, residence
-        ? { congressional: residence.congressional_district, stateSenate: residence.state_senate_district, stateHouse: residence.state_house_district }
+        ? {
+            congressional: residence.congressional_district,
+            stateSenate: residence.state_senate_district,
+            stateHouse: residence.state_house_district,
+            countyCouncil: residence.county_council_district,
+            boardOfEducation: residence.board_of_education_district,
+          }
         : null);
 
   // Jurisdictions in stack order (deepest first), from the rows themselves.
@@ -199,7 +206,7 @@ export default async function BallotPage({
         {!visited && residence?.level === "state" && (
           <p className="nopos">{d.ballot_state_only_note}</p>
         )}
-        {offices.some((o) => o.title.includes("District")) && (
+        {hasUnnarrowedDistrictSeats(offices) && (
           <p className="nopos">{d.ballot_districts_note}</p>
         )}
         <p className="nopos">{d.ballot_addr_note}</p>
