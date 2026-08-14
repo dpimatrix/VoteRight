@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import {
   certifyReferendum,
@@ -28,5 +29,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } else {
     return new Response("unknown action", { status: 400 });
   }
-  return Response.redirect(new URL("/admin/mandates", request.url), 303);
+  return redirectTo("/admin/mandates", request);
 }

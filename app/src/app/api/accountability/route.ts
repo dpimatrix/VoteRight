@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { createCampaign, creatableTargets, listCampaigns } from "@/lib/accountability";
 import { currentUserId, verifiedUserId } from "@/lib/anon";
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   const res = await createCampaign({
     userId,
     pathwayId: String(form.get("pathway_id") ?? ""),
@@ -43,5 +44,5 @@ export async function POST(request: Request) {
     description: String(form.get("description") ?? ""),
   });
   const dest = res.ok ? `/accountability/${res.id}?lang=${lang}` : `/accountability?lang=${lang}`;
-  return Response.redirect(new URL(dest, request.url), 303);
+  return redirectTo(dest, request);
 }

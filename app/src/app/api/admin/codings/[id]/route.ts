@@ -1,5 +1,6 @@
 import { isAdmin } from "@/lib/adminAuth";
 import { adminCodingAction } from "@/lib/queries";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(
   request: Request,
@@ -13,5 +14,5 @@ export async function POST(
     return new Response("unknown action", { status: 400 });
   }
   await adminCodingAction(id, action as "confirm" | "reject" | "up" | "down");
-  return Response.redirect(new URL("/admin/coding", request.url), 303);
+  return redirectTo("/admin/coding", request);
 }

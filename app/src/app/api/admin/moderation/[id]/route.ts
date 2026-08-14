@@ -1,5 +1,6 @@
 import { isAdmin } from "@/lib/adminAuth";
 import { moderate } from "@/lib/debates";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
@@ -8,5 +9,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const action = String(form.get("action") ?? "");
   if (!["approved", "removed"].includes(action)) return new Response("bad action", { status: 400 });
   await moderate(id, action as "approved" | "removed");
-  return Response.redirect(new URL("/admin/moderation", request.url), 303);
+  return redirectTo("/admin/moderation", request);
 }

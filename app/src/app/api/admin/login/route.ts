@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { cookies } from "next/headers";
 import { loginWithCode, sessionCookieName, sessionMaxAgeSeconds } from "@/lib/adminAuth";
 
@@ -20,5 +21,5 @@ export async function POST(request: Request) {
   } else {
     await new Promise((r) => setTimeout(r, 1000));
   }
-  return Response.redirect(new URL("/admin", request.url), 303);
+  return redirectTo("/admin", request);
 }

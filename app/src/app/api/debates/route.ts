@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { verifiedUserId } from "@/lib/anon";
 import { createProposal, listProposals } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   const res = await createProposal({
     userId,
     topicId: String(form.get("topicId") ?? ""),
@@ -40,6 +41,6 @@ export async function POST(request: Request) {
     publicKeyFingerprint: (form.get("publicKeyFingerprint") as string) || undefined,
     contextHash: hashContext(request.headers.get("x-forwarded-for") ?? "unknown", request.headers.get("user-agent") ?? "unknown"),
   });
-  if (res.signatureInvalid) return Response.redirect(new URL(`/debates?lang=${lang}&error=signature`, request.url), 303);
-  return Response.redirect(new URL(`/debates/${res.id}?lang=${lang}`, request.url), 303);
+  if (res.signatureInvalid) return redirectTo(`/debates?lang=${lang}&error=signature`, request);
+  return redirectTo(`/debates/${res.id}?lang=${lang}`, request);
 }

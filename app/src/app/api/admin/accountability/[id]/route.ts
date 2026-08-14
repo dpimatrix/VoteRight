@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { adminUpdateCampaign } from "@/lib/accountability";
 import { isAdmin } from "@/lib/adminAuth";
 
@@ -10,5 +11,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     String(form.get("status") ?? "") || undefined,
     String(form.get("external_petition_status") ?? "") || undefined,
   );
-  return Response.redirect(new URL("/admin/accountability", request.url), 303);
+  return redirectTo("/admin/accountability", request);
 }

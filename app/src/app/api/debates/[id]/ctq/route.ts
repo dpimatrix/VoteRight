@@ -1,5 +1,6 @@
 import { verifiedUserId } from "@/lib/anon";
 import { ctqVote } from "@/lib/debates";
+import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: threadId } = await params;
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
   const back = String(form.get("back") ?? "/debates");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   await ctqVote(threadId, userId);
-  return Response.redirect(new URL(`${back}?lang=${lang}`, request.url), 303);
+  return redirectTo(`${back}?lang=${lang}`, request);
 }

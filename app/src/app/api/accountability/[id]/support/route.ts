@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { supportCampaign } from "@/lib/accountability";
 import { verifiedUserId } from "@/lib/anon";
 import { userTier } from "@/lib/debates";
@@ -28,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   const signature = form.get("signature") as string | null;
   const publicKeyFingerprint = form.get("publicKeyFingerprint") as string | null;
   const res = await supportCampaign(
@@ -44,5 +45,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       : undefined,
   );
   const err = res === "not_eligible" ? "&e=nel" : res === "signature_invalid" ? "&e=sig" : "";
-  return Response.redirect(new URL(`/accountability/${id}?lang=${lang}${err}`, request.url), 303);
+  return redirectTo(`/accountability/${id}?lang=${lang}${err}`, request);
 }

@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { currentOrNewUserId } from "@/lib/anon";
 import { verifyAddress } from "@/lib/debates";
 
@@ -22,5 +23,5 @@ export async function POST(request: Request) {
         : outcome === "resolver_unavailable"
           ? `/verify?bad=unavailable&lang=${lang}`
           : `/verify?bad=1&lang=${lang}`; // bad_format and no_match share the "check the address" message
-  return Response.redirect(new URL(dest, request.url), 303);
+  return redirectTo(dest, request);
 }

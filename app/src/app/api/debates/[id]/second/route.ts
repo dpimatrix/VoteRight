@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { verifiedUserId } from "@/lib/anon";
 import { secondProposal, userTier } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
@@ -27,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   const signature = form.get("signature") as string | null;
   const publicKeyFingerprint = form.get("publicKeyFingerprint") as string | null;
   const res = await secondProposal(
@@ -43,5 +44,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       : undefined,
   );
   const dest = "selfSecond" in res && res.selfSecond ? `/debates/${id}?lang=${lang}&error=self` : `/debates/${id}?lang=${lang}`;
-  return Response.redirect(new URL(dest, request.url), 303);
+  return redirectTo(dest, request);
 }

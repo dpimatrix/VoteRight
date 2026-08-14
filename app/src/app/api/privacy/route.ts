@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { currentOrNewUserId } from "@/lib/anon";
 import { createRequest, type RequestType } from "@/lib/privacy";
 
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
   const lang = String(form.get("lang") ?? "en");
   const type = String(form.get("type") ?? "");
   if (!TYPES.includes(type as RequestType)) {
-    return Response.redirect(new URL(`/privacy/request?lang=${lang}`, request.url), 303);
+    return redirectTo(`/privacy/request?lang=${lang}`, request);
   }
   // No verification gate: MODPA rights belong to everyone we hold data about,
   // including unverified visitors — the cookie identity IS the authentication,
@@ -21,5 +22,5 @@ export async function POST(request: Request) {
     responseContact: String(form.get("contact") ?? "") || undefined,
     appealOf: String(form.get("appeal_of") ?? "") || undefined,
   });
-  return Response.redirect(new URL(`/privacy/request?lang=${lang}&ok=1`, request.url), 303);
+  return redirectTo(`/privacy/request?lang=${lang}&ok=1`, request);
 }

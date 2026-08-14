@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { verifiedUserId } from "@/lib/anon";
 import { castBallot } from "@/lib/referenda";
 
@@ -20,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
   const choice = String(form.get("choice") ?? "");
-  if (!userId) return Response.redirect(new URL(`/verify?lang=${lang}`, request.url), 303);
+  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   await castBallot(id, userId, choice);
-  return Response.redirect(new URL(`/referenda/${id}?lang=${lang}`, request.url), 303);
+  return redirectTo(`/referenda/${id}?lang=${lang}`, request);
 }

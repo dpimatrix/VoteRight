@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { scheduleReferendum } from "@/lib/referenda";
 
@@ -10,5 +11,5 @@ export async function POST(request: Request) {
     String(form.get("opens_at") ?? ""),
     String(form.get("closes_at") ?? ""),
   );
-  return Response.redirect(new URL("/admin/mandates", request.url), 303);
+  return redirectTo("/admin/mandates", request);
 }

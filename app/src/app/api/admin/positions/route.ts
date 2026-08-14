@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { createPositionFromVote } from "@/lib/positions";
 
@@ -13,5 +14,5 @@ export async function POST(request: Request) {
     statement: String(form.get("statement") ?? ""),
   });
   const q = res === "ok" ? "ok=1" : `e=${res}`;
-  return Response.redirect(new URL(`/admin/positions?politician=${politicianId}&${q}`, request.url), 303);
+  return redirectTo(`/admin/positions?politician=${politicianId}&${q}`, request);
 }

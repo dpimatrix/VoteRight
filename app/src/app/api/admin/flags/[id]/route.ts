@@ -1,4 +1,5 @@
 import { isAdmin } from "@/lib/adminAuth";
+import { redirectTo } from "@/lib/redirect";
 import {
   adminAttachEvidence,
   adminFlagEvent,
@@ -32,5 +33,5 @@ export async function POST(
   } else {
     return new Response("unknown action", { status: 400 });
   }
-  return Response.redirect(new URL(`/admin/disputes/${id}`, request.url), 303);
+  return redirectTo(`/admin/disputes/${id}`, request);
 }

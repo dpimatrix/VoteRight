@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { recordRaceOutcome } from "@/lib/referenda";
 
@@ -7,5 +8,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const form = await request.formData();
   const won = form.getAll("won").map(String).filter(Boolean);
   await recordRaceOutcome(id, won);
-  return Response.redirect(new URL("/admin/mandates", request.url), 303);
+  return redirectTo("/admin/mandates", request);
 }

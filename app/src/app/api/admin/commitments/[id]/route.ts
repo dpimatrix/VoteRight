@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { recordCommitment } from "@/lib/referenda";
 
@@ -14,5 +15,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     citationTitle: String(form.get("title") ?? "") || undefined,
   });
   const err = res === "needs_citation" ? "?e=cite" : "";
-  return Response.redirect(new URL(`/admin/mandates${err}`, request.url), 303);
+  return redirectTo(`/admin/mandates${err}`, request);
 }

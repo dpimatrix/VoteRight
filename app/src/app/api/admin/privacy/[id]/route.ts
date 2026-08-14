@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { adminResolveRequest, executeDeletion } from "@/lib/privacy";
 
@@ -15,5 +16,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } else {
     return new Response("unknown action", { status: 400 });
   }
-  return Response.redirect(new URL("/admin/privacy", request.url), 303);
+  return redirectTo("/admin/privacy", request);
 }

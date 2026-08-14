@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { cookies } from "next/headers";
 import { listBrowsableJurisdictions } from "@/lib/jurisdictions";
 
@@ -17,5 +18,5 @@ export async function POST(request: Request) {
       store.set("vr_visit", target, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 60 * 60 * 24, path: "/" });
     }
   }
-  return Response.redirect(new URL(`/?lang=${lang}`, request.url), 303);
+  return redirectTo(`/?lang=${lang}`, request);
 }

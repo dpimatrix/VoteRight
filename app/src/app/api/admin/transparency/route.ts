@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { isAdmin } from "@/lib/adminAuth";
 import { adminAddEndorsement, adminAddExpenditure } from "@/lib/transparency";
 
@@ -31,5 +32,5 @@ export async function POST(request: Request) {
   } else {
     return new Response("unknown action", { status: 400 });
   }
-  return Response.redirect(new URL(`/admin/transparency?${res === "ok" ? "ok=1" : "e=1"}`, request.url), 303);
+  return redirectTo(`/admin/transparency?${res === "ok" ? "ok=1" : "e=1"}`, request);
 }
