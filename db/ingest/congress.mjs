@@ -134,14 +134,29 @@ async function wikidataPhotoUrls(bioguideIds) {
     null on any failure -- logged, never thrown, same never-guess posture
     as the rest of this ingester (see e.g. arcgisDistrictLookup in
     jurisdictions.ts). Caller is responsible for the idempotency check
-    (does the file already exist) -- this always downloads when called. */
-async function downloadPhoto(bioguideId, commonsUrl) {
+    (does the file already exist) -- this always downloads when called.
+
+    Retries on 429 specifically (not other failures -- a genuine 404 or a
+    malformed URL will never succeed no matter how many times it's
+    retried): real bug found live (2026-08-14) the same day the batched
+    Wikidata *lookup* got fixed -- 530 downloads at a flat 150ms apart
+    sailed through Commons' own burst allowance for about 184 of them,
+    then hit the identical 429 wall the lookup step did. Respects a
+    Retry-After header if Commons sends one; otherwise backs off
+    2s/4s/8s. */
+async function downloadPhoto(bioguideId, commonsUrl, attempt = 1) {
   const filename = `${bioguideId.toLowerCase()}.jpg`;
   const diskPath = path.join(PHOTO_DIR, filename);
   const thumbUrl = new URL(commonsUrl);
   thumbUrl.searchParams.set("width", "200");
   try {
     const res = await fetch(thumbUrl, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(10000) });
+    if (res.status === 429 && attempt <= 3) {
+      const retryAfterMs = Number(res.headers.get("retry-after")) * 1000 || 2 ** attempt * 1000;
+      console.warn(`photo download for ${bioguideId}: HTTP 429, retrying in ${retryAfterMs}ms (attempt ${attempt})`);
+      await sleep(retryAfterMs);
+      return downloadPhoto(bioguideId, commonsUrl, attempt + 1);
+    }
     if (!res.ok) {
       console.warn(`photo download for ${bioguideId}: HTTP ${res.status} from ${thumbUrl}`);
       photoStats.downloadFailed += 1;
@@ -396,7 +411,7 @@ try {
       if (localPath) {
         await client.query(`UPDATE politicians SET photo_url = $2 WHERE id = $1`, [polId, localPath]);
       }
-      await sleep(150); // stagger downloads too -- polite to Commons, not just Wikidata's query service
+      await sleep(350); // stagger downloads too -- polite to Commons, not just Wikidata's query service
     }
   }
 
