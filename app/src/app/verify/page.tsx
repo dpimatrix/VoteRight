@@ -1,3 +1,4 @@
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { lastVerifiedAt, userTier } from "@/lib/debates";
@@ -28,15 +29,24 @@ function AddressForm({
       ) : null}
       <form className="admform" method="post" action="/api/verify">
         <input type="hidden" name="lang" value={lang} />
-        {/* Browser-native autofill only — deliberately NO third-party
-            autocomplete: as-you-type services stream partial addresses
-            (plus the user's IP) to a vendor before submission, which
-            breaks the §10 posture. Production-grade validation happens
-            server-side at submit (US: Census Bureau geocoder — official,
-            free, returns the county/place geography the resolver needs;
-            EU markets: national open address registries, decided
-            per-country in EXPANSION-READINESS.md at market entry). */}
-        <input type="text" name="address" autoComplete="street-address" placeholder={d.verify_ph} aria-label={d.verify_ph} required />
+        {/* Predictive autocomplete (2026-08-14, owner-approved reversal of
+            the original browser-native-only decision below) drives the
+            on-screen typing experience only -- production-grade resolution
+            still happens server-side at submit exactly as before (US:
+            Census Bureau geocoder — official, free, returns the
+            county/place geography the resolver needs, plus the Montgomery
+            County ArcGIS lookups migration 078 added; EU markets: national
+            open address registries, decided per-country in
+            EXPANSION-READINESS.md at market entry). Original reasoning for
+            starting browser-native-only, kept for context: as-you-type
+            services stream partial addresses (plus the user's IP) to a
+            vendor before submission, which breaks the §10 posture --
+            real testing showed the bare field felt incomplete enough that
+            the owner chose to accept that tradeoff. See
+            AddressAutocomplete.tsx for the narrow blast-radius design
+            (falls back to a plain input with zero third-party calls if
+            NEXT_PUBLIC_GOOGLE_PLACES_API_KEY isn't set). */}
+        <AddressAutocomplete placeholder={d.verify_ph} ariaLabel={d.verify_ph} />
         <button type="submit">{submitLabel}</button>
       </form>
       <div className="privnote">

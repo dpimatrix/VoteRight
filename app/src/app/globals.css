@@ -270,4 +270,9 @@ textarea.statement { width: 100%; border: 1px solid var(--line); border-radius: 
 .admform { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.5rem 0; }
 .admform input[type="text"], .admform input[type="password"] { flex: 1; min-width: 12ch; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.88rem; padding: 0.5rem 0.6rem; }
 .admform button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.84rem; font-weight: 700; }
+.addr-autocomplete { position: relative; flex: 1; min-width: 12ch; }
+.addr-autocomplete input[type="text"] { width: 100%; }
+.addr-suggestions { position: absolute; top: calc(100% + 0.25rem); left: 0; right: 0; z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; list-style: none; margin: 0; padding: 0.25rem; max-height: 14rem; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.addr-suggestion { padding: 0.5rem 0.6rem; border-radius: 8px; font-size: 0.85rem; cursor: pointer; color: var(--ink); }
+.addr-suggestion:hover, .addr-suggestion.active { background: var(--surface-2); }
 .poles-note { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
