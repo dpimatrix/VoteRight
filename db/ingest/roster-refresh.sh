@@ -57,19 +57,41 @@ export PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"
 # processes). Prefer .env.production (the real deploy's own values); only
 # fall back to .env.local for a key that isn't there, rather than letting a
 # stale dev value silently win over a real production one.
+#
+# read_env_var, not a plain grep -m1 | cut: found live 2026-08-15 running
+# this for the first time against the real app/.env.production --
+# CONGRESS_API_KEY was defined TWICE (an old value, then the real current
+# one below it), and grep -m1 (first match) silently grabbed the stale
+# one; separately, OPENSTATES_API_KEY's value there is wrapped in quotes,
+# and a plain `cut -d= -f2-` sent the literal quote characters as part of
+# the credential. Both APIs correctly rejected the results (congress.gov
+# 403, OpenStates 401) -- confirmed live by reproducing an invalid-key
+# request against each and getting the same codes. Neither is a problem
+# with the .env file itself (duplicates and quoting are both completely
+# normal in a real .env file) -- the extraction needed to handle both:
+# last matching line wins (matches "later definition overrides earlier",
+# the same semantics as sourcing a shell file with a repeated
+# assignment), and one layer of surrounding "..."/'...' quotes is
+# stripped if present.
+read_env_var() {
+  local var_name="$1" file="$2" raw
+  raw="$(grep "^${var_name}=" "$file" 2>/dev/null | tail -1 | cut -d= -f2-)"
+  if [[ "$raw" == \"*\" && "$raw" == *\" ]]; then
+    raw="${raw:1:-1}"
+  elif [[ "$raw" == \'*\' && "$raw" == *\' ]]; then
+    raw="${raw:1:-1}"
+  fi
+  echo "$raw"
+}
 DATABASE_URL="${DATABASE_URL:-}"
 CONGRESS_API_KEY="${CONGRESS_API_KEY:-}"
 OPENSTATES_API_KEY="${OPENSTATES_API_KEY:-}"
-if [ -f app/.env.production ]; then
-  [ -z "$DATABASE_URL" ] && DATABASE_URL="$(grep -m1 '^DATABASE_URL=' app/.env.production | cut -d= -f2-)"
-  [ -z "$CONGRESS_API_KEY" ] && CONGRESS_API_KEY="$(grep -m1 '^CONGRESS_API_KEY=' app/.env.production | cut -d= -f2-)"
-  [ -z "$OPENSTATES_API_KEY" ] && OPENSTATES_API_KEY="$(grep -m1 '^OPENSTATES_API_KEY=' app/.env.production | cut -d= -f2-)"
-fi
-if [ -f app/.env.local ]; then
-  [ -z "$DATABASE_URL" ] && DATABASE_URL="$(grep -m1 '^DATABASE_URL=' app/.env.local | cut -d= -f2-)"
-  [ -z "$CONGRESS_API_KEY" ] && CONGRESS_API_KEY="$(grep -m1 '^CONGRESS_API_KEY=' app/.env.local | cut -d= -f2-)"
-  [ -z "$OPENSTATES_API_KEY" ] && OPENSTATES_API_KEY="$(grep -m1 '^OPENSTATES_API_KEY=' app/.env.local | cut -d= -f2-)"
-fi
+for envfile in app/.env.production app/.env.local; do
+  [ -f "$envfile" ] || continue
+  [ -z "$DATABASE_URL" ] && DATABASE_URL="$(read_env_var DATABASE_URL "$envfile")"
+  [ -z "$CONGRESS_API_KEY" ] && CONGRESS_API_KEY="$(read_env_var CONGRESS_API_KEY "$envfile")"
+  [ -z "$OPENSTATES_API_KEY" ] && OPENSTATES_API_KEY="$(read_env_var OPENSTATES_API_KEY "$envfile")"
+done
 export DATABASE_URL CONGRESS_API_KEY OPENSTATES_API_KEY
 
 echo "=== roster-refresh $(date -u +%FT%TZ) ==="
