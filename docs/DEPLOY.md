@@ -36,9 +36,13 @@ preferred consolidating onto it.
   VPS's real IP — deliberately not "DNS only", which would remove that protection for
   no benefit). SSL/TLS mode: **Full (strict)** — encrypts Cloudflare↔origin using the
   real AutoSSL cert, not just visitor↔Cloudflare.
-- **Deploys**: manual — `cd /home/voteright/repo && git pull`, then `npm run build`
-  (as the `voteright` user, `export PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"` first)
-  and `systemctl --user restart voteright` (with `XDG_RUNTIME_DIR=/run/user/$(id -u)`
+- **Deploys**: manual — `cd /home/voteright/repo && git pull`, **then `cd app`**
+  before `npm run build` (as the `voteright` user, `export
+  PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"` first) — `package.json` lives in `app/`,
+  not the repo root, so running `npm run build` from `repo/` itself fails outright
+  with `ENOENT ... open '/home/voteright/repo/package.json'` (hit live 2026-08-15;
+  this line previously read as if the build ran from repo root). Then
+  `systemctl --user restart voteright` (with `XDG_RUNTIME_DIR=/run/user/$(id -u)`
   exported first if it's a fresh shell). Deliberately **not** automated via GitHub
   Actions (considered and declined). **Copying files without a build+restart does
   nothing** — `next start` serves the pre-built `.next` folder, not the source files.
