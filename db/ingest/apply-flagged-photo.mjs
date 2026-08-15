@@ -108,49 +108,69 @@ await client.connect();
 const run = await client.query(`INSERT INTO ingestion_runs (source) VALUES ($1) RETURNING id`, ["statewide-official-photos-flagged-applied"]);
 const runId = run.rows[0].id;
 
+// Real gap found live 2026-08-15: a single malformed id (two ids pasted
+// together into one string by a terminal mangling a very long command
+// line) reached the UUID column as-is, Postgres threw a type-cast error,
+// and that killed the WHOLE batch -- 60 valid, still-unapplied ids got
+// silently abandoned along with the one bad one. A bad id should be
+// skipped, not fatal to everyone after it in the list.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 try {
   let applied = 0;
   for (const id of ids) {
-    const { rows } = await client.query(
-      `SELECT p.id, p.full_name, p.photo_url, o.title, o.jurisdiction_id
-         FROM politicians p JOIN offices o ON o.id = p.current_office_id
-        WHERE p.id = $1`,
-      [id],
-    );
-    const row = rows[0];
-    if (!row) {
-      console.warn(`${id}: no such politician`);
-      continue;
-    }
-    if (row.photo_url) {
-      console.warn(`${row.full_name} (${id}): already has a photo_url, skipped`);
-      continue;
-    }
-    const stateSlug = row.jurisdiction_id.split(":").pop();
-    const tierSlug = TIER_SLUG[row.title];
-    if (!tierSlug) {
-      console.warn(`${row.full_name} (${id}): title "${row.title}" isn't one of this script's known tiers, skipped`);
-      continue;
-    }
-    const candidates = await wikidataAnyPhoto(row.full_name);
-    if (candidates.length === 0) {
-      console.warn(`${row.full_name} (${id}): no Wikidata photo found on re-check -- nothing applied`);
-      continue;
-    }
-    if (candidates.length > 1) {
-      console.warn(`${row.full_name} (${id}): ${candidates.length} distinct Wikidata people share this name on re-check -- ambiguous, nothing applied`);
-      continue;
-    }
-    const imgUrl = new URL(candidates[0].image.replace(/^http:/, "https:"));
-    imgUrl.searchParams.set("width", "200");
-    const slug = `${stateSlug}-${tierSlug}`;
-    const localPath = await downloadPhoto(slug, imgUrl.toString());
-    if (localPath) {
-      await client.query(`UPDATE politicians SET photo_url = $2 WHERE id = $1`, [row.id, localPath]);
-      console.log(`${row.full_name} (${id}): applied -> ${localPath}`);
-      applied += 1;
-    } else {
-      console.warn(`${row.full_name} (${id}): download failed, nothing applied`);
+    // Everything for this one id is inside its own try/catch -- an
+    // unexpected failure for ANY reason (not just a malformed id) skips
+    // just this one person and moves on, rather than aborting the whole
+    // batch and silently abandoning everyone still queued after them.
+    try {
+      if (!UUID_RE.test(id)) {
+        console.warn(`${id}: not a valid id (malformed/concatenated?), skipped`);
+        continue;
+      }
+      const { rows } = await client.query(
+        `SELECT p.id, p.full_name, p.photo_url, o.title, o.jurisdiction_id
+           FROM politicians p JOIN offices o ON o.id = p.current_office_id
+          WHERE p.id = $1`,
+        [id],
+      );
+      const row = rows[0];
+      if (!row) {
+        console.warn(`${id}: no such politician`);
+        continue;
+      }
+      if (row.photo_url) {
+        console.warn(`${row.full_name} (${id}): already has a photo_url, skipped`);
+        continue;
+      }
+      const stateSlug = row.jurisdiction_id.split(":").pop();
+      const tierSlug = TIER_SLUG[row.title];
+      if (!tierSlug) {
+        console.warn(`${row.full_name} (${id}): title "${row.title}" isn't one of this script's known tiers, skipped`);
+        continue;
+      }
+      const candidates = await wikidataAnyPhoto(row.full_name);
+      if (candidates.length === 0) {
+        console.warn(`${row.full_name} (${id}): no Wikidata photo found on re-check -- nothing applied`);
+        continue;
+      }
+      if (candidates.length > 1) {
+        console.warn(`${row.full_name} (${id}): ${candidates.length} distinct Wikidata people share this name on re-check -- ambiguous, nothing applied`);
+        continue;
+      }
+      const imgUrl = new URL(candidates[0].image.replace(/^http:/, "https:"));
+      imgUrl.searchParams.set("width", "200");
+      const slug = `${stateSlug}-${tierSlug}`;
+      const localPath = await downloadPhoto(slug, imgUrl.toString());
+      if (localPath) {
+        await client.query(`UPDATE politicians SET photo_url = $2 WHERE id = $1`, [row.id, localPath]);
+        console.log(`${row.full_name} (${id}): applied -> ${localPath}`);
+        applied += 1;
+      } else {
+        console.warn(`${row.full_name} (${id}): download failed, nothing applied`);
+      }
+    } catch (e) {
+      console.warn(`${id}: threw ${e.message ?? e}, skipped`);
     }
     await sleep(500);
   }
