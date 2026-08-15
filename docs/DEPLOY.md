@@ -41,7 +41,13 @@ preferred consolidating onto it.
   PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"` first) — `package.json` lives in `app/`,
   not the repo root, so running `npm run build` from `repo/` itself fails outright
   with `ENOENT ... open '/home/voteright/repo/package.json'` (hit live 2026-08-15;
-  this line previously read as if the build ran from repo root). Then
+  this line previously read as if the build ran from repo root). **Run `npm install`
+  before `npm run build` whenever the pulled commit touched `package.json`/
+  `package-lock.json`** (hit live 2026-08-15, the first commit all deploy-session that
+  added a new dependency: `npm run build` only runs `next build`, it never installs
+  anything, so a newly-added package fails with `Module not found` until `npm install`
+  actually puts it in `node_modules` — safe to run on every deploy regardless, it's a
+  fast no-op when nothing changed). Then
   `systemctl --user restart voteright` (with `XDG_RUNTIME_DIR=/run/user/$(id -u)`
   exported first if it's a fresh shell). Deliberately **not** automated via GitHub
   Actions (considered and declined). **Copying files without a build+restart does
