@@ -1,0 +1,10 @@
+[Unit]
+Description=VoteRight roster refresh (Congress + state legislators)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/repo
+ExecStart=%h/repo/db/ingest/roster-refresh.sh
+# No StandardOutput/StandardError override -- systemd --user services
+# default to the journal, which captures this automatically with zero
+# extra config. View with: journalctl --user -u roster-refresh.service

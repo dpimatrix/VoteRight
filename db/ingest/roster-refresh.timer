@@ -1,0 +1,15 @@
+[Unit]
+Description=Run VoteRight roster refresh monthly
+
+[Timer]
+# 1st of the month, 03:00 local server time -- roster changes are
+# slow-moving (DATA-OPS.md §6/7), no need for anything more frequent.
+# Adjust OnCalendar if a different cadence/time is ever wanted.
+OnCalendar=*-*-01 03:00:00
+# If the VPS happens to be down/rebooting exactly at the scheduled time,
+# run the missed cycle as soon as it's back up instead of silently
+# skipping it -- the one real advantage over plain cron here.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

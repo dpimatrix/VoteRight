@@ -1,0 +1,16 @@
+# Shell scripts run on the Linux VPS, authored on Windows dev machines --
+# without this, git's default autocrlf behavior on Windows can commit them
+# with CRLF line endings, which typically breaks bash outright (a CRLF
+# shebang line commonly fails as "bad interpreter: ...bash^M: no such file
+# or directory"). Found live 2026-08-15: the already-committed
+# db/checkpoint-and-publish.sh has CRLF endings in this repo right now --
+# if that script is actually running via cron on the VPS today, it was
+# presumably normalized to LF there out-of-band (e.g. dos2unix, or a editor
+# save) rather than by anything git itself enforced. This makes LF the
+# enforced, repo-level default going forward instead of relying on that
+# happening by hand every time.
+*.sh text eol=lf
+# systemd unit files -- less certain to break on a stray \r than bash's
+# shebang line is, but not worth finding out live on the VPS either.
+*.service text eol=lf
+*.timer text eol=lf

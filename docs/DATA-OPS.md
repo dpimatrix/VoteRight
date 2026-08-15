@@ -99,16 +99,24 @@ geocoder call at submit, replacing the dev city-matcher — same contract, real 
 **Superseded by the self-hosted VPS move (DEPLOY.md, 2026-07-29)**: GitHub Actions can no
 longer reach Postgres directly — it's local to the VPS, not a publicly reachable Neon
 instance, same reasoning DEPLOY.md gives for the audit-checkpoint cron running on the VPS
-itself rather than in CI. Ingest scripts today are run manually on the VPS (`node
-db/ingest/...`, `DATABASE_URL` sourced from `app/.env.production`) — a real `cron`/systemd
-timer on the VPS is the natural next step for any source below that's proven safe to run
-unattended, not yet set up. **`congress.mjs` and `openstates-legislature.mjs` specifically
-became schedulable 2026-08-15**: both now correctly retire a departed officeholder (clear
+itself rather than in CI. Most ingest scripts are still run manually on the VPS (`node
+db/ingest/...`, `DATABASE_URL` sourced from `app/.env.production`) — a per-script
+`cron`/systemd timer is the natural next step for any source that's proven safe to run
+unattended.
+
+**`congress.mjs` and `openstates-legislature.mjs` specifically are the first to make that
+jump (2026-08-15)**: both now correctly retire a departed officeholder (clear
 `current_office_id`, close out their `office_terms` row) when a re-run's live roster no
 longer includes them — before that fix, a recurring unattended run would have kept adding
 new officeholders without ever retiring old ones, silently accumulating incorrect "current"
-data instead of staying safe to schedule. The original cadence table below still describes
-the right *frequency* per source, just not the *mechanism* anymore:
+data instead of staying safe to schedule. `db/ingest/roster-refresh.sh` wraps both into one
+monthly job, triggered by a `systemd --user` timer (`roster-refresh.timer`/`.service` in the
+same directory) — the same mechanism the app itself already runs under (DEPLOY.md), not
+cron; the existing audit-checkpoint job predates this and stays on cron, no need to migrate
+it. See the setup steps in `roster-refresh.sh`'s own header comment — a one-time,
+self-serve VPS step (API key placement, `systemctl --user enable --now`) this doc doesn't
+duplicate. The original cadence table below still describes the right *frequency* per
+source, just not the *mechanism* everywhere yet:
 
 | Source | Cadence | Why |
 |---|---|---|
