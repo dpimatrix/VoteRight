@@ -255,6 +255,16 @@ async function fetchAllPeople(openstatesName, orgClassification) {
 try {
   let processed = 0;
   let dataThrough = null;
+  // Every openstates_id actually seen this run, and every office_id
+  // actually looked up/created this run -- both needed to scope the
+  // retirement pass after the main loop correctly. Office scope, not just
+  // "this state", because this script only ever processes the chambers
+  // explicitly listed in STATE_TERM_INFO for the requested states (many
+  // states here are House-only, their Senate never touched at all) --
+  // scoping retirement by state alone would wrongly retire people in a
+  // chamber this run never queried.
+  const seenOpenstatesIds = new Set();
+  const touchedOfficeIds = new Set();
 
   for (const slug of stateFilter) {
     const info = STATE_TERM_INFO[slug];
@@ -307,15 +317,30 @@ try {
           }
           officeCache.set(officeKey, officeId);
         }
+        touchedOfficeIds.add(officeId);
 
         const fullName = p.name;
         const party = partyCode(p.party);
         const bio = `${chamberTitle} for ${info.openstatesName}${district ? `, District ${district}` : ""}. Party per OpenStates: ${p.party ?? "unlisted"}. OpenStates id: ${p.id}.`;
 
-        const existingPol = await client.query(`SELECT id FROM politicians WHERE openstates_id = $1`, [p.id]);
+        const existingPol = await client.query(`SELECT id, current_office_id FROM politicians WHERE openstates_id = $1`, [p.id]);
+        seenOpenstatesIds.add(p.id);
         let polId;
         if (existingPol.rowCount) {
           polId = existingPol.rows[0].id;
+          const prevOfficeId = existingPol.rows[0].current_office_id;
+          if (prevOfficeId && prevOfficeId !== officeId) {
+            // Seat changed (redistricted, or moved chambers) within this
+            // run's own data -- same gap as full departure below: close
+            // out the OLD office_terms row rather than silently moving
+            // current_office_id on and leaving it dangling open. Confirmed
+            // live 2026-08-15: grepped every ingest script, none of them
+            // ever wrote term_end.
+            await client.query(
+              `UPDATE office_terms SET term_end = CURRENT_DATE WHERE office_id = $1 AND politician_id = $2 AND term_end IS NULL`,
+              [prevOfficeId, polId],
+            );
+          }
           await client.query(
             `UPDATE politicians SET full_name = $2, party = $3, current_office_id = $4, bio = $5 WHERE id = $1`,
             [polId, fullName, party, officeId, bio],
@@ -339,14 +364,40 @@ try {
     }
   }
 
+  // Retirement pass: anyone with an openstates_id whose CURRENT office was
+  // actually queried this run (touchedOfficeIds) but who didn't appear in
+  // the results has left that seat (lost re-election, resigned, died).
+  // Nothing before this ever closed out their office_terms row or cleared
+  // current_office_id -- confirmed live 2026-08-15 by grepping every
+  // ingest script for a term_end write and finding none. term_end is set
+  // to this run's date, not their actual departure date (OpenStates
+  // doesn't give us that either) -- an approximation, disclosed here
+  // rather than silently assumed precise, same posture as term_start.
+  const retire = await client.query(
+    `SELECT p.id, p.full_name, p.openstates_id, p.current_office_id
+       FROM politicians p
+      WHERE p.openstates_id IS NOT NULL AND p.current_office_id = ANY($1)
+        AND NOT (p.openstates_id = ANY($2))`,
+    [[...touchedOfficeIds], [...seenOpenstatesIds]],
+  );
+  for (const row of retire.rows) {
+    await client.query(`UPDATE politicians SET current_office_id = NULL WHERE id = $1`, [row.id]);
+    await client.query(
+      `UPDATE office_terms SET term_end = CURRENT_DATE WHERE office_id = $1 AND politician_id = $2 AND term_end IS NULL`,
+      [row.current_office_id, row.id],
+    );
+    console.log(`  retired: ${row.full_name} (${row.openstates_id}) no longer in the current roster`);
+  }
+
   await client.query(
     `UPDATE ingestion_runs SET finished_at = now(), status = 'succeeded',
             rows_upserted = $2, rows_skipped = $3, data_through = $4, note = $5
       WHERE id = $1`,
     [runId, processed, 0, dataThrough ? `${dataThrough}-01-01` : null,
-      `states: ${stateFilter.join(", ")}. term_start is Jan 1 following each state/chamber's last verified election year -- an approximation, not an exact swearing-in date (see script header). States not in STATE_TERM_INFO were skipped, not guessed.`],
+      `states: ${stateFilter.join(", ")}. term_start is Jan 1 following each state/chamber's last verified election year -- an approximation, not an exact swearing-in date (see script header). States not in STATE_TERM_INFO were skipped, not guessed.` +
+        (retire.rows.length ? ` | retired: ${retire.rows.map((r) => r.full_name).join(", ")}` : "")],
   );
-  console.log(`${SOURCE}: processed ${processed} new office_terms row(s) across states: ${stateFilter.join(", ")}`);
+  console.log(`${SOURCE}: processed ${processed} new office_terms row(s) across states: ${stateFilter.join(", ")}, retired ${retire.rows.length} departed member(s)`);
 } catch (e) {
   await client.query(`UPDATE ingestion_runs SET finished_at = now(), status = 'failed', note = $2 WHERE id = $1`, [runId, String(e.message ?? e)]);
   console.error(`${SOURCE} FAILED: ${e.message ?? e}`);

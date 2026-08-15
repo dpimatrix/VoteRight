@@ -96,12 +96,19 @@ geocoder call at submit, replacing the dev city-matcher — same contract, real 
 
 ## 6. Ingestion scheduling (decided)
 
-**Mechanism: GitHub Actions scheduled workflows**, not in-app cron. Ingest scripts run in
-the repo's CI with `DATABASE_URL` as a repo secret, writing directly to Neon — visible
-logs, automatic failure email, a manual re-run button, no duration limits, zero new
-vendors. (Vercel serverless is the wrong shape for ingestion: function duration limits,
-Hobby-plan cron restrictions, and ingestion should never share the request path with
-voters.) Cadence follows each source's real change rate, not the calendar:
+**Superseded by the self-hosted VPS move (DEPLOY.md, 2026-07-29)**: GitHub Actions can no
+longer reach Postgres directly — it's local to the VPS, not a publicly reachable Neon
+instance, same reasoning DEPLOY.md gives for the audit-checkpoint cron running on the VPS
+itself rather than in CI. Ingest scripts today are run manually on the VPS (`node
+db/ingest/...`, `DATABASE_URL` sourced from `app/.env.production`) — a real `cron`/systemd
+timer on the VPS is the natural next step for any source below that's proven safe to run
+unattended, not yet set up. **`congress.mjs` and `openstates-legislature.mjs` specifically
+became schedulable 2026-08-15**: both now correctly retire a departed officeholder (clear
+`current_office_id`, close out their `office_terms` row) when a re-run's live roster no
+longer includes them — before that fix, a recurring unattended run would have kept adding
+new officeholders without ever retiring old ones, silently accumulating incorrect "current"
+data instead of staying safe to schedule. The original cadence table below still describes
+the right *frequency* per source, just not the *mechanism* anymore:
 
 | Source | Cadence | Why |
 |---|---|---|

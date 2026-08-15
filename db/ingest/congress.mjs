@@ -212,6 +212,12 @@ const STATE_SLUG = {
   Virginia: "va", Washington: "wa", "West Virginia": "wv", Wisconsin: "wi", Wyoming: "wy",
 };
 
+// Scope for the retirement pass below: exactly the states this run actually
+// covers (the --states filter if given, otherwise all 50 seeded ones) --
+// a --states=md run must never retire a member from an unrelated state it
+// never looked at.
+const coveredStateOcdIds = (stateFilter ?? Object.values(STATE_SLUG)).map((s) => `ocd-division/country:us/state:${s}`);
+
 function invertedNameToFull(inverted) {
   // Congress.gov gives "Last, First Middle" (occasionally a suffix after a
   // second comma, e.g. "Smith, John, Jr."). Handle the common 2-part case
@@ -259,6 +265,10 @@ try {
   // (see wikidataPhotoUrls' header comment for why: 531 individual
   // requests got rate-limited into oblivion the first time this ran).
   const neededPhotos = [];
+  // Every bioguideId actually seen in this run's roster -- anyone with an
+  // existing current_office_id in a covered state who ISN'T in this set by
+  // the end has left Congress. See the retirement pass after the main loop.
+  const seenBioguideIds = new Set();
 
   for (let offset = 0; ; offset += 250) {
     const u = new URL(`https://api.congress.gov/v3/member/congress/${congress}`);
@@ -281,6 +291,7 @@ try {
       }
       if (stateFilter && !stateFilter.includes(slug)) continue;
       const stateOcdId = `ocd-division/country:us/state:${slug}`;
+      seenBioguideIds.add(m.bioguideId);
 
       // Real bug found live (2026-08-14): .at(-1) assumed Congress.gov
       // lists a member's terms.item oldest-first, so the last entry is
@@ -320,6 +331,20 @@ try {
       );
       const reusable = existingPol.rowCount && existingPol.rows[0].current_office_id
         && existingPol.rows[0].current_title?.startsWith(expectedTitlePrefix);
+
+      // Chamber switch (e.g. House -> Senate) discovered within this same
+      // run: falls through to fresh office assignment below (existing
+      // behavior), but nothing before this closed out the OLD office_terms
+      // row for the seat they just left -- same underlying gap as full
+      // departure below, just found while the person is still present in
+      // the roster instead of absent from it. Confirmed live 2026-08-15:
+      // grepped every ingest script, none of them ever wrote term_end.
+      if (existingPol.rowCount && existingPol.rows[0].current_office_id && !reusable) {
+        await client.query(
+          `UPDATE office_terms SET term_end = CURRENT_DATE WHERE office_id = $1 AND politician_id = $2 AND term_end IS NULL`,
+          [existingPol.rows[0].current_office_id, existingPol.rows[0].id],
+        );
+      }
 
       let officeId;
       if (reusable) {
@@ -406,6 +431,34 @@ try {
     if (members.length < 250) break;
   }
 
+  // Retirement pass: anyone with a bioguide_id whose CURRENT office sits in
+  // a state this run covers, but who did NOT appear in this run's roster,
+  // has left Congress (lost re-election, resigned, died). Nothing before
+  // this ever closed out their office_terms row or cleared
+  // current_office_id -- confirmed live 2026-08-15 by grepping every
+  // ingest script for a term_end write and finding none -- so they'd sit
+  // "current" forever even after a real successor is elected and this same
+  // script inserts a brand-new office_terms row for the same office_id
+  // right alongside theirs. term_end is set to this run's date, not their
+  // actual departure date (the API doesn't give us that) -- an
+  // approximation, disclosed here rather than silently assumed precise,
+  // same posture as term_start above.
+  const retire = await client.query(
+    `SELECT p.id, p.full_name, p.bioguide_id, p.current_office_id
+       FROM politicians p JOIN offices o ON o.id = p.current_office_id
+      WHERE p.bioguide_id IS NOT NULL AND o.level = 'federal'
+        AND o.jurisdiction_id = ANY($1) AND NOT (p.bioguide_id = ANY($2))`,
+    [coveredStateOcdIds, [...seenBioguideIds]],
+  );
+  for (const row of retire.rows) {
+    await client.query(`UPDATE politicians SET current_office_id = NULL WHERE id = $1`, [row.id]);
+    await client.query(
+      `UPDATE office_terms SET term_end = CURRENT_DATE WHERE office_id = $1 AND politician_id = $2 AND term_end IS NULL`,
+      [row.current_office_id, row.id],
+    );
+    console.log(`retired: ${row.full_name} (${row.bioguide_id}) no longer in the current roster`);
+  }
+
   // Batched photo pass, after the main roster loop -- see neededPhotos'
   // declaration above for why this isn't done inline per-member.
   if (neededPhotos.length > 0) {
@@ -429,9 +482,12 @@ try {
             rows_upserted = $2, rows_skipped = $3, data_through = $4, note = $5
       WHERE id = $1`,
     [runId, processed, skippedStates.size, dataThrough ? `${dataThrough}-01-03` : null,
-      skippedStates.size ? `skipped (no jurisdiction row yet): ${[...skippedStates].sort().join(", ")}` : null],
+      [
+        skippedStates.size ? `skipped (no jurisdiction row yet): ${[...skippedStates].sort().join(", ")}` : null,
+        retire.rows.length ? `retired: ${retire.rows.map((r) => r.full_name).join(", ")}` : null,
+      ].filter(Boolean).join(" | ") || null],
   );
-  console.log(`${SOURCE}: processed ${processed} current member(s) of the ${congress}th Congress, skipped ${skippedStates.size} state/territory(ies) with no jurisdiction row yet`);
+  console.log(`${SOURCE}: processed ${processed} current member(s) of the ${congress}th Congress, skipped ${skippedStates.size} state/territory(ies) with no jurisdiction row yet, retired ${retire.rows.length} departed member(s)`);
   console.log(
     `photos: ${photoStats.downloaded} downloaded, ${photoStats.alreadyHad} already had one, ` +
       `${photoStats.noWikidataMatch} no Wikidata photo, ${photoStats.lookupFailed} lookup failed, ${photoStats.downloadFailed} download failed`,
