@@ -37,12 +37,19 @@ export class MediaTooLargeError extends Error {}
 export class MediaInvalidError extends Error {}
 
 function mediaDir(): string {
-  // Override for production if the self-hosted layout ever differs from this
-  // assumption (repo/app run via `npm start` from repo/app, so process.cwd()
-  // is repo/app — this resolves to a sibling repo/debate-media/). Never
-  // verified live against the VPS specifically (no prod access) — check on
-  // first real deploy of this feature and set DEBATE_MEDIA_DIR if wrong.
-  return process.env.DEBATE_MEDIA_DIR ?? path.join(process.cwd(), "..", "debate-media");
+  // Under cwd (app/debate-media/), not a `..`-sibling of it, AND explicitly
+  // turbopackIgnore'd -- confirmed live 2026-08-15: even a plain
+  // path.join(process.cwd(), "debate-media") (no `..`) still left Next's
+  // build-time file tracer unable to statically bound the call, so it
+  // conservatively swept in unrelated compiled routes ("Encountered
+  // unexpected file in NFT list" against pages this module has nothing to
+  // do with). The ignore comment is the fix Next's own error message
+  // recommends for exactly this shape of call -- this path is read at
+  // request time via fs, never imported as a module, so there's genuinely
+  // nothing here for the tracer to bundle. Override via DEBATE_MEDIA_DIR if
+  // the self-hosted layout ever needs it somewhere else (e.g. a separate
+  // disk/mount).
+  return process.env.DEBATE_MEDIA_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "debate-media");
 }
 
 // Resolve ffmpeg/ffprobe explicitly rather than trusting PATH: the app runs
@@ -51,11 +58,17 @@ function mediaDir(): string {
 // there specifically because the voteright OS user has no sudo/root
 // (2026-08-14, static build from johnvansickle.com — see DEPLOY.md).
 // Override via env if it ever moves or gets installed system-wide.
+// turbopackIgnore: these are spawned as external binaries (child_process),
+// never imported as JS -- Next's build tracer has no reason to follow
+// homedir() to figure out what to bundle, but without the hint it can't
+// statically bound the call and conservatively traces the whole project
+// instead (confirmed live 2026-08-15, same class of warning mediaDir() hit
+// above before it was changed to a plain cwd-relative path).
 function ffmpegPath(): string {
-  return process.env.FFMPEG_PATH ?? path.join(homedir(), ".local", "bin", "ffmpeg");
+  return process.env.FFMPEG_PATH ?? path.join(/*turbopackIgnore: true*/ homedir(), ".local", "bin", "ffmpeg");
 }
 function ffprobePath(): string {
-  return process.env.FFPROBE_PATH ?? path.join(homedir(), ".local", "bin", "ffprobe");
+  return process.env.FFPROBE_PATH ?? path.join(/*turbopackIgnore: true*/ homedir(), ".local", "bin", "ffprobe");
 }
 
 export function extensionFor(format: MediaFormat): string {

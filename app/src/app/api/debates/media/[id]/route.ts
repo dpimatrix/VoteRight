@@ -15,8 +15,15 @@ export const runtime = "nodejs"; // fs streaming below needs the Node runtime, n
    the post's own author or an authenticated moderator. Range-request aware
    (206 Partial Content) — Safari/iOS in particular won't reliably play
    <video> without it, and it's what lets scrubbing/seeking work at all. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Postgres throws a type-cast error (500) on a non-UUID string before it
+  // ever gets a chance to just not-match a row — confirmed live testing this
+  // route directly (e.g. a bot/scanner probing arbitrary paths). Same 404 a
+  // well-formed-but-nonexistent id gets below.
+  if (!UUID_RE.test(id)) return new Response("Not found", { status: 404 });
   const { rows } = await db().query(`SELECT format, moderation_status, user_id FROM arguments WHERE id = $1`, [id]);
   const arg = rows[0] as { format: string; moderation_status: string; user_id: string } | undefined;
   if (!arg || (arg.format !== "audio" && arg.format !== "video")) {

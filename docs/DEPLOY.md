@@ -68,9 +68,15 @@ preferred consolidating onto it.
   `ADMIN_SESSION_SECRET` copied over from Vercel's values (so the owner's already-
   enrolled authenticator keeps working) plus the new local `DATABASE_URL`.
 - **Debate audio/video (added 2026-08-14)**: uploaded media is transcoded server-side
-  via ffmpeg and stored as plain files on local disk at `../debate-media/` (a sibling
-  of `app/`, gitignored, created automatically on first upload via `mkdir -p`-style
-  recursive create — no manual setup needed unless `DEBATE_MEDIA_DIR` is overridden).
+  via ffmpeg and stored as plain files on local disk at `app/debate-media/` (gitignored,
+  created automatically on first upload via `mkdir -p`-style recursive create — no
+  manual setup needed unless `DEBATE_MEDIA_DIR` is overridden). Originally placed as a
+  repo-root sibling (`../debate-media/`); moved under `app/` 2026-08-15 after a real
+  build confirmed the `..`-traversing path left Next's build-time file tracer unable to
+  statically bound it, sweeping unrelated compiled routes into the trace on every
+  build (`next build`'s "Encountered unexpected file in NFT list" warning) — harmless
+  for this deployment (no `output: 'standalone'` config, so nothing actually consumes
+  those traces at runtime) but noisy and worth avoiding regardless.
   Deliberately **not** under `app/public/` — see ARCHITECTURE.md §9.1 for why; it's
   served through the gated `/api/debates/media/[id]` route instead.
   Requires **ffmpeg + ffprobe on the VPS**, installed self-serve (no root needed —
