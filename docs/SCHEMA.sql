@@ -642,7 +642,7 @@ CREATE TABLE arguments (
     format          TEXT NOT NULL CHECK (format IN ('text','audio','video','youtube')),
     body_text       TEXT,
     audio_url       TEXT,
-    video_url       TEXT,                                -- locally recorded/uploaded video, in our object storage
+    video_url       TEXT,                                -- gated serving path (/api/debates/media/{id}), NOT a public URL -- see ARCHITECTURE.md §9.1
     video_duration_seconds INTEGER,
     video_size_bytes BIGINT,                              -- enforced against platform max_video_size_bytes at upload (TBD — see ARCHITECTURE.md Section 9.1)
     youtube_video_id TEXT,                                -- parsed from submitted URL; embedded via YouTube's own player, never downloaded/re-hosted

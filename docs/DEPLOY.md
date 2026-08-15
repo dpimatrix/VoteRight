@@ -63,6 +63,26 @@ preferred consolidating onto it.
 - **Secrets**: `app/.env.production` on the VPS carries `ADMIN_TOTP_SECRET` /
   `ADMIN_SESSION_SECRET` copied over from Vercel's values (so the owner's already-
   enrolled authenticator keeps working) plus the new local `DATABASE_URL`.
+- **Debate audio/video (added 2026-08-14)**: uploaded media is transcoded server-side
+  via ffmpeg and stored as plain files on local disk at `../debate-media/` (a sibling
+  of `app/`, gitignored, created automatically on first upload via `mkdir -p`-style
+  recursive create — no manual setup needed unless `DEBATE_MEDIA_DIR` is overridden).
+  Deliberately **not** under `app/public/` — see ARCHITECTURE.md §9.1 for why; it's
+  served through the gated `/api/debates/media/[id]` route instead.
+  Requires **ffmpeg + ffprobe on the VPS**, installed self-serve (no root needed —
+  `voteright` has no sudo) via a static build:
+  `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz`,
+  extracted into `~/.local/bin` (confirmed already on `voteright`'s PATH for
+  interactive shells). **`app/src/lib/media.ts` does NOT rely on that PATH** —
+  systemd `--user` services don't source the login shell that adds `~/.local/bin`, so
+  it resolves `~/.local/bin/ffmpeg` and `~/.local/bin/ffprobe` explicitly by default
+  (override via `FFMPEG_PATH`/`FFPROBE_PATH` env vars if it's ever installed
+  somewhere else). If uploads start failing in production with a "binary not found"-
+  shaped error, check that assumption first — it's never been confirmed against the
+  running systemd service specifically, only against an interactive shell.
+  **Cloudflare's proxy caps request bodies independently of anything the app does**
+  (100MB on Free/Pro plans) — confirm the zone's plan if real video uploads start
+  getting cut off before the app ever sees them.
 - **Audit checkpoints** (`db/checkpoint.mjs` + `db/checkpoint-and-publish.sh`,
   ARCHITECTURE.md §10): a daily VPS-side cron computes the current
   `signed_actions` chain head and commits it to `docs/audit-checkpoints/` — runs on

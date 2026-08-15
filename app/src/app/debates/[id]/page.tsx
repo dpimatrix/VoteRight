@@ -10,7 +10,9 @@ import { referendumForProposal } from "@/lib/referenda";
 export const dynamic = "force-dynamic";
 
 interface Arg {
-  id: string; side: string; body_text: string; moderation_status: string; date: string;
+  id: string; side: string; body_text: string | null; moderation_status: string; date: string;
+  format: string; audio_url: string | null; video_url: string | null;
+  video_duration_seconds: number | null; transcript_text: string | null;
   agree_count: number; disagree_count: number; pass_count: number;
   display_name: string; mine: boolean;
   citations: { publisher: string; title: string }[];
@@ -130,7 +132,25 @@ export default async function DebatePage({
                   <strong style={{ fontSize: "0.86rem" }}>{a.display_name}</strong>
                   <span className="cover">{a.date}</span>
                 </div>
-                <p style={{ fontSize: "0.92rem", margin: "0.45rem 0" }}>{a.body_text}</p>
+                {a.format === "text" && (
+                  <p style={{ fontSize: "0.92rem", margin: "0.45rem 0" }}>{a.body_text}</p>
+                )}
+                {a.format === "video" && a.video_url && (
+                  <video
+                    controls
+                    preload="metadata"
+                    src={a.video_url}
+                    style={{ width: "100%", maxWidth: 480, borderRadius: 8, margin: "0.45rem 0", display: "block" }}
+                  />
+                )}
+                {a.format === "audio" && a.audio_url && (
+                  <audio controls preload="metadata" src={a.audio_url} style={{ width: "100%", margin: "0.45rem 0" }} />
+                )}
+                {(a.format === "audio" || a.format === "video") && (
+                  <p className="nopos" style={{ margin: "0 0 0.45rem" }}>
+                    {a.transcript_text || d.transcript_soon}
+                  </p>
+                )}
                 {a.citations.length > 0 && (
                   <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginBottom: "0.4rem" }}>
                     {a.citations.map((c, i) => (
@@ -177,6 +197,12 @@ export default async function DebatePage({
                   d={{
                     comp_h: d.comp_h, comp_side: d.comp_side, comp_body_ph: d.comp_body_ph,
                     comp_cite_ph: d.comp_cite_ph, comp_post: d.comp_post, comp_pub: d.comp_pub,
+                    comp_format: d.comp_format, comp_format_text: d.comp_format_text,
+                    comp_format_audio: d.comp_format_audio, comp_format_video: d.comp_format_video,
+                    comp_media_hint: d.comp_media_hint, comp_media_choose: d.comp_media_choose,
+                    comp_uploading: d.comp_uploading,
+                    err_too_long: d.err_too_long, err_too_large: d.err_too_large,
+                    err_media_invalid: d.err_media_invalid, err_processing_failed: d.err_processing_failed,
                     claim_q: d.claim_q, claim_add: d.claim_add, claim_op: d.claim_op,
                     claim_dismiss: d.claim_dismiss, side_for: d.side_for,
                     side_against: d.side_against, side_neutral: d.side_neutral,

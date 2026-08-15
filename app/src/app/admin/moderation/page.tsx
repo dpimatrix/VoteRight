@@ -23,7 +23,13 @@ export default async function ModerationPage() {
             <span className="cover">{q.date}</span>
           </div>
           <div className="cover" style={{ margin: "0.2rem 0" }}>{q.proposal}</div>
-          <p style={{ fontSize: "0.92rem" }}>{q.body_text}</p>
+          {q.format === "text" && <p style={{ fontSize: "0.92rem" }}>{q.body_text}</p>}
+          {q.format === "video" && q.video_url && (
+            <video controls preload="metadata" src={q.video_url} style={{ width: "100%", maxWidth: 480, borderRadius: 8 }} />
+          )}
+          {q.format === "audio" && q.audio_url && (
+            <audio controls preload="metadata" src={q.audio_url} style={{ width: "100%" }} />
+          )}
           {q.claim_text && (
             <p className="nopos" style={{ margin: "0.3rem 0" }}>
               Claim prompt: “{q.claim_text}” — author response: <strong>{q.claim_response}</strong>

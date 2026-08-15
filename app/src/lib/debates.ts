@@ -259,7 +259,8 @@ export async function debateDetail(proposalId: string, userId: string | null) {
   let ctq = null;
   if (row.thread_id) {
     const a = await db().query(
-      `SELECT a.id, a.side, a.body_text, a.moderation_status, a.created_at::date::text AS date,
+      `SELECT a.id, a.side, a.body_text, a.format, a.audio_url, a.video_url, a.video_duration_seconds,
+              a.transcript_text, a.moderation_status, a.created_at::date::text AS date,
               a.agree_count, a.disagree_count, a.pass_count,
               COALESCE(u.display_name, 'Resident') AS display_name, (a.user_id = $2) AS mine,
               COALESCE((SELECT json_agg(json_build_object('publisher', c.publisher, 'title', c.title))
@@ -388,6 +389,58 @@ export async function postArgument(opts: {
   }
 }
 
+/** Audio/video arguments (ARCHITECTURE.md §9.1). A separate function from
+    postArgument rather than one function branching heavily on format: the
+    two have almost nothing in common — no claim-detection (nothing to scan
+    text for), no citations, no signing yet (real non-repudiation over a
+    file would need the client to hash the raw upload before transcoding
+    and sign THAT, a genuine incremental feature — left unsigned for this
+    first pass, same as the existing text-signing rollout already tolerates
+    unsigned posts). Transcoding/validation lives in media.ts; this just
+    handles the DB write once a file has already been saved to disk. */
+export async function postMediaArgument(opts: {
+  threadId: string;
+  userId: string;
+  side: "for" | "against" | "neutral_info";
+  format: "audio" | "video";
+  file: File;
+}): Promise<
+  | { ok: true; id: string }
+  | { ok: false; error: "too_long" | "too_large" | "invalid" | "processing_failed" }
+> {
+  const { saveMediaUpload, deleteMediaFile, MediaTooLongError, MediaTooLargeError, MediaInvalidError } =
+    await import("./media");
+  let saved: Awaited<ReturnType<typeof saveMediaUpload>>;
+  try {
+    saved = await saveMediaUpload(opts.file, opts.format);
+  } catch (e) {
+    if (e instanceof MediaTooLongError) return { ok: false, error: "too_long" };
+    if (e instanceof MediaTooLargeError) return { ok: false, error: "too_large" };
+    if (e instanceof MediaInvalidError) return { ok: false, error: "invalid" };
+    return { ok: false, error: "processing_failed" };
+  }
+  try {
+    if (opts.format === "video") {
+      await db().query(
+        `INSERT INTO arguments (id, thread_id, user_id, side, format, video_url, video_duration_seconds, video_size_bytes, moderation_status)
+         VALUES ($1, $2, $3, $4, 'video', $5, $6, $7, 'pending')`,
+        [saved.id, opts.threadId, opts.userId, opts.side, saved.url, saved.durationSeconds, saved.sizeBytes],
+      );
+    } else {
+      await db().query(
+        `INSERT INTO arguments (id, thread_id, user_id, side, format, audio_url, moderation_status)
+         VALUES ($1, $2, $3, $4, 'audio', $5, 'pending')`,
+        [saved.id, opts.threadId, opts.userId, opts.side, saved.url],
+      );
+    }
+  } catch (e) {
+    // Transcoding succeeded but the DB write failed — don't leave an orphaned file on disk.
+    await deleteMediaFile(saved.id, opts.format);
+    throw e;
+  }
+  return { ok: true, id: saved.id };
+}
+
 /* ── agreement votes (§10.2 private signal) ── */
 export async function agreeVote(argumentId: string, userId: string, response: "agree" | "disagree" | "pass") {
   const client = await db().connect();
@@ -482,7 +535,8 @@ export async function ctqVote(threadId: string, userId: string) {
 /* ── moderation (admin) ── */
 export async function moderationQueue() {
   const { rows } = await db().query(
-    `SELECT a.id, a.side, a.body_text, a.created_at::date::text AS date, COALESCE(u.display_name, 'Resident') AS display_name,
+    `SELECT a.id, a.side, a.body_text, a.format, a.audio_url, a.video_url,
+            a.created_at::date::text AS date, COALESCE(u.display_name, 'Resident') AS display_name,
             p.title AS proposal,
             (SELECT cf.author_response FROM argument_claim_flags cf WHERE cf.argument_id = a.id LIMIT 1) AS claim_response,
             (SELECT cf.claim_text FROM argument_claim_flags cf WHERE cf.argument_id = a.id LIMIT 1) AS claim_text
@@ -494,7 +548,9 @@ export async function moderationQueue() {
       ORDER BY a.created_at`,
   );
   return rows as {
-    id: string; side: string; body_text: string; date: string; display_name: string;
+    id: string; side: string; body_text: string | null; format: string;
+    audio_url: string | null; video_url: string | null;
+    date: string; display_name: string;
     proposal: string; claim_response: string | null; claim_text: string | null;
   }[];
 }
