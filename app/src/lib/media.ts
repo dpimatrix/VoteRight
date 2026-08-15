@@ -87,16 +87,35 @@ export function mediaUrlPath(id: string): string {
   return `/api/debates/media/${id}`;
 }
 
+// Wall-clock cap on ffmpeg/ffprobe itself (separate from the 3-minute
+// MEDIA duration cap above) -- a crafted file can make a demuxer/decoder
+// hang or spin without ever exceeding the duration check (which just reads
+// container metadata, not real processing time). Without this, a single
+// malicious upload ties up a worker indefinitely; a real transcode of a
+// ≤3-minute clip at these settings finishes in seconds, so this is a wide
+// margin, not a tight one.
+const PROCESS_TIMEOUT_MS = 120_000;
+
 function run(bin: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args);
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, PROCESS_TIMEOUT_MS);
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
-    child.on("error", reject); // e.g. binary not found at the resolved path
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e); // e.g. binary not found at the resolved path
+    });
     child.on("close", (code) => {
-      if (code === 0) resolve(stdout);
+      clearTimeout(timer);
+      if (timedOut) reject(new MediaInvalidError(`${path.basename(bin)} timed out`));
+      else if (code === 0) resolve(stdout);
       else reject(new Error(`${path.basename(bin)} exited ${code}: ${stderr.slice(-500)}`));
     });
   });

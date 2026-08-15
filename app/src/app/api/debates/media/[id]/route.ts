@@ -55,6 +55,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         "content-length": String(size),
         "accept-ranges": "bytes",
         "cache-control": "private, max-age=3600",
+        "x-content-type-options": "nosniff", // never let a browser reinterpret this as something other than the declared media type
       },
     });
   }
@@ -77,6 +78,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       "content-length": String(end - start + 1),
       "accept-ranges": "bytes",
       "cache-control": "private, max-age=3600",
+      "x-content-type-options": "nosniff",
     },
   });
 }
