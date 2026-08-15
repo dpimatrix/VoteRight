@@ -96,9 +96,38 @@ export function mediaUrlPath(id: string): string {
 // margin, not a tight one.
 const PROCESS_TIMEOUT_MS = 120_000;
 
+// Residual-risk note (ARCHITECTURE.md §9.1): ffmpeg/ffprobe still run as the
+// same `voteright` OS user as the rest of the app, not a separate
+// low-privilege user or container — that needs root to set up
+// (new user, cgroups/namespaces), and `voteright` has none on this VPS. What
+// IS available to an unprivileged process, self-serve: capping its own
+// resource limits via the POSIX `ulimit` shell builtin before exec'ing the
+// real binary (exec replaces the shell process image in place, same PID, so
+// the timeout's child.kill() below still targets the right process). Real
+// isolation is still the better fix if it ever becomes available; this
+// narrows the blast radius in the meantime rather than pretending to close
+// it — a crafted file causing runaway memory/CPU use can no longer exhaust
+// resources shared with Safariis, the other app on this same VPS (DEPLOY.md).
+// Linux-only (no ulimit equivalent invoked here on Windows, where this only
+// ever runs in local dev — production is Linux).
+function spawnLimited(bin: string, args: string[]) {
+  if (process.platform === "win32") return spawn(bin, args);
+  return spawn("/bin/sh", [
+    "-c",
+    // -v: virtual address space, ~3GB -- generous for a <=3-minute 720p
+    // transcode (normally a small fraction of this) but well below what
+    // could actually starve a shared VPS. -t: CPU-seconds, a second
+    // OS-enforced backstop alongside PROCESS_TIMEOUT_MS below (belt and
+    // suspenders, not the primary control).
+    'ulimit -v 3145728; ulimit -t 150; exec "$0" "$@"',
+    bin,
+    ...args,
+  ]);
+}
+
 function run(bin: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args);
+    const child = spawnLimited(bin, args);
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -123,7 +152,16 @@ function run(bin: string, args: string[]): Promise<string> {
 
 async function probeDurationSeconds(filePath: string): Promise<number> {
   const stdout = await run(ffprobePath(), [
-    "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", filePath,
+    "-v", "error",
+    // Restrict the demuxer to plain local-file I/O -- an untrusted file's
+    // content, not just its name, can reference other locations (HLS
+    // playlists pointing at remote segments, the concat demuxer chaining in
+    // other local files, etc.); ffmpeg's own libavformat has real CVE
+    // history in exactly this class of issue. We only ever pass a real
+    // local path here, so this costs nothing and removes an entire
+    // vulnerability class rather than trying to catch each instance of it.
+    "-protocol_whitelist", "file",
+    "-show_entries", "format=duration", "-of", "csv=p=0", filePath,
   ]);
   const seconds = parseFloat(stdout.trim());
   if (!Number.isFinite(seconds)) throw new MediaInvalidError("could not read media duration");
@@ -165,7 +203,7 @@ export async function saveMediaUpload(
     const outPath = mediaFilePath(id, format);
     if (format === "video") {
       await run(ffmpegPath(), [
-        "-y", "-i", rawPath,
+        "-y", "-protocol_whitelist", "file", "-i", rawPath,
         // force_divisible_by=2: without it, an input whose aspect ratio doesn't
         // divide evenly into the 1280x720 box can scale to an ODD dimension
         // (verified live: a plain 1918x1198 source lands on 1153x720 without
@@ -179,7 +217,7 @@ export async function saveMediaUpload(
         outPath,
       ]);
     } else {
-      await run(ffmpegPath(), ["-y", "-i", rawPath, "-vn", "-c:a", "aac", "-b:a", "96k", outPath]);
+      await run(ffmpegPath(), ["-y", "-protocol_whitelist", "file", "-i", rawPath, "-vn", "-c:a", "aac", "-b:a", "96k", outPath]);
     }
     const stats = await stat(outPath);
     const finalDuration = await probeDurationSeconds(outPath).catch(() => rawDuration);
