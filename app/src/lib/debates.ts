@@ -6,6 +6,15 @@ import { db } from "./db";
 const SECOND_THRESHOLD = 3; // pilot-scale; production scales to jurisdiction size
 const CTQ_PCT = 66.7; // matches forum_threads.close_early_threshold_pct default
 export const CLAIMS_ALGO = "claims-heuristic-v0.1";
+// Disk-exhaustion guard (ARCHITECTURE.md §9.1), not spam prevention -- that's
+// the separate per-thread-per-side argument limit ARCHITECTURE.md already
+// flags as its own TBD. A verified user could otherwise post arbitrarily many
+// ~250MB (MAX_UPLOAD_BYTES) files back to back; this bounds worst-case daily
+// growth per user to a knowable number regardless of what else changes.
+// Counts pending/removed posts too, not just approved ones -- disk space is
+// consumed the moment the file is transcoded, independent of moderation
+// outcome. Pilot-scale starting point, easy to retune.
+const MEDIA_RATE_LIMIT_PER_DAY = 5;
 
 /* ── verification tier (§9 gate; §2.6 self-attested + format-verified) ── */
 export async function userTier(userId: string): Promise<string> {
@@ -406,8 +415,19 @@ export async function postMediaArgument(opts: {
   file: File;
 }): Promise<
   | { ok: true; id: string }
-  | { ok: false; error: "too_long" | "too_large" | "invalid" | "processing_failed" }
+  | { ok: false; error: "too_long" | "too_large" | "invalid" | "processing_failed" | "rate_limited" }
 > {
+  // Checked BEFORE any file I/O or ffmpeg work -- a rate-limited user's
+  // request should cost nothing, not write to disk and transcode first.
+  const limit = await db().query(
+    `SELECT count(*)::int AS n FROM arguments
+      WHERE user_id = $1 AND format IN ('audio', 'video') AND created_at > now() - interval '24 hours'`,
+    [opts.userId],
+  );
+  if (limit.rows[0].n >= MEDIA_RATE_LIMIT_PER_DAY) {
+    return { ok: false, error: "rate_limited" };
+  }
+
   const { saveMediaUpload, deleteMediaFile, MediaTooLongError, MediaTooLargeError, MediaInvalidError } =
     await import("./media");
   let saved: Awaited<ReturnType<typeof saveMediaUpload>>;

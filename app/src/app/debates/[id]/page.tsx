@@ -203,6 +203,7 @@ export default async function DebatePage({
                     comp_uploading: d.comp_uploading,
                     err_too_long: d.err_too_long, err_too_large: d.err_too_large,
                     err_media_invalid: d.err_media_invalid, err_processing_failed: d.err_processing_failed,
+                    err_rate_limited: d.err_rate_limited,
                     claim_q: d.claim_q, claim_add: d.claim_add, claim_op: d.claim_op,
                     claim_dismiss: d.claim_dismiss, side_for: d.side_for,
                     side_against: d.side_against, side_neutral: d.side_neutral,

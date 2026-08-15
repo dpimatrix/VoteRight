@@ -11,7 +11,7 @@ type D = Pick<
   | "comp_h" | "comp_side" | "comp_body_ph" | "comp_cite_ph" | "comp_post" | "comp_pub"
   | "comp_format" | "comp_format_text" | "comp_format_audio" | "comp_format_video"
   | "comp_media_hint" | "comp_media_choose" | "comp_uploading"
-  | "err_too_long" | "err_too_large" | "err_media_invalid" | "err_processing_failed"
+  | "err_too_long" | "err_too_large" | "err_media_invalid" | "err_processing_failed" | "err_rate_limited"
   | "claim_q" | "claim_add" | "claim_op" | "claim_dismiss"
   | "side_for" | "side_against" | "side_neutral" | "pending_mod"
 >;
@@ -23,6 +23,7 @@ const ERROR_KEY: Record<string, keyof D> = {
   too_large: "err_too_large",
   invalid: "err_media_invalid",
   processing_failed: "err_processing_failed",
+  rate_limited: "err_rate_limited",
 };
 
 export function DebateComposer({ threadId, proposalId, d }: { threadId: string; proposalId: string; d: D }) {

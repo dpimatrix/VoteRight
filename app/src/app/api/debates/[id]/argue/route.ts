@@ -34,7 +34,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       file,
     });
     if (!res.ok) {
-      return Response.json({ error: res.error }, { status: res.error === "processing_failed" ? 500 : 400 });
+      const status = res.error === "processing_failed" ? 500 : res.error === "rate_limited" ? 429 : 400;
+      return Response.json({ error: res.error }, { status });
     }
     return Response.json({ prompted: false, id: res.id });
   }
