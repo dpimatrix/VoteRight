@@ -13,7 +13,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!["agree", "disagree", "pass"].includes(b.response ?? "")) {
       return Response.json({ error: "invalid" }, { status: 400 });
     }
-    await agreeVote(id, userId, b.response as "agree" | "disagree" | "pass");
+    const res = await agreeVote(id, userId, b.response as "agree" | "disagree" | "pass");
+    if (!res.ok) return Response.json({ error: res.reason }, { status: 409 });
     return Response.json({ ok: true });
   }
 
@@ -23,6 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const response = String(form.get("response") ?? "");
   if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
   if (["agree", "disagree", "pass"].includes(response)) {
+    // Form path has no error UI to surface a rejection to — this is a
+    // defense-in-depth backend check, not the primary UX signal; the real
+    // UI already only shows these buttons when the vote would be valid.
     await agreeVote(id, userId, response as "agree" | "disagree" | "pass");
   }
   return redirectTo(`${back}?lang=${lang}`, request);

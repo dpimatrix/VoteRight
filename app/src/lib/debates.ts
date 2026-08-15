@@ -462,10 +462,39 @@ export async function postMediaArgument(opts: {
 }
 
 /* ── agreement votes (§10.2 private signal) ── */
-export async function agreeVote(argumentId: string, userId: string, response: "agree" | "disagree" | "pass") {
+export async function agreeVote(
+  argumentId: string,
+  userId: string,
+  response: "agree" | "disagree" | "pass",
+): Promise<{ ok: true } | { ok: false; reason: "not_found" | "not_approved" | "thread_closed" }> {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // debateDetail() already applies this same rule when LISTING arguments
+    // (only approved is shown to other viewers, moved to a closed thread
+    // means no more input) -- until now that was only enforced by the UI
+    // not rendering the vote buttons in those cases, not by this route
+    // itself, so a direct POST could vote on a pending/removed argument or
+    // one whose debate had already closed. Confirmed live 2026-08-15 this
+    // route had no such check at all before this.
+    const check = await client.query(
+      `SELECT a.moderation_status, ft.status AS thread_status
+         FROM arguments a JOIN forum_threads ft ON ft.id = a.thread_id
+        WHERE a.id = $1`,
+      [argumentId],
+    );
+    if (check.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return { ok: false, reason: "not_found" };
+    }
+    if (check.rows[0].moderation_status !== "approved") {
+      await client.query("ROLLBACK");
+      return { ok: false, reason: "not_approved" };
+    }
+    if (check.rows[0].thread_status !== "open") {
+      await client.query("ROLLBACK");
+      return { ok: false, reason: "thread_closed" };
+    }
     await client.query(
       `INSERT INTO argument_agreement_votes (argument_id, user_id, response)
        VALUES ($1, $2, $3)
@@ -481,6 +510,7 @@ export async function agreeVote(argumentId: string, userId: string, response: "a
       [argumentId],
     );
     await client.query("COMMIT");
+    return { ok: true };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -494,6 +524,15 @@ export async function ctqVote(threadId: string, userId: string) {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // Same gap class as agreeVote above: the debate page only renders the
+    // "call the question" button while thread_status === "open", but
+    // nothing here re-checked that server-side before this -- a direct POST
+    // could add CTQ votes to an already-closed thread.
+    const thread = await client.query(`SELECT status FROM forum_threads WHERE id = $1`, [threadId]);
+    if (thread.rows[0]?.status !== "open") {
+      await client.query("ROLLBACK");
+      return { ok: false as const };
+    }
     const elig = await client.query(
       `SELECT EXISTS (
          SELECT 1 FROM arguments WHERE thread_id = $1 AND user_id = $2 AND moderation_status = 'approved'
