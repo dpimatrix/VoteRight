@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { isAdmin } from "@/lib/adminAuth";
+import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
@@ -45,6 +46,7 @@ export default async function AdminHome() {
   const flags = await adminFlags();
   const queue = await adminCodingQueue();
   const mods = await moderationQueue();
+  const anomalies = await adminAnomalyQueue();
   const pipeline = await adminMandatePipeline();
   const campaigns = await adminCampaigns();
   const privacy = await adminPrivacyQueue();
@@ -82,6 +84,14 @@ export default async function AdminHome() {
           <span className="smeta">pre-publish review for debate arguments</span>
         </span>
         <span className={`chip band ${mods.length > 0 ? "bm1" : "b0"}`}>{mods.length} pending</span>
+      </Link>
+      <Link className="seat" href="/admin/anomalies">
+        <span className="seat-ic">AN</span>
+        <span className="sname">
+          Anomaly review
+          <span className="smeta">Sybil/coordinated-manipulation flags (§9) — velocity &amp; geo checks</span>
+        </span>
+        <span className={`chip band ${anomalies.length > 0 ? "bm1" : "b0"}`}>{anomalies.length} pending</span>
       </Link>
       <Link className="seat" href="/admin/mandates">
         <span className="seat-ic">RM</span>

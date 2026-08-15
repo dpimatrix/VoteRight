@@ -62,6 +62,7 @@ export function addressLooksValid(address: string): boolean {
 export async function verifyAddress(
   userId: string,
   address: string,
+  requestContext?: { ip: string | null; contextHash: string | null },
 ): Promise<"ok" | "bad_format" | "no_match" | "outside" | "resolver_unavailable"> {
   if (!addressLooksValid(address)) return "bad_format";
   const { resolveJurisdiction } = await import("./jurisdictions");
@@ -97,6 +98,17 @@ export async function verifyAddress(
         res.districts.countyCouncil, res.districts.boardOfEducation, res.districts.appellateCircuit,
       ],
     );
+    if (requestContext) {
+      const { flagIfAnomalous } = await import("./anomalyDetection");
+      // The root action a Sybil attacker performs first -- minting many
+      // "verified" identities before ever touching seconds/CTQ/ballots.
+      await flagIfAnomalous(client, {
+        action: "address_verification",
+        userId,
+        ip: requestContext.ip,
+        contextHash: requestContext.contextHash,
+      });
+    }
     await client.query("COMMIT");
     return "ok";
   } catch (e) {
@@ -189,6 +201,12 @@ export async function secondProposal(
   userId: string,
   tier: string,
   signing?: { signature: string; publicKeyFingerprint: string; contextHash?: string },
+  // Independent of signing (which is best-effort/optional -- see the
+  // signing parameter above), unlike signing.contextHash which is only ever
+  // computed on the signed path. Sybil detection (ARCHITECTURE.md §9) needs
+  // to run on every second, signed or not, since signing itself is
+  // unenforced and an automated Sybil client would simply omit it.
+  requestContext?: { ip: string | null; contextHash: string | null },
 ): Promise<{ signatureInvalid: true } | { selfSecond: true } | { signatureInvalid: false; selfSecond: false }> {
   const client = await db().connect();
   try {
@@ -223,6 +241,15 @@ export async function secondProposal(
        VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
       [proposalId, userId, tier, signedActionId],
     );
+    if (requestContext) {
+      const { flagIfAnomalous } = await import("./anomalyDetection");
+      await flagIfAnomalous(client, {
+        action: "second",
+        userId,
+        ip: requestContext.ip,
+        contextHash: requestContext.contextHash,
+      });
+    }
     const { rows } = await client.query(
       `SELECT p.status, p.second_threshold,
               (SELECT count(*)::int FROM seconds s WHERE s.proposal_id = p.id) AS n
@@ -520,7 +547,7 @@ export async function agreeVote(
 }
 
 /* ── calling the question (§7.6) ── */
-export async function ctqVote(threadId: string, userId: string) {
+export async function ctqVote(threadId: string, userId: string, requestContext?: { ip: string | null; contextHash: string | null }) {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
@@ -554,6 +581,15 @@ export async function ctqVote(threadId: string, userId: string) {
       `INSERT INTO call_the_question_votes (thread_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
       [threadId, userId],
     );
+    if (requestContext) {
+      const { flagIfAnomalous } = await import("./anomalyDetection");
+      await flagIfAnomalous(client, {
+        action: "call_the_question",
+        userId,
+        ip: requestContext.ip,
+        contextHash: requestContext.contextHash,
+      });
+    }
     const s = await client.query(
       `WITH active AS (
          SELECT user_id FROM arguments WHERE thread_id = $1 AND moderation_status = 'approved'

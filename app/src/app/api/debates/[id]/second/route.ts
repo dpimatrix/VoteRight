@@ -7,6 +7,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const isJson = (request.headers.get("content-type") ?? "").includes("application/json");
   const userId = await verifiedUserId();
+  const ip = request.headers.get("x-forwarded-for");
+  const userAgent = request.headers.get("user-agent") ?? "unknown";
+  // Always computed, independent of whether this request also happens to be
+  // signed (signing is best-effort/optional -- see secondProposal) -- Sybil
+  // detection (ARCHITECTURE.md §9) needs to run on every second regardless.
+  const requestContext = { ip, contextHash: hashContext(ip ?? "unknown", userAgent) };
 
   if (isJson) {
     if (!userId) return Response.json({ error: "verify" }, { status: 403 });
@@ -16,12 +22,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       userId,
       await userTier(userId),
       b.signature && b.publicKeyFingerprint
-        ? {
-            signature: b.signature,
-            publicKeyFingerprint: b.publicKeyFingerprint,
-            contextHash: hashContext(request.headers.get("x-forwarded-for") ?? "unknown", request.headers.get("user-agent") ?? "unknown"),
-          }
+        ? { signature: b.signature, publicKeyFingerprint: b.publicKeyFingerprint, contextHash: requestContext.contextHash }
         : undefined,
+      requestContext,
     );
     return Response.json(res);
   }
@@ -36,12 +39,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     userId,
     await userTier(userId),
     signature && publicKeyFingerprint
-      ? {
-          signature,
-          publicKeyFingerprint,
-          contextHash: hashContext(request.headers.get("x-forwarded-for") ?? "unknown", request.headers.get("user-agent") ?? "unknown"),
-        }
+      ? { signature, publicKeyFingerprint, contextHash: requestContext.contextHash }
       : undefined,
+    requestContext,
   );
   const dest = "selfSecond" in res && res.selfSecond ? `/debates/${id}?lang=${lang}&error=self` : `/debates/${id}?lang=${lang}`;
   return redirectTo(dest, request);

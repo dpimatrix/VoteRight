@@ -991,6 +991,32 @@ ALTER TABLE issue_proposals ADD COLUMN signed_action_id UUID REFERENCES signed_a
 ALTER TABLE seconds ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
 ALTER TABLE accountability_campaign_supports ADD COLUMN signed_action_id UUID REFERENCES signed_actions(id);
 
+-- Sybil/coordinated-manipulation detection (ARCHITECTURE.md §9, migration
+-- 084, added 2026-08-15). Flags for human review, never auto-blocks -- see
+-- app/src/lib/anomalyDetection.ts. Every occurrence of a watched action is
+-- logged here regardless of outcome (what velocity checking counts
+-- against); anomaly_flags only gets a row when a check actually trips.
+CREATE TABLE action_context_log (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    action_type     TEXT NOT NULL CHECK (action_type IN ('address_verification', 'second', 'call_the_question', 'referendum_ballot')),
+    context_hash    TEXT,                                   -- hashed IP+User-Agent, same convention as signed_actions/user_key_events above
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE anomaly_flags (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id),
+    action_type     TEXT NOT NULL CHECK (action_type IN ('address_verification', 'second', 'call_the_question', 'referendum_ballot')),
+    reason          TEXT NOT NULL CHECK (reason IN ('ip_velocity', 'geo_mismatch')),
+    detail          TEXT,
+    context_hash    TEXT,
+    related_id      UUID,
+    reviewed_at     TIMESTAMPTZ,
+    reviewed_action TEXT CHECK (reviewed_action IN ('dismissed', 'confirmed_ok', 'user_flagged_for_review')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- INDEXES
 -- ══════════════════════════════════════════════════════════════

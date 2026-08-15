@@ -126,6 +126,7 @@ export async function issueBallot(
   refId: string,
   userId: string,
   tier: string,
+  requestContext?: { ip: string | null; contextHash: string | null },
 ): Promise<"ok" | "not_open" | "not_eligible" | "too_recent"> {
   await syncStatuses();
   const client = await db().connect();
@@ -179,6 +180,19 @@ export async function issueBallot(
        VALUES ($1, $2, $3) ON CONFLICT (referendum_id, user_id) DO NOTHING`,
       [refId, userId, tier],
     );
+    if (requestContext) {
+      const { flagIfAnomalous } = await import("./anomalyDetection");
+      // Highest-stakes of the three watched actions (ARCHITECTURE.md §9) --
+      // a Sybil identity minted well before opens_at (residency_established_
+      // before_open above) and issued a token here gets one real vote in
+      // what's presented as one-person-one-vote civic decision-making.
+      await flagIfAnomalous(client, {
+        action: "referendum_ballot",
+        userId,
+        ip: requestContext.ip,
+        contextHash: requestContext.contextHash,
+      });
+    }
     await client.query("COMMIT");
     return "ok";
   } catch (e) {

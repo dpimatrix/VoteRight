@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "geoip-lite": "^2.0.3",
     "next": "16.2.10",
     "pdf-parse": "^2.4.5",
     "pg": "^8.22.0",
@@ -17,6 +18,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@types/geoip-lite": "^1.4.4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
