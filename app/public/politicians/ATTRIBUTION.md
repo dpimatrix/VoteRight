@@ -136,3 +136,40 @@ the monogram as everywhere else. Multi-seat bodies (e.g. Public Service
 Commissions) and differently-shaped tiers (district-based, judicial)
 aren't in TIERS yet — they need their own naming/shape verification
 before joining this list.
+
+### Flagged/human-verified candidates (added 2026-08-15)
+
+A retry of the automated pass above landed at 93/241 for this tier
+(well below Congress/Governor's coverage) with the failure count
+essentially unmoved from the day before despite the wait — a live
+investigation of two named cases (Derek Brown/Attorney General of
+Utah, Allison Ball/State Auditor of Kentucky) confirmed this isn't
+rate-limiting: Wikidata's position-held data for this tier is
+genuinely thinner than for governors. Derek Brown's only recorded
+Wikidata position is a past state-house seat, not the AG office he
+actually holds now; Allison Ball has a Wikidata photo but zero
+position-held statements at all. The strict cross-check (§ above) is
+working exactly as designed in both cases — it just can't verify
+what Wikidata doesn't record.
+
+`db/ingest/statewide-official-photos-flagged.mjs` re-runs the lookup
+for anyone still missing a photo WITHOUT the position requirement —
+name match + "instance of: human" (a cheap guard against a same-named
+non-person item) + any photo. It never writes anything; it only
+prints candidates (politician_id, Wikidata item link, photo URL) for
+a human to open and visually confirm. Names matching more than one
+distinct Wikidata person are flagged ambiguous and skipped outright —
+verified live against "John Smith" (5 distinct real people) before
+trusting this path; picking one arbitrarily would be exactly the kind
+of guess this project doesn't make.
+
+`db/ingest/apply-flagged-photo.mjs <politician_id> [...]` applies a
+photo only for ids explicitly passed on the command line — re-checks
+the same lookup fresh (not a URL pasted from the scan output) so
+what's applied matches Wikidata at apply time, then the same
+download → webp → DB-write pipeline as the main script. A human
+confirming by eye before this runs is the entire safety model here,
+same principle as the Ashman campaign-photo exception above, just
+without needing a hand-curated ATTRIBUTION.md entry per person since
+the source (Wikidata/Commons) is the same as every other automated
+entry in this section.
