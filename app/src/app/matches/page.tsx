@@ -4,6 +4,7 @@ import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
+import { ownRaceIds } from "@/lib/jurisdictions";
 import { matchesForRace } from "@/lib/matches";
 import { isSampleData, races } from "@/lib/queries";
 
@@ -21,12 +22,18 @@ export default async function MatchesPage({
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
   const d = t(lang);
-  const allRaces = await races();
+  const userId = await currentUserId();
+  // Scope the race picker to what's actually on this resident's own ballot
+  // (same narrowing the Ballot page/API apply) instead of every race in the
+  // system — null when residence is unknown, which shows everything, same
+  // as before. See ownRaceIds's doc comment.
+  const ownIds = await ownRaceIds(userId);
+  const allRacesRaw = await races();
+  const allRaces = ownIds ? allRacesRaw.filter((r) => ownIds.has(r.id)) : allRacesRaw;
   const sample = await isSampleData();
   const raceId = sp.race ?? allRaces[0]?.id;
   const race = allRaces.find((r) => r.id === raceId);
 
-  const userId = await currentUserId();
   const data = userId && raceId ? await matchesForRace(raceId, userId) : null;
   const hasPriorities = (data?.priorities.length ?? 0) >= 3;
 

@@ -735,6 +735,33 @@ export async function userResidence(userId: string): Promise<UserResidence | nul
   return rows[0] ?? null;
 }
 
+/** Race ids actually on this user's own ballot, after the same district
+    narrowing the Ballot page/API apply (ballotForJurisdiction +
+    filterToOwnDistricts) — used to scope the Matches feature (web page +
+    /api/races, which the native app calls) to a resident's real races
+    instead of every race in the system. Real gap found live 2026-08-15:
+    a Gaithersburg (District 3) address saw all 8 County Council races
+    (At-Large + Districts 1-7) under Matches while Ballot correctly showed
+    only the 2 actually on their ballot — Matches had never been updated to
+    apply this narrowing. Null (not an empty set) when residence is
+    unknown — same "show more, never guess" fallback filterToOwnDistricts
+    itself uses, so an anonymous/pre-verification user still sees every
+    race rather than none. */
+export async function ownRaceIds(userId: string | null): Promise<Set<string> | null> {
+  const residence = userId ? await userResidence(userId) : null;
+  if (!residence) return null;
+  const allOffices = await ballotForJurisdiction(residence.ocd_id);
+  const offices = filterToOwnDistricts(allOffices, {
+    congressional: residence.congressional_district,
+    stateSenate: residence.state_senate_district,
+    stateHouse: residence.state_house_district,
+    countyCouncil: residence.county_council_district,
+    boardOfEducation: residence.board_of_education_district,
+    appellateCircuit: residence.appellate_circuit,
+  });
+  return new Set(offices.filter((o): o is StackedOffice & { race_id: string } => o.race_id !== null).map((o) => o.race_id));
+}
+
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
     Browsing NEVER touches residence or participation rights — every eligibility
     check in the app reads users.residence_jurisdiction_id from the database,
