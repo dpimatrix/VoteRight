@@ -86,10 +86,21 @@ rather than letting this drift out of sync with reality.
 
 ## Mobile
 
-- **1.1.2 build** — held per the owner's own standing instruction ("mobile
-  is best built after all have been done on website"); reconfirmed still
-  pending as of the 2026-08-15 "what's left in the pipeline" check-in. No web
-  feature has been explicitly named yet as the trigger to finally cut it.
+- **Nothing open right now.** The standing "mobile build after web work
+  lands" hold was cleared 2026-08-15/16: shipped as **1.1.3** (not 1.1.2 —
+  the owner corrected the version mid-build after the 1.1.2 artifacts had
+  already uploaded to EAS but before they compiled, so those were cancelled
+  and rebuilt clean), build 6 on both platforms, folding in the 8 mobile-
+  touching commits from 2026-08-14 that hadn't shipped (Montgomery/PG/DC/
+  Fairfax district narrowing, MD Supreme Court circuit narrowing, term-start
+  reliability, the "on your ballot in 2026" election-year fix). iOS submitted
+  via `eas submit` (App Store Connect / TestFlight); Android's `.aab` was
+  handed to the owner directly rather than submitted via EAS (explicit
+  instruction: "submit for ios only"). **Both platforms are now in Apple/
+  Google review as of 2026-08-16** — Android was uploaded to Play Console
+  manually by the owner, outside EAS's `submit` flow, so it did not go
+  through the `releaseStatus: "draft"` internal-track path `eas.json`
+  configures; it's a real production review submission like iOS.
 
 ## Closed this pass (for context, not action)
 
