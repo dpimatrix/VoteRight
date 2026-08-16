@@ -41,15 +41,12 @@ rather than letting this drift out of sync with reality.
   --force` would bump Next.js to an out-of-range major version as a side
   effect. Needs its own dedicated, carefully-tested pass (full regression
   suite + a real staging deploy before production), not a reflexive `--force`.
-- **Stray root-level `package-lock.json`** on the VPS
-  (`/home/voteright/repo/package-lock.json`, no corresponding
-  `package.json` next to it) — causes Next's "detected multiple lockfiles"
-  warning on every build and was the root cause of one deploy-troubleshooting
-  detour 2026-08-15 (an `npm install` run from repo root instead of `app/`
-  partially succeeded against the wrong lockfile before the mistake was
-  caught). Harmless as long as deploys always `cd app` first, but worth
-  deleting to remove the warning and the footgun. Self-serve: `rm
-  /home/voteright/repo/package-lock.json` on the VPS, no code change needed.
+- ~~Stray root-level `package-lock.json`~~ **DONE (2026-08-16)** — deleted
+  from the VPS (`rm /home/voteright/repo/package-lock.json`). Had caused
+  Next's "detected multiple lockfiles" warning on every build and was the
+  root cause of one deploy-troubleshooting detour 2026-08-15 (an `npm
+  install` run from repo root instead of `app/` partially succeeded against
+  the wrong lockfile before the mistake was caught).
 
 ## Officeholder photo coverage
 
