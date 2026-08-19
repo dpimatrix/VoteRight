@@ -42,7 +42,7 @@ export default async function PaymentSettingsPage() {
           <input type="hidden" name="section" value="general" />
           <label className="nopos" style={{ display: "block", margin: "0.5rem 0 0.15rem" }}>Fee (USD)</label>
           <input
-            type="number" name="fee_dollars" step="0.01" min="0"
+            type="number" name="fee_dollars" step="0.01" min="0.01" required
             defaultValue={settings.feeCents ? (settings.feeCents / 100).toFixed(2) : ""}
             placeholder="5.00" style={{ width: "100%" }}
           />

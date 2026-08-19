@@ -17,9 +17,18 @@ export async function POST(request: Request) {
   const section = String(form.get("section") ?? "");
 
   if (section === "general") {
+    // Unlike the vendor-key fields below, blank here is never "leave
+    // unchanged" -- there's no valid state where the fee is simply unset
+    // after a save was attempted, so an empty/invalid submission is a real
+    // error, not silently ignored. Real bug found live 2026-08-19: this
+    // used to accept blank the same permissive way the key fields do,
+    // which let a save silently no-op with zero visible error -- the fee
+    // stayed NULL for a full round of "is it configured yet?"
+    // troubleshooting before the gap was found.
     const feeDollars = str(form, "fee_dollars");
-    const feeCents = feeDollars ? Math.round(Number(feeDollars) * 100) : undefined;
-    if (feeCents !== undefined && (!Number.isFinite(feeCents) || feeCents <= 0)) return new Response("bad fee", { status: 400 });
+    if (!feeDollars) return new Response("fee is required", { status: 400 });
+    const feeCents = Math.round(Number(feeDollars) * 100);
+    if (!Number.isFinite(feeCents) || feeCents <= 0) return new Response("bad fee", { status: 400 });
     const activeGateway = form.get("active_gateway");
     if (activeGateway && !["stripe", "authorizenet"].includes(String(activeGateway))) return new Response("bad gateway", { status: 400 });
     await updatePaymentSettings({
