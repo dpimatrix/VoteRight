@@ -18,10 +18,16 @@ rather than letting this drift out of sync with reality.
   (this doesn't fully close the Sybil gap either — see the new admin-roles
   item below and the "not yet tested against live credentials" note in
   that section).
-- **Payment verification: needs real (even sandbox) Stripe/Authorize.Net
-  credentials to test end-to-end** — built 2026-08-19, `tsc`/tests pass, but
-  no live charge has actually been run through either gateway yet. Do this
-  before any real user sees `/verify/payment`.
+- **Payment verification: needs real Stripe sandbox credentials to test
+  end-to-end** — built 2026-08-19, `tsc`/tests pass, but no live charge has
+  actually been run through either gateway yet. **Owner chose Stripe as the
+  gateway to actually configure/go live with (2026-08-19)** — same
+  per-transaction rate as Authorize.Net (2.9%+30¢ card, ~0.8% ACH) with no
+  $25/mo base fee, confirmed live against both vendors' own pricing pages.
+  Set `active_gateway = stripe` in `/admin/payments` once sandbox keys
+  exist; Authorize.Net stays fully built and selectable if that ever
+  changes, just not the near-term priority. Do this before any real user
+  sees `/verify/payment`.
 - ~~Admin role-based access control~~ **DONE (2026-08-19, migration 086)**
   — per-admin accounts (own TOTP enrollment each) + per-screen checkboxes
   (owner's explicit choice over named roles), replacing the flat shared-
