@@ -22,7 +22,21 @@
 // SITE_URL stays unset there, so this falls through to the same
 // request.url-based origin that already works correctly without a proxy
 // in front of it.
+/** The one correct way to get this app's real public origin from inside a
+    route handler -- reused wherever an ABSOLUTE url needs to be built (not
+    just an internal redirect), e.g. the success_url/cancel_url/return_url
+    passed to Stripe. Same SITE_URL-first fix as redirectTo() below; pulled
+    out into its own export after a real recurrence (2026-08-19): the new
+    subscriptions checkout/portal routes built their Stripe callback URLs
+    with `new URL(request.url).origin` directly instead of going through
+    this file, reproducing the exact "This site can't be reached...
+    localhost:3001" bug from 2026-08-14 -- Stripe redirected a real
+    subscriber straight to the VPS's internal bind address after a
+    successful, real, live charge. */
+export function siteOrigin(request: Request): string {
+  return process.env.SITE_URL ?? new URL(request.url).origin;
+}
+
 export function redirectTo(path: string, request: Request): Response {
-  const origin = process.env.SITE_URL ?? new URL(request.url).origin;
-  return Response.redirect(new URL(path, origin), 303);
+  return Response.redirect(new URL(path, siteOrigin(request)), 303);
 }

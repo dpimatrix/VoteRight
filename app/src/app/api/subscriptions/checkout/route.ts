@@ -1,5 +1,5 @@
 import { currentOrNewUserId } from "@/lib/anon";
-import { redirectTo } from "@/lib/redirect";
+import { redirectTo, siteOrigin } from "@/lib/redirect";
 import { createCheckoutSession, SubscriptionsNotConfigured } from "@/lib/subscriptions";
 
 /* Gated on bare identity (mint-if-needed), not address/payment
@@ -14,7 +14,12 @@ export async function POST(request: Request) {
   const tier = String(form.get("tier") ?? "");
   if (!["supporter", "patron", "champion"].includes(tier)) return new Response("bad tier", { status: 400 });
 
-  const origin = new URL(request.url).origin;
+  // Real bug found live 2026-08-19: request.url's origin is the VPS's
+  // internal 127.0.0.1:3001 bind address behind the Apache reverse proxy,
+  // not the public domain -- see redirect.ts's siteOrigin() doc comment.
+  // A real subscriber completed a real charge and got redirected straight
+  // to an unreachable localhost URL.
+  const origin = siteOrigin(request);
   try {
     const url = await createCheckoutSession(
       userId,
