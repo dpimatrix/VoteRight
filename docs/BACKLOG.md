@@ -35,6 +35,21 @@ rather than letting this drift out of sync with reality.
   or separate production Stripe account — the keys used for this test are
   test-mode only); Authorize.Net itself remains completely untested against
   any live account.
+- **Live production Stripe keys entered 2026-08-19** — owner set up a live
+  Stripe webhook destination and saved live keys + fee into
+  `/admin/payments` on the real production console. Not yet independently
+  re-verified the way the test-mode flow was (Stripe's own "Send test
+  webhook" button is the equivalent check for the live signing secret).
+- **Mobile app not updated for payment_verified gating** — the debate-action
+  API routes (second/argue/ctq/agree/propose) now return a new JSON error
+  code (`"pay"`, distinct from the pre-existing `"verify"`) when someone is
+  address-verified but not payment-verified. The web pages route this to
+  `/verify/payment`; mobile's existing screens only handle the old
+  `"verify"` code, so a mobile user attempting any debate action right now
+  hits an error the app doesn't know how to react to — most likely a
+  dead end, not a clear "pay to continue" path. Needs its own pass
+  (equivalent screen/flow in `mobile/`) before mobile users try to
+  participate in debates again.
 - ~~Admin role-based access control~~ **DONE (2026-08-19, migration 086)**
   — per-admin accounts (own TOTP enrollment each) + per-screen checkboxes
   (owner's explicit choice over named roles), replacing the flat shared-
