@@ -18,16 +18,23 @@ rather than letting this drift out of sync with reality.
   (this doesn't fully close the Sybil gap either — see the new admin-roles
   item below and the "not yet tested against live credentials" note in
   that section).
-- **Payment verification: needs real Stripe sandbox credentials to test
-  end-to-end** — built 2026-08-19, `tsc`/tests pass, but no live charge has
-  actually been run through either gateway yet. **Owner chose Stripe as the
-  gateway to actually configure/go live with (2026-08-19)** — same
-  per-transaction rate as Authorize.Net (2.9%+30¢ card, ~0.8% ACH) with no
-  $25/mo base fee, confirmed live against both vendors' own pricing pages.
-  Set `active_gateway = stripe` in `/admin/payments` once sandbox keys
-  exist; Authorize.Net stays fully built and selectable if that ever
-  changes, just not the near-term priority. Do this before any real user
-  sees `/verify/payment`.
+- ~~Payment verification: needs real credentials to test end-to-end~~
+  **DONE for Stripe (2026-08-19)** — owner provided real Stripe test-mode
+  keys, verified the full flow against the live test API (PaymentIntent
+  creation → confirm with a test card → signed webhook → `payment_verified`
+  promotion). **Caught and fixed a real bug in the process**: the webhook
+  handler was misclassifying every successful payment as `'ach'` regardless
+  of whether a card or bank account was actually used (checked the
+  PaymentIntent's *allowed* method types, not which one was actually
+  charged) — fixed by retrieving the real `PaymentMethod.type`. Owner chose
+  Stripe over Authorize.Net as the gateway to actually go live with (same
+  per-transaction rate, no $25/mo base fee, confirmed live against both
+  vendors' own pricing pages) — Authorize.Net stays fully built and
+  selectable if that ever changes. **Still not done**: production has no
+  Stripe keys configured yet (`/admin/payments`, self-serve, needs a real
+  or separate production Stripe account — the keys used for this test are
+  test-mode only); Authorize.Net itself remains completely untested against
+  any live account.
 - ~~Admin role-based access control~~ **DONE (2026-08-19, migration 086)**
   — per-admin accounts (own TOTP enrollment each) + per-screen checkboxes
   (owner's explicit choice over named roles), replacing the flat shared-
