@@ -66,6 +66,18 @@ export default async function SubscribePage({
           <div className="card">
             <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.95rem" }}>{d.sub_export_h}</h3>
             <a className="btn secondary" href="/api/subscriptions/export/priorities">{d.sub_export_btn}</a>
+            {(tier === "patron" || tier === "champion") && (
+              <>
+                <a
+                  className="btn secondary"
+                  href="/api/subscriptions/export/match-report"
+                  style={{ marginTop: "0.5rem", display: "inline-block" }}
+                >
+                  {d.sub_matchreport_btn}
+                </a>
+                <p className="nopos" style={{ marginTop: "0.4rem" }}>{d.sub_matchreport_note}</p>
+              </>
+            )}
           </div>
         )}
 

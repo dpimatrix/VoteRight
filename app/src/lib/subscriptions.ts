@@ -240,6 +240,47 @@ export async function exportPrioritiesCsv(userId: string): Promise<string> {
   return header + body + (body ? "\n" : "");
 }
 
+/** Patron+ real perk (§14.1): every race on the resident's own ballot, every
+    candidate's match band and coverage -- NOT new information (any resident,
+    any tier, already sees this in full on /matches for free, unlimited) --
+    this is a bulk CSV download of data that's already 100% public and
+    already visible to them, same principle exportPrioritiesCsv relies on.
+    Reuses the exact same district-narrowing + scoring pipeline the free
+    /matches page uses, no new computation invented for this export. */
+export async function exportMatchReportCsv(userId: string): Promise<string> {
+  const [{ userResidence, ballotForJurisdiction, filterToOwnDistricts }, { matchesForRace }] = await Promise.all([
+    import("./jurisdictions"),
+    import("./matches"),
+  ]);
+  const residence = await userResidence(userId);
+  const header = "Office,Jurisdiction,Candidate,Party,Match,Answered,Total,Dealbreaker\n";
+  if (!residence) return header;
+
+  const allOffices = await ballotForJurisdiction(residence.ocd_id);
+  const offices = filterToOwnDistricts(allOffices, {
+    congressional: residence.congressional_district,
+    stateSenate: residence.state_senate_district,
+    stateHouse: residence.state_house_district,
+    countyCouncil: residence.county_council_district,
+    boardOfEducation: residence.board_of_education_district,
+    appellateCircuit: residence.appellate_circuit,
+  });
+
+  const rows: string[] = [];
+  for (const office of offices) {
+    if (!office.race_id) continue;
+    const { results } = await matchesForRace(office.race_id, userId);
+    for (const r of results) {
+      rows.push(
+        [office.title, office.jurisdiction_name, r.fullName, r.party ?? "", r.score.overall, r.score.answered, r.score.total, r.score.dealbreaker]
+          .map((v) => csvEscape(String(v)))
+          .join(","),
+      );
+    }
+  }
+  return header + rows.join("\n") + (rows.length ? "\n" : "");
+}
+
 /* ── Admin visibility ── */
 
 /** Champion-tier bulk export (§14.1) -- a machine-readable mirror of the
