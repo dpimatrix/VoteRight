@@ -233,7 +233,7 @@ export async function handleGatewayWebhook(rawBody: string, headers: { stripeSig
   const settings = await getPaymentSettings();
 
   if (headers.stripeSignature && settings.stripe?.webhookSecret) {
-    const result = handleStripeWebhook(settings.stripe, rawBody, headers.stripeSignature);
+    const result = await handleStripeWebhook(settings.stripe, rawBody, headers.stripeSignature);
     if (result) {
       await db().query(`UPDATE payment_verifications SET method = $2 WHERE gateway = 'stripe' AND gateway_transaction_id = $1`, [
         result.stripeIntentId,

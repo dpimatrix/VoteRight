@@ -42,7 +42,7 @@ export interface StripeWebhookResult {
     for an event type this app doesn't act on. Never trust a webhook body
     without this -- an unverified webhook is an open door to mint
     payment_verified for free. */
-export function handleStripeWebhook(creds: StripeCreds, rawBody: string, signatureHeader: string): StripeWebhookResult | null {
+export async function handleStripeWebhook(creds: StripeCreds, rawBody: string, signatureHeader: string): Promise<StripeWebhookResult | null> {
   if (!creds.webhookSecret) throw new Error("Stripe webhook secret not configured");
   const stripe = stripeClient(creds.secretKey);
   const event = stripe.webhooks.constructEvent(rawBody, signatureHeader, creds.webhookSecret);
@@ -54,7 +54,19 @@ export function handleStripeWebhook(creds: StripeCreds, rawBody: string, signatu
     return null;
   }
   const intent = event.data.object as Stripe.PaymentIntent;
-  const method = intent.payment_method_types?.includes("us_bank_account") ? "ach" : "card";
+  // Real bug found live 2026-08-19: intent.payment_method_types is the
+  // intent's ALLOWED method types (every intent this app creates allows
+  // both card and us_bank_account, per createStripeIntent above), not
+  // which one was actually used for THIS charge -- checking it against
+  // 'us_bank_account' was true unconditionally, misclassifying every card
+  // payment as ACH. The actual method used lives on the specific
+  // PaymentMethod object (intent.payment_method, a string id on the
+  // webhook payload), which needs its own retrieve call to read .type.
+  let method: "card" | "ach" = "card";
+  if (typeof intent.payment_method === "string") {
+    const pm = await stripe.paymentMethods.retrieve(intent.payment_method);
+    method = pm.type === "us_bank_account" ? "ach" : "card";
+  }
   const status = event.type === "payment_intent.succeeded" ? "succeeded" : event.type === "payment_intent.processing" ? "pending" : "failed";
   return { stripeIntentId: intent.id, method, status };
 }
