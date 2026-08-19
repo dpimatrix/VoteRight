@@ -9,24 +9,48 @@ rather than letting this drift out of sync with reality.
 
 ## Membership & sustainability funding (§14, built 2026-08-19)
 
-- **Not yet tested against live Stripe Billing credentials** — same
-  caveat §9.2 carried before the owner's real payment_verified keys
-  arrived. `lib/subscriptions.ts` is written against Stripe's documented
-  Billing API shape and verified live via synthetic-but-validly-signed
-  webhook events (checkout → subscription active → tier sync → CSV export
-  → API key → cancellation, all confirmed against the real dev DB), but no
-  real Stripe Price ID or live webhook exists yet — needs its own
-  `/admin/subscriptions` setup pass (3 Stripe Prices created in the
-  Dashboard, a second webhook destination, pasted in) before any real
-  subscriber can check out.
+- ~~Not yet tested against live Stripe Billing credentials~~ **DONE
+  (2026-08-19)** — full live run: 3 Products/Prices created (one early
+  mix-up pasting a Product ID instead of a Price ID into
+  `/admin/subscriptions`, caught and corrected), a real live $5 Supporter
+  charge went through, refunded afterward. **Two real bugs found and fixed
+  in the process**: (1) the subscriptions webhook destination was never
+  actually created on Stripe's side (only the one-time payment_verified
+  destination existed) — the charge succeeded but VoteRight never heard
+  about it until the destination was added; (2) `checkout`/`portal` routes
+  built their Stripe return URLs from `request.url`'s origin directly,
+  reproducing the exact "redirects to localhost:3001" bug this project
+  already fixed once (2026-08-14) — fixed by routing both through the
+  existing `redirectTo()`/`SITE_URL` mechanism via a new shared
+  `siteOrigin()` helper. Webhook now correctly configured and receiving
+  events.
+- ~~KYC / user accounts for subscribers~~ **RESOLVED, not needed
+  (2026-08-19)** — owner raised a real concern (KYC compliance,
+  transaction-history delivery, year-end statements) after going through
+  the live-checkout debugging above. Researched rather than assumed: KYC
+  is Stripe's obligation toward the account holder (already satisfied when
+  the Stripe account itself was set up), not something VoteRight owes its
+  own subscribers — that only applies when using Stripe Connect to onboard
+  other merchants, which this isn't. Transaction history and receipts are
+  solved without any new accounts system: Stripe's own "Successful
+  payments" + "Refunds" customer-email toggles (Dashboard → Settings →
+  Customer emails) now send a receipt automatically on every charge, and
+  the Billing Portal already wired into `/subscribe` gives self-service
+  invoice history any time — both confirmed live. **Still genuinely open,
+  but small and separable**: a rolled-up *annual* statement (vs. 12
+  per-charge receipts) would need either a manual admin export or a real
+  email vendor, and only clearly matters if the still-undecided nonprofit
+  question (ARCHITECTURE.md §13 item 2) resolves toward 501(c)(3) status.
 - **Deferred by design, needing their own decisions** — see
   ARCHITECTURE.md §14.2 for the full reasoning: personalized digest
-  emails/notifications (needs a transactional email vendor, not yet
-  chosen), a follow/bookmark system with a tier-gated cap (no such feature
-  exists at all yet, not just an ungated one), per-person alignment-history
-  analytics (no historical snapshot table exists), a dedicated
-  priority-support queue (a staffing commitment, not something to fake
-  with a cosmetic flag).
+  emails/notifications and annual giving statements (needs a transactional
+  email vendor, not yet chosen — receipts themselves are solved via
+  Stripe's native emails above, this is only for anything beyond
+  per-charge receipts), a follow/bookmark system with a tier-gated cap (no
+  such feature exists at all yet, not just an ungated one), per-person
+  alignment-history analytics (no historical snapshot table exists), a
+  dedicated priority-support queue (a staffing commitment, not something
+  to fake with a cosmetic flag).
 - **The bulk API export (`/api/v1/export/candidates`) is deliberately
   v1-scoped** — name/party/current office/jurisdiction only. Promises,
   voting records, sponsorships, and outside money each have their own
