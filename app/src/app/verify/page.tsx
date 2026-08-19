@@ -101,6 +101,14 @@ export default async function VerifyPage({
               <a className="btn secondary" href={`/verify?lang=${lang}&change=1`} style={{ marginTop: "0.5rem", display: "inline-block" }}>
                 {d.verify_change_btn}
               </a>
+              {tier !== "payment_verified" && (
+                <>
+                  <p className="nopos" style={{ marginTop: "0.7rem" }}>{d.verify_pay_next}</p>
+                  <a className="btn" href={`/verify/payment?lang=${lang}`} style={{ display: "inline-block" }}>
+                    {d.verify_pay_link}
+                  </a>
+                </>
+              )}
             </div>
           )
         ) : (

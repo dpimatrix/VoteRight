@@ -34,8 +34,10 @@ export default async function DebatesPage({
           <span className="tag">{lang === "es" ? "Consultivo" : "Advisory"}</span>
           <span>{d.deb_p}</span>
         </div>
-        {tier === "unverified" && (
-          <Link className="btn secondary" href={`/verify?lang=${lang}`}>{d.verify_need}</Link>
+        {tier !== "payment_verified" && (
+          <Link className="btn secondary" href={tier === "unverified" ? `/verify?lang=${lang}` : `/verify/payment?lang=${lang}`}>
+            {d.verify_need}
+          </Link>
         )}
         {groups.map(
           (g) =>

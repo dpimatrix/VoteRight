@@ -73,6 +73,12 @@ preferred consolidating onto it.
 - **Secrets**: `app/.env.production` on the VPS carries `ADMIN_TOTP_SECRET` /
   `ADMIN_SESSION_SECRET` copied over from Vercel's values (so the owner's already-
   enrolled authenticator keeps working) plus the new local `DATABASE_URL`.
+- **Payment verification (added 2026-08-19)**: unlike every other vendor
+  integration in this project, Stripe/Authorize.Net credentials are NOT
+  `.env.production` values — they're set at runtime from `/admin/payments`
+  and stored in `payment_settings` (migration 085). Nothing to add to
+  `.env.production` for this feature; `npm install` picks up the new
+  `stripe` package dependency on the next deploy that includes it.
 - **Debate audio/video (added 2026-08-14)**: uploaded media is transcoded server-side
   via ffmpeg and stored as plain files on local disk at `app/debate-media/` (gitignored,
   created automatically on first upload via `mkdir -p`-style recursive create — no

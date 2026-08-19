@@ -15,7 +15,8 @@
     "pdf-parse": "^2.4.5",
     "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "stripe": "^22.5.0"
   },
   "devDependencies": {
     "@types/geoip-lite": "^1.4.4",

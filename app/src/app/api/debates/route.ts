@@ -1,5 +1,5 @@
 import { redirectTo } from "@/lib/redirect";
-import { verifiedUserId } from "@/lib/anon";
+import { paymentVerifiedUserId, verifiedUserId } from "@/lib/anon";
 import { createProposal, listProposals } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
 
@@ -9,10 +9,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const isJson = (request.headers.get("content-type") ?? "").includes("application/json");
-  const userId = await verifiedUserId();
+  // Debate participation (2026-08-19) requires payment_verified specifically,
+  // not just an address -- see anon.ts's paymentVerifiedUserId() doc comment.
+  const userId = await paymentVerifiedUserId();
 
   if (isJson) {
-    if (!userId) return Response.json({ error: "verify" }, { status: 403 });
+    if (!userId) return Response.json({ error: (await verifiedUserId()) ? "pay" : "verify" }, { status: 403 });
     const b = (await request.json()) as {
       topicId?: string; title?: string; body?: string;
       signature?: string; publicKeyFingerprint?: string;
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
+  if (!userId) return redirectTo((await verifiedUserId()) ? `/verify/payment?lang=${lang}` : `/verify?lang=${lang}`, request);
   const res = await createProposal({
     userId,
     topicId: String(form.get("topicId") ?? ""),

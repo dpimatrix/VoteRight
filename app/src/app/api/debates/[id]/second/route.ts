@@ -1,12 +1,14 @@
 import { redirectTo } from "@/lib/redirect";
-import { verifiedUserId } from "@/lib/anon";
+import { paymentVerifiedUserId, verifiedUserId } from "@/lib/anon";
 import { secondProposal, userTier } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const isJson = (request.headers.get("content-type") ?? "").includes("application/json");
-  const userId = await verifiedUserId();
+  // Debate participation (2026-08-19) requires payment_verified specifically,
+  // not just an address -- see anon.ts's paymentVerifiedUserId() doc comment.
+  const userId = await paymentVerifiedUserId();
   const ip = request.headers.get("x-forwarded-for");
   const userAgent = request.headers.get("user-agent") ?? "unknown";
   // Always computed, independent of whether this request also happens to be
@@ -15,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const requestContext = { ip, contextHash: hashContext(ip ?? "unknown", userAgent) };
 
   if (isJson) {
-    if (!userId) return Response.json({ error: "verify" }, { status: 403 });
+    if (!userId) return Response.json({ error: (await verifiedUserId()) ? "pay" : "verify" }, { status: 403 });
     const b = (await request.json()) as { signature?: string; publicKeyFingerprint?: string };
     const res = await secondProposal(
       id,
@@ -31,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const form = await request.formData();
   const lang = String(form.get("lang") ?? "en");
-  if (!userId) return redirectTo(`/verify?lang=${lang}`, request);
+  if (!userId) return redirectTo((await verifiedUserId()) ? `/verify/payment?lang=${lang}` : `/verify?lang=${lang}`, request);
   const signature = form.get("signature") as string | null;
   const publicKeyFingerprint = form.get("publicKeyFingerprint") as string | null;
   const res = await secondProposal(

@@ -93,6 +93,14 @@ export default async function AdminHome() {
         </span>
         <span className={`chip band ${anomalies.length > 0 ? "bm1" : "b0"}`}>{anomalies.length} pending</span>
       </Link>
+      <Link className="seat" href="/admin/payments">
+        <span className="seat-ic">$V</span>
+        <span className="sname">
+          Payment verification
+          <span className="smeta">fee &amp; gateway setup, reconcile mailed checks — gates debate participation</span>
+        </span>
+        <span className="chip band b0">setup</span>
+      </Link>
       <Link className="seat" href="/admin/mandates">
         <span className="seat-ic">RM</span>
         <span className="sname">

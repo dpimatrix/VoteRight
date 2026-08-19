@@ -1,4 +1,4 @@
-import { verifiedUserId } from "@/lib/anon";
+import { paymentVerifiedUserId, verifiedUserId } from "@/lib/anon";
 import { postArgument, postMediaArgument } from "@/lib/debates";
 import { hashContext } from "@/lib/signing";
 
@@ -6,8 +6,10 @@ export const runtime = "nodejs"; // fs + child_process (ffmpeg) below need the N
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: threadId } = await params;
-  const userId = await verifiedUserId();
-  if (!userId) return Response.json({ error: "verify" }, { status: 403 });
+  // Debate participation (2026-08-19) requires payment_verified specifically,
+  // not just an address -- see anon.ts's paymentVerifiedUserId() doc comment.
+  const userId = await paymentVerifiedUserId();
+  if (!userId) return Response.json({ error: (await verifiedUserId()) ? "pay" : "verify" }, { status: 403 });
 
   // Audio/video arguments arrive as multipart/form-data (a file field); text
   // arguments keep the original JSON body below, unchanged.

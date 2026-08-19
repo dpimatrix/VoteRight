@@ -107,7 +107,11 @@ CREATE TABLE users (
     board_of_education_district TEXT,                  -- Montgomery County ArcGIS lookup, added 2026-08-14: gis4.montgomerycountymd.gov (the county's OWN service, a different domain than the unreachable one above -- confirmed reachable); NULL unless resident is in Montgomery County
     appellate_circuit TEXT,                             -- Maryland's 7 appellate judicial circuits (Md. Constitution Art. IV, §14), added migration 082 -- pure offline county-FIPS lookup, no GIS query needed; NULL unless resident is in Maryland
     verification_tier      TEXT NOT NULL DEFAULT 'unverified'
-                              CHECK (verification_tier IN ('unverified','email_verified','address_verified','govt_id_verified')),
+                              -- 'payment_verified' (migration 085, 2026-08-19) replaces the never-built
+                              -- govt_id_verified tier -- a successful card/ACH charge or a reconciled
+                              -- check IS the identity signal, not a government ID document check. See
+                              -- payment_settings/payment_verifications below and ARCHITECTURE.md §9.2.
+                              CHECK (verification_tier IN ('unverified','email_verified','address_verified','payment_verified')),
     locale                  TEXT NOT NULL DEFAULT 'en',
     deleted_at              TIMESTAMPTZ,              -- MODPA deletion request: row is pseudonymized (auth_id tombstoned, display_name/email_hash cleared), not physically removed — see ARCHITECTURE.md Section 10
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1015,6 +1019,43 @@ CREATE TABLE anomaly_flags (
     reviewed_at     TIMESTAMPTZ,
     reviewed_action TEXT CHECK (reviewed_action IN ('dismissed', 'confirmed_ok', 'user_flagged_for_review')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Payment-as-verification (migration 085, 2026-08-19). Multi-gateway from
+-- the start (Stripe + Authorize.Net) -- see that migration's header comment
+-- for the full reasoning and ARCHITECTURE.md §9.2.
+CREATE TABLE payment_settings (
+    id                          INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    fee_cents                   INT,
+    active_gateway              TEXT CHECK (active_gateway IN ('stripe', 'authorizenet')),
+    stripe_secret_key           TEXT,
+    stripe_publishable_key      TEXT,
+    stripe_webhook_secret       TEXT,
+    authorizenet_api_login_id   TEXT,
+    authorizenet_transaction_key TEXT,
+    authorizenet_public_client_key TEXT,
+    authorizenet_signature_key  TEXT,
+    authorizenet_environment    TEXT NOT NULL DEFAULT 'sandbox' CHECK (authorizenet_environment IN ('sandbox', 'production')),
+    check_payment_enabled       BOOLEAN NOT NULL DEFAULT true,
+    check_instructions          TEXT,
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE payment_verifications (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                 UUID NOT NULL REFERENCES users(id),
+    method                  TEXT NOT NULL CHECK (method IN ('card', 'ach', 'check')),
+    gateway                 TEXT CHECK (gateway IN ('stripe', 'authorizenet')),
+    amount_cents            INT NOT NULL,
+    currency                TEXT NOT NULL DEFAULT 'usd',
+    gateway_transaction_id  TEXT,
+    status                  TEXT NOT NULL DEFAULT 'pending'
+                              CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
+    check_reference_code    TEXT,
+    reconciled_by           TEXT,
+    reconciled_at           TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    verified_at             TIMESTAMPTZ
 );
 
 -- ══════════════════════════════════════════════════════════════

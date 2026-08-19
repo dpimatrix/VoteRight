@@ -9,13 +9,30 @@ rather than letting this drift out of sync with reality.
 
 ## Security / trust model
 
-- **`govt_id_verified` identity tier** — blocked on the owner picking a
-  vendor (Persona / Stripe Identity / ID.me), plus the jurisdiction-size
-  threshold and cost-bearing decision. ARCHITECTURE.md §13 item 9 explicitly
-  flags this as needing counsel, not just an engineering call. The
-  anomaly-detection system shipped 2026-08-15 (velocity + geo-mismatch
-  flagging, ARCHITECTURE.md §9) narrows the practical Sybil gap but does
-  **not** close it — it's a flag-for-human-review layer, not identity proof.
+- ~~`govt_id_verified` identity tier~~ **SUPERSEDED 2026-08-19** — owner
+  rejected document-based ID verification outright (no free tier exists at
+  either vendor, confirmed live) and chose payment-as-verification instead:
+  `payment_verified` (migration 085), gating debate participation on a
+  successful card/ACH/check payment rather than an ID document. See
+  ARCHITECTURE.md §9.2 for the full design and its own honest tradeoffs
+  (this doesn't fully close the Sybil gap either — see the new admin-roles
+  item below and the "not yet tested against live credentials" note in
+  that section).
+- **Payment verification: needs real (even sandbox) Stripe/Authorize.Net
+  credentials to test end-to-end** — built 2026-08-19, `tsc`/tests pass, but
+  no live charge has actually been run through either gateway yet. Do this
+  before any real user sees `/verify/payment`.
+- **Admin role-based access control** — owner asked for this while the
+  payment feature was mid-build: admin access is currently one shared TOTP
+  login with zero permission granularity (`isAdmin()` is a flat yes/no
+  gate used identically by all 10 admin screens). Needs real per-admin
+  accounts (own TOTP enrollment each) + a role/permission model restricting
+  which screens each admin can reach, before it's safe to hand a second
+  person admin access for just one area (e.g. reconciling check payments)
+  without giving them everything else too. Not yet designed — the
+  role taxonomy (how many roles, which screens each covers) needs the
+  owner's input before building, since retrofitting the wrong shape across
+  every existing admin route would be expensive to redo.
 - **Device fingerprint correlation** — the third leg of §9's anomaly-detection
   design, deliberately deferred rather than built weakly. Real vendor-cost/
   privacy tradeoff (a proper fingerprinting SDK) similar in shape to

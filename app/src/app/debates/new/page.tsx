@@ -17,14 +17,17 @@ export default async function NewProposalPage({
   const userId = await currentUserId();
   const tier = userId ? await userTier(userId) : "unverified";
   const topics = await topicsWithAxes();
+  // Debate participation (2026-08-19) requires payment_verified specifically
+  // -- see anon.ts's paymentVerifiedUserId() doc comment.
+  const verifyHref = tier === "unverified" ? `/verify?lang=${lang}` : `/verify/payment?lang=${lang}`;
 
   return (
     <>
       <SiteHeader lang={lang} path="/debates/new" />
       <div className="pagepad">
         <div className="pagetitle">{d.deb_new}</div>
-        {tier === "unverified" ? (
-          <Link className="btn secondary" href={`/verify?lang=${lang}`}>{d.verify_need}</Link>
+        {tier !== "payment_verified" ? (
+          <Link className="btn secondary" href={verifyHref}>{d.verify_need}</Link>
         ) : (
           <div className="card">
             <form method="post" action="/api/debates" style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>

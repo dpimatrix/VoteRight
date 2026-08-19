@@ -33,7 +33,12 @@ export default async function DebatePage({
   const detail = await debateDetail(id, userId);
   if (!detail) notFound();
   const tier = userId ? await userTier(userId) : "unverified";
-  const verified = tier !== "unverified";
+  // Debate participation (2026-08-19) requires payment_verified specifically
+  // -- see anon.ts's paymentVerifiedUserId() doc comment. Someone who's only
+  // address_verified is sent to the payment step, not back through address
+  // verification they've already done.
+  const verified = tier === "payment_verified";
+  const verifyHref = tier === "unverified" ? `/verify?lang=${lang}` : `/verify/payment?lang=${lang}`;
   const back = `/debates/${id}`;
 
   const SIDE_LABEL: Record<string, string> = {
@@ -67,7 +72,7 @@ export default async function DebatePage({
                 <button className="btn" type="submit">{d.deb_second_btn}</button>
               </form>
             ) : (
-              <Link className="btn secondary" style={{ marginTop: "0.6rem" }} href={`/verify?lang=${lang}`}>
+              <Link className="btn secondary" style={{ marginTop: "0.6rem" }} href={verifyHref}>
                 {d.verify_need}
               </Link>
             )}
@@ -211,7 +216,7 @@ export default async function DebatePage({
                   }}
                 />
               ) : (
-                <Link className="btn secondary" href={`/verify?lang=${lang}`}>{d.verify_need}</Link>
+                <Link className="btn secondary" href={verifyHref}>{d.verify_need}</Link>
               ))}
           </>
         )}

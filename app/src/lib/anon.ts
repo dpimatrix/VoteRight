@@ -28,6 +28,20 @@ export async function verifiedUserId(): Promise<string | null> {
   return tier === "unverified" ? null : userId;
 }
 
+/** Debate-participation gate (2026-08-19): stricter than verifiedUserId()
+    above -- requires the payment-as-verification tier specifically
+    (migration 085), not just an address. Scoped to debate actions only
+    (second/argue/ctq/agree/debate creation) per the owner's original "to
+    enter the debate" framing -- referenda and accountability-campaign
+    routes deliberately keep using the plain verifiedUserId() gate above,
+    unchanged. */
+export async function paymentVerifiedUserId(): Promise<string | null> {
+  const { userTier } = await import("./debates");
+  const userId = await currentOrNewUserId();
+  const tier = await userTier(userId);
+  return tier === "payment_verified" ? userId : null;
+}
+
 /** Route-handler variant: mint the cookie if missing (cookies are writable there).
  *  A request carrying the native session header never gets a cookie minted —
  *  that client manages its own identity (see /api/mobile/session). */
