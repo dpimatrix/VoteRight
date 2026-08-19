@@ -35,11 +35,20 @@ rather than letting this drift out of sync with reality.
   or separate production Stripe account — the keys used for this test are
   test-mode only); Authorize.Net itself remains completely untested against
   any live account.
-- **Live production Stripe keys entered 2026-08-19** — owner set up a live
-  Stripe webhook destination and saved live keys + fee into
-  `/admin/payments` on the real production console. Not yet independently
-  re-verified the way the test-mode flow was (Stripe's own "Send test
-  webhook" button is the equivalent check for the live signing secret).
+- ~~Live production Stripe keys~~ **DONE (2026-08-19)** — owner set up a
+  live Stripe webhook destination, confirmed it responds (200 via Stripe's
+  own "Send test webhook"), and saved live keys + fee into `/admin/payments`
+  on the real production console. **A second real bug was found and fixed
+  along the way**: the fee field silently no-op'd on a blank submission
+  (same "leave blank = keep current" semantics as the vendor key fields,
+  wrong for a field with no valid unset state) — `fee_cents` stayed NULL
+  with zero visible error until traced via a direct `psql` query. Fixed
+  (client `required` + server-side 400 on blank/invalid), deployed, and
+  confirmed live: `/admin/payments` now correctly reads "Fee: $5.00 ·
+  active gateway: stripe." **Payment verification is fully live in
+  production as of this note** — the only remaining item is the mobile gap
+  directly below, and Authorize.Net remaining untested against any live
+  account (not the near-term priority per the owner's gateway choice).
 - **Mobile app not updated for payment_verified gating** — the debate-action
   API routes (second/argue/ctq/agree/propose) now return a new JSON error
   code (`"pay"`, distinct from the pre-existing `"verify"`) when someone is
