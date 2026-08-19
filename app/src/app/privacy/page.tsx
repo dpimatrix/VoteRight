@@ -273,6 +273,9 @@ export default async function PrivacyPage({
         <Link className="btn" href={`/privacy/request?lang=${lang}`} style={{ marginTop: "1rem" }}>
           {d.priv_request_btn}
         </Link>
+        <Link className="btn secondary" href={`/subscribe?lang=${lang}`} style={{ marginTop: "0.5rem", display: "inline-block" }}>
+          {d.sub_h}
+        </Link>
         <KeySettings d={d} />
       </div>
     </>

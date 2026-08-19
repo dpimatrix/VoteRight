@@ -112,6 +112,16 @@ CREATE TABLE users (
                               -- check IS the identity signal, not a government ID document check. See
                               -- payment_settings/payment_verifications below and ARCHITECTURE.md §9.2.
                               CHECK (verification_tier IN ('unverified','email_verified','address_verified','payment_verified')),
+    -- Membership subscription (migration 087, 2026-08-19, ARCHITECTURE.md
+    -- §14) -- ORTHOGONAL to verification_tier above: a subscription funds
+    -- the platform and never affects voting weight, ballot completeness,
+    -- match accuracy, or debate participation. subscription_tier records
+    -- the LAST known tier; subscription_status says whether it's actually
+    -- in force (see subscriptions.ts's currentTier()).
+    subscription_tier      TEXT CHECK (subscription_tier IN ('supporter','patron','champion')),
+    stripe_customer_id     TEXT,
+    subscription_status    TEXT CHECK (subscription_status IN ('active','trialing','past_due','canceled','incomplete')),
+    subscription_current_period_end TIMESTAMPTZ,
     locale                  TEXT NOT NULL DEFAULT 'en',
     deleted_at              TIMESTAMPTZ,              -- MODPA deletion request: row is pseudonymized (auth_id tombstoned, display_name/email_hash cleared), not physically removed — see ARCHITECTURE.md Section 10
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1075,6 +1085,36 @@ CREATE TABLE admin_screen_access (
     screen_key  TEXT NOT NULL,
     granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (admin_id, screen_key)
+);
+
+-- Membership & sustainability funding (migration 087, 2026-08-19,
+-- ARCHITECTURE.md §14). Recurring Stripe Billing, deliberately separate
+-- from payment_settings/payment_verifications (migration 085's one-time
+-- PaymentIntent flow) -- own webhook destination/secret.
+CREATE TABLE subscription_plans (
+    tier            TEXT PRIMARY KEY CHECK (tier IN ('supporter', 'patron', 'champion')),
+    display_name    TEXT NOT NULL,
+    price_display   TEXT,
+    stripe_price_id TEXT,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE subscription_settings (
+    id                    INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    stripe_webhook_secret TEXT,
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Champion-tier bulk/API access (§14.1). One active key per user in
+-- practice (application-enforced); raw key shown once, only its hash
+-- persisted.
+CREATE TABLE api_keys (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id),
+    key_hash     TEXT NOT NULL UNIQUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ,
+    revoked_at   TIMESTAMPTZ
 );
 
 -- ══════════════════════════════════════════════════════════════

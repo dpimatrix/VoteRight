@@ -1508,3 +1508,34 @@ These items are packaged for an attorney — grouped by legal domain, with phase
 12. **MODPA compliance review** (Section 10): confirm coverage thresholds, whether the platform's political-opinion data (priorities, agreement votes, ballots) triggers sensitive-data treatment, whether the retention rules in 10.1–10.2 satisfy data-minimization, and whether pseudonymize-and-keep satisfies the deletion right for public debate contributions.
 13. **Mandate commitments** (Section 7.9): does publicly tabulating candidates' commit / decline / no-response stances on voter mandates — especially close to an election — change the electioneering analysis in item 1? And confirm that displaying `no_response` as a bare fact (with the platform's outreach attempts documented) carries no defamation-adjacent risk of implying a stance the candidate never took.
 14. **Expert commentary** (Section 8.2): does actively recruiting specific named commentators to satisfy roster balance itself carry any campaign-finance or in-kind-support exposure if a commentator is later found to have undisclosed ties to a candidate? And confirm the `commentary_promotion_blackout_days` default (0, meaning no blackout unless configured) is actually set to a real value per jurisdiction before Phase 2 launch — an unset blackout window defeats the purpose of having one.
+15. **Membership tiers (Section 14, built 2026-08-19) are exactly the funding-model question item 2 above anticipated** — confirm the nonprofit/for-profit structure decision accounts for recurring paid memberships specifically, and that charging for the Section 14.1 tier list (data export, a supporter badge, bulk API access) doesn't itself read as "paying for influence" in a way that undercuts the electioneering-communication analysis in item 1, even though voting weight/ballot completeness/match accuracy are explicitly excluded from every tier by design.
+
+## 14. Membership & sustainability funding (added 2026-08-19)
+
+Owner: "I need to introduce subscription plans to get people to help run the platform." Built the same day, after laying out the tier menu below and getting explicit approval to build it.
+
+**The one governing constraint, non-negotiable**: no subscription tier may ever affect voting weight, ballot completeness, match-score accuracy, or debate visibility/participation rights. Whatever a `payment_verified` (§9.2) resident can do, every other `payment_verified` resident can do identically, regardless of subscription tier — a subscription is a *support relationship* with the platform, not a stronger claim on its civic functions. `payment_verified` itself remains a flat, one-time, tier-independent fee; this section never touches it. The moment a paid tier reads/votes/argues with more power than a free `payment_verified` resident, this stops being a membership program and becomes pay-for-political-voice — the single biggest risk this feature carries, worth re-confirming on every future addition to the tier list, not just at launch.
+
+**Never behind any tier, for any reason** — the ballot (every seat, district-narrowed), candidate profiles (promise record, voting record, sponsorships, outside money, endorsements, integrity findings), Priorities + Matches, debate reading and participation, referenda/mandate voting, accountability-pathway information, privacy/MODPA rights. This list is exhaustive of the platform's core transparency and civic-participation surface; everything in 14.1 is deliberately outside it.
+
+### 14.1 Tier structure
+
+Three tiers (`subscription_plans`, admin-configurable display copy + Stripe Price ID; `users.subscription_tier`), Stripe **Billing** (recurring Products/Prices/Checkout Sessions + a hosted Customer Portal for self-service cancel/upgrade/invoice history) — a deliberately different Stripe surface than §9.2's one-time PaymentIntent flow, with its own webhook destination/secret so the already-verified `payment_verified` webhook path is never touched by this work.
+
+| | Supporter | Civic Patron | Civic Champion |
+|---|---|---|---|
+| Illustrative price | $4/mo | $12/mo | $40/mo (or a separate flat org rate) |
+| Who it's for | "I want to help fund this" | Power users who follow races closely | Journalists, researchers, campaigns |
+| Unlocks | Export your own priorities as CSV; optional public "Supporter" badge on your posts | Everything in Supporter | Everything in Patron + a personal API key for bulk, machine-readable access to the same sourced data already public on the site |
+
+Real prices are set by the admin per-tier (`/admin/subscriptions`), not hardcoded — the table above is illustrative, matching the pricing shown to the owner when this was proposed.
+
+### 14.2 Built vs. explicitly deferred (2026-08-19)
+
+**Built**: the full billing spine (checkout, portal, webhook-driven tier sync), admin plan configuration, CSV export of a resident's own `voter_priorities`, the Supporter badge, and a scoped v1 of bulk API access — one revocable key per Champion subscriber, one read-only JSON endpoint mirroring the already-public candidate/position/ballot data. **Not yet tested against live Stripe Billing credentials** — same caveat §9.2 carried before the owner's real keys arrived; the mechanism is written against Stripe's documented Billing API shape but unexercised until real Price IDs and a live webhook exist.
+
+**Deliberately not built, needing their own decisions before they should be**:
+- **Personalized digest emails/notifications** (part of the original tier pitch) — needs a transactional email vendor (SendGrid/Postmark/Resend/SES), a genuinely new vendor decision this project hasn't made yet, same category of choice as the payment gateway itself. Not picked unilaterally.
+- **A follow/bookmark system with a tier-gated cap** (also part of the original pitch) — no "follow a candidate/race/topic" feature exists anywhere in the app today; this would be new product surface in its own right, not just a gate on something that already exists.
+- **Per-person alignment-history analytics** — `alignment_scores`/match results are computed live, not stored as historical snapshots over time; there's no time-series data to analyze yet.
+- **A dedicated priority-support queue** — this tier's real form is mostly a process/staffing commitment, not code; not simulated with a fake "priority" flag that wouldn't actually change response behavior.

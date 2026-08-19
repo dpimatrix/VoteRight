@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+# also catch node_modules/.vite etc. accidentally created under src/ by a
+# command run from the wrong cwd (real gap found live 2026-08-19) -- the
+# anchored /node_modules above only ever covered app/'s own root
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*

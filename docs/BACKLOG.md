@@ -7,6 +7,32 @@ entry when something real gets deferred instead of only mentioning it in a
 chat; remove/close out an item here the same session it actually ships,
 rather than letting this drift out of sync with reality.
 
+## Membership & sustainability funding (§14, built 2026-08-19)
+
+- **Not yet tested against live Stripe Billing credentials** — same
+  caveat §9.2 carried before the owner's real payment_verified keys
+  arrived. `lib/subscriptions.ts` is written against Stripe's documented
+  Billing API shape and verified live via synthetic-but-validly-signed
+  webhook events (checkout → subscription active → tier sync → CSV export
+  → API key → cancellation, all confirmed against the real dev DB), but no
+  real Stripe Price ID or live webhook exists yet — needs its own
+  `/admin/subscriptions` setup pass (3 Stripe Prices created in the
+  Dashboard, a second webhook destination, pasted in) before any real
+  subscriber can check out.
+- **Deferred by design, needing their own decisions** — see
+  ARCHITECTURE.md §14.2 for the full reasoning: personalized digest
+  emails/notifications (needs a transactional email vendor, not yet
+  chosen), a follow/bookmark system with a tier-gated cap (no such feature
+  exists at all yet, not just an ungated one), per-person alignment-history
+  analytics (no historical snapshot table exists), a dedicated
+  priority-support queue (a staffing commitment, not something to fake
+  with a cosmetic flag).
+- **The bulk API export (`/api/v1/export/candidates`) is deliberately
+  v1-scoped** — name/party/current office/jurisdiction only. Promises,
+  voting records, sponsorships, and outside money each have their own
+  shape and aren't squeezed into this endpoint; a real second pass if
+  Champion subscribers actually want those.
+
 ## Security / trust model
 
 - ~~`govt_id_verified` identity tier~~ **SUPERSEDED 2026-08-19** — owner

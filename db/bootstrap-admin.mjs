@@ -43,7 +43,7 @@ try {
   // not worth a build step just to share one array between a .mjs script
   // and a .ts library).
   const screens = [
-    "disputes", "coding", "moderation", "anomalies", "payments",
+    "disputes", "coding", "moderation", "anomalies", "payments", "subscriptions",
     "mandates", "accountability", "privacy", "positions", "transparency", "admin_accounts",
   ];
   for (const s of screens) {

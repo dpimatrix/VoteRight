@@ -120,6 +120,22 @@ export default async function AdminHome() {
           <span className="chip band b0">setup</span>
         </Link>
       )}
+      {has("subscriptions") &&
+        (await (async () => {
+          const { adminSubscriptionCounts } = await import("@/lib/subscriptions");
+          const counts = await adminSubscriptionCounts();
+          const total = counts.supporter + counts.patron + counts.champion;
+          return (
+            <Link className="seat" href="/admin/subscriptions">
+              <span className="seat-ic">$M</span>
+              <span className="sname">
+                Membership subscriptions
+                <span className="smeta">§14 — recurring tiers, separate from payment_verified</span>
+              </span>
+              <span className="chip band b0">{total} subscribers</span>
+            </Link>
+          );
+        })())}
       {has("mandates") &&
         (await (async () => {
           const pipeline = await adminMandatePipeline();

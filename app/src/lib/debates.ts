@@ -299,6 +299,11 @@ export async function debateDetail(proposalId: string, userId: string | null) {
               a.transcript_text, a.moderation_status, a.created_at::date::text AS date,
               a.agree_count, a.disagree_count, a.pass_count,
               COALESCE(u.display_name, 'Resident') AS display_name, (a.user_id = $2) AS mine,
+              -- Supporter+ badge (ARCHITECTURE.md §14.1) -- purely cosmetic
+              -- recognition, computed the same "active subscription only"
+              -- way subscriptions.ts's currentTier() does; never affects
+              -- ordering, visibility, or anything about the argument itself.
+              (u.subscription_tier IS NOT NULL AND u.subscription_status IN ('active', 'trialing')) AS is_supporter,
               COALESCE((SELECT json_agg(json_build_object('publisher', c.publisher, 'title', c.title))
                  FROM argument_citations ac JOIN citations c ON c.id = ac.citation_id
                 WHERE ac.argument_id = a.id), '[]') AS citations,

@@ -14,7 +14,7 @@ interface Arg {
   format: string; audio_url: string | null; video_url: string | null;
   video_duration_seconds: number | null; transcript_text: string | null;
   agree_count: number; disagree_count: number; pass_count: number;
-  display_name: string; mine: boolean;
+  display_name: string; mine: boolean; is_supporter: boolean;
   citations: { publisher: string; title: string }[];
   my_vote: string | null;
 }
@@ -134,7 +134,17 @@ export default async function DebatePage({
               <div className="card" key={a.id} style={a.moderation_status === "pending" ? { borderStyle: "dashed" } : undefined}>
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
                   <span className={`chip band ${SIDE_CLASS[a.side]}`}>{SIDE_LABEL[a.side]}</span>
-                  <strong style={{ fontSize: "0.86rem" }}>{a.display_name}</strong>
+                  <strong style={{ fontSize: "0.86rem" }}>
+                    {a.display_name}
+                    {a.is_supporter && (
+                      <span
+                        title="VoteRight supporter"
+                        style={{ marginLeft: "0.3rem", color: "var(--adv)", fontSize: "0.78rem" }}
+                      >
+                        ★
+                      </span>
+                    )}
+                  </strong>
                   <span className="cover">{a.date}</span>
                 </div>
                 {a.format === "text" && (
