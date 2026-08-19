@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { randomUUID } from "node:crypto";
+import { db } from "./db";
 import { ensureUser } from "./queries";
 
 const COOKIE = "vr_uid";
@@ -26,6 +27,37 @@ export async function verifiedUserId(): Promise<string | null> {
   const userId = await currentOrNewUserId();
   const tier = await userTier(userId);
   return tier === "unverified" ? null : userId;
+}
+
+/** Identity recovery (2026-08-19, see signing.ts's ownerOfValidKey()):
+    re-points THIS session's cookie at an existing user id, rather than
+    only minting one when absent like currentOrNewUserId() does. Web only
+    -- native clients manage their own session id client-side (see
+    api/keys/recover/route.ts, which returns the recovered value in the
+    response body for a native caller to store itself instead of relying
+    on a Set-Cookie header).
+
+    The cookie stores an opaque anon string, not the user_id directly --
+    ensureUser() looks a user up by auth_id = 'anon:' + that string. Reusing
+    the SAME original string (recovered by stripping the 'anon:' prefix
+    back off, not minting a new one) means any OTHER device still carrying
+    the original cookie keeps working too, the same "signed in on multiple
+    devices at once" property a real login system would have -- recovery
+    adds access, it doesn't revoke the old session. */
+export async function adoptIdentity(targetUserId: string): Promise<string> {
+  const { rows } = await db().query(`SELECT auth_id FROM users WHERE id = $1`, [targetUserId]);
+  const authId = rows[0]?.auth_id as string | undefined;
+  if (!authId?.startsWith("anon:")) throw new Error("target user has no recoverable anonymous identity");
+  const anonId = authId.slice("anon:".length);
+  const store = await cookies();
+  store.set(COOKIE, anonId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+  });
+  return anonId;
 }
 
 /** Debate-participation gate (2026-08-19): stricter than verifiedUserId()

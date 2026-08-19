@@ -972,7 +972,7 @@ CREATE TABLE verification_records (
 CREATE TABLE user_key_events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id),
-    event           TEXT NOT NULL CHECK (event IN ('registered','rotated','revoked','used_from_new_context')),
+    event           TEXT NOT NULL CHECK (event IN ('registered','rotated','revoked','used_from_new_context','recovered')), -- 'recovered' added migration 088, 2026-08-19 -- identity recovery via key backup, see ARCHITECTURE.md §10.3
     public_key      TEXT NOT NULL,                        -- raw Ed25519 public key, base64
     public_key_fingerprint TEXT NOT NULL,                 -- short hash, the lookup key used elsewhere
     context_hash    TEXT,                                 -- hashed IP+User-Agent at event time (anomaly detection)

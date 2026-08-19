@@ -181,10 +181,18 @@ export async function exportEncryptedBackup(passphrase: string): Promise<Encrypt
 }
 
 /** Restores a key from an encrypted backup - wrong passphrase throws (AES-GCM's
-    auth tag fails to verify) rather than silently producing garbage. Re-registers
-    the restored key with the server (harmless if it's already registered - see
-    /api/keys/register, which just appends another 'registered' event). */
-export async function importEncryptedBackup(backup: EncryptedBackup, passphrase: string): Promise<void> {
+    auth tag fails to verify) rather than silently producing garbage.
+
+    Identity recovery (2026-08-19): unlike a freshly generated key (plain
+    /api/keys/register), a RESTORED key might belong to a different,
+    already-existing identity than this session's current cookie -- e.g.
+    the whole point of a deliberate restore after a reset. Goes through
+    /api/keys/recover instead, which re-points this session at that
+    identity server-side if so (see anon.ts's adoptIdentity()). Returns
+    whether that actually happened, so the UI (KeySettings.tsx) can show a
+    real "welcome back" instead of a plain "key restored" and reload to
+    pick up the recovered identity's own data everywhere else on the page. */
+export async function importEncryptedBackup(backup: EncryptedBackup, passphrase: string): Promise<{ recovered: boolean }> {
   const salt = base64ToBytes(backup.saltB64);
   const iv = base64ToBytes(backup.ivB64);
   const ciphertext = base64ToBytes(backup.ciphertextB64);
@@ -206,14 +214,23 @@ export async function importEncryptedBackup(backup: EncryptedBackup, passphrase:
   // CryptoKey" round trip.
   const jwk = (await crypto.subtle.exportKey("jwk", privateKey)) as { x: string };
   const rawPublicKey = base64UrlToBytes(jwk.x);
+  const publicKeyRawB64 = bytesToBase64(rawPublicKey);
+
+  const res = await fetch("/api/keys/recover", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ publicKey: publicKeyRawB64 }),
+  });
+  const body = (await res.json()) as { recovered: boolean };
+
   await saveRecord({
     id: RECORD_ID,
     privateKey,
-    publicKeyRawB64: bytesToBase64(rawPublicKey),
+    publicKeyRawB64,
     fingerprint: await fingerprintOf(rawPublicKey),
-    registered: false, // force a re-register call below, harmless if redundant
+    registered: true,
   });
-  await ensureSigningKey();
+  return { recovered: body.recovered };
 }
 
 /** Revokes the current key (e.g. after a backup is suspected leaked) and

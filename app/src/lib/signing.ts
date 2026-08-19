@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto";
 import type { PoolClient } from "pg";
+import { db } from "./db";
 export {
   canonicalArgumentPayload,
   canonicalProposalPayload,
@@ -61,6 +62,26 @@ export async function keyCurrentlyValid(
     [userId, publicKeyFingerprint],
   );
   return rows[0]?.event === "registered";
+}
+
+/** Identity recovery (2026-08-19): which user_id currently owns this key --
+    i.e. its most recent user_key_events row for this exact fingerprint is
+    'registered' -- or null if the key was never registered, or has since
+    been rotated/revoked away. Same "most recent event wins" rule
+    keyCurrentlyValid() already uses, just discovering the user_id instead
+    of confirming one already in hand -- that's the whole mechanism behind
+    KeySettings.tsx's "Restore from a backup" re-associating a session with
+    its original identity. A revoked key's most recent event is 'revoked',
+    not 'registered', so this correctly returns null for it -- a leaked,
+    revoked backup can never recover the old identity. */
+export async function ownerOfValidKey(publicKeyFingerprint: string): Promise<string | null> {
+  const { rows } = await db().query(
+    `SELECT user_id, event FROM user_key_events
+      WHERE public_key_fingerprint = $1
+      ORDER BY created_at DESC LIMIT 1`,
+    [publicKeyFingerprint],
+  );
+  return rows[0]?.event === "registered" ? (rows[0].user_id as string) : null;
 }
 
 export type ActionType = "argument" | "issue_proposal" | "second" | "accountability_support";

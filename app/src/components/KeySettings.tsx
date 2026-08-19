@@ -15,6 +15,7 @@ type D = Pick<
   | "key_h" | "key_p" | "key_fingerprint_label"
   | "key_export_btn" | "key_export_p" | "key_passphrase_ph" | "key_export_go" | "key_export_ok"
   | "key_import_btn" | "key_import_file_label" | "key_import_go" | "key_import_ok" | "key_import_wrong"
+  | "key_import_recovered_ok"
   | "key_revoke_btn" | "key_revoke_confirm" | "key_revoke_ok"
   | "key_anomaly_banner" | "key_anomaly_yes" | "key_anomaly_no"
 >;
@@ -75,7 +76,19 @@ export function KeySettings({ d }: { d: D }) {
     setBusy(true);
     try {
       const backup = JSON.parse(await file.text()) as EncryptedBackup;
-      await importEncryptedBackup(backup, passphrase);
+      const { recovered } = await importEncryptedBackup(backup, passphrase);
+      if (recovered) {
+        // The server just re-pointed our session cookie at a DIFFERENT
+        // identity than whatever this page loaded with -- every other
+        // piece of server-rendered state on screen (priorities, debate
+        // history, subscription tier) is now stale. A full reload is the
+        // simple, correct way to pick all of it up consistently, rather
+        // than trying to patch each piece of client state by hand.
+        const url = new URL(window.location.href);
+        url.searchParams.set("recovered", "1");
+        window.location.href = url.toString();
+        return;
+      }
       const { fingerprint: fp } = await ensureSigningKey();
       setFingerprint(fp);
       setMessage(d.key_import_ok);

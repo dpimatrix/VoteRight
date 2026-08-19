@@ -256,15 +256,17 @@ function SpanishNotice({ lang }: { lang: string }) {
 export default async function PrivacyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; recovered?: string }>;
 }) {
-  const lang = langFrom((await searchParams).lang);
+  const sp = await searchParams;
+  const lang = langFrom(sp.lang);
   const d = t(lang);
   return (
     <>
       <SiteHeader lang={lang} path="/privacy" />
       <div className="pagepad">
         <div className="pagetitle">{d.priv_h}</div>
+        {sp.recovered === "1" && <p className="pill kept">{d.key_import_recovered_ok}</p>}
         <div className="disclosure">
           <span className="tag">{lang === "es" ? "Borrador" : "Draft"}</span>
           <span>{d.priv_draft_note}</span>
