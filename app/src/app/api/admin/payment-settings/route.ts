@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 import { redirectTo } from "@/lib/redirect";
 import { updatePaymentSettings } from "@/lib/paymentVerification";
 
@@ -8,7 +8,7 @@ function str(form: FormData, name: string): string | undefined {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("payments"))) return new Response("forbidden", { status: 403 });
   const form = await request.formData();
   // Four separate forms on the page (general/stripe/authorizenet/check) all
   // post here -- 'section' says which one, so e.g. saving Stripe keys never

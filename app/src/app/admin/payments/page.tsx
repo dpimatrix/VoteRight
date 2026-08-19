@@ -1,4 +1,5 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminPendingCheckQueue, formatFeeCents, getPaymentSettings } from "@/lib/paymentVerification";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ function mask(key: string | null): string {
 }
 
 export default async function PaymentSettingsPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("payments"))) return <AdminAccessDenied screen="payments" />;
   const settings = await getPaymentSettings();
   const queue = await adminPendingCheckQueue();
   const ready =

@@ -1,10 +1,11 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { moderationQueue } from "@/lib/debates";
 
 export const dynamic = "force-dynamic";
 
 export default async function ModerationPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("moderation"))) return <AdminAccessDenied screen="moderation" />;
   const queue = await moderationQueue();
   return (
     <>

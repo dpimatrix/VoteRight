@@ -1,10 +1,11 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminPrivacyQueue } from "@/lib/privacy";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPrivacyPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("privacy"))) return <AdminAccessDenied screen="privacy" />;
   const queue = await adminPrivacyQueue();
   return (
     <>

@@ -1,9 +1,9 @@
 import { redirectTo } from "@/lib/redirect";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 import { scheduleReferendum } from "@/lib/referenda";
 
 export async function POST(request: Request) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("mandates"))) return new Response("forbidden", { status: 403 });
   const form = await request.formData();
   await scheduleReferendum(
     String(form.get("proposal_id") ?? ""),

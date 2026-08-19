@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { base32Decode, signSession, totpCode, totpVerify, verifySession } from "./adminAuth";
+import { base32Decode, base32Encode, signAdminSession, totpCode, totpVerify, verifyAdminSession } from "./adminAuth";
 
 // RFC 6238 Appendix B test vectors (SHA-1). The ASCII seed "12345678901234567890"
 // is GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ in base32. The RFC lists 8-digit codes;
@@ -49,22 +49,37 @@ describe("totpVerify", () => {
   });
 });
 
-describe("session signing", () => {
+describe("admin session signing (per-admin, 2026-08-19)", () => {
   const secret = "test-session-secret";
-  it("round-trips a future expiry", () => {
-    const v = signSession(Date.now() + 60_000, secret);
-    expect(verifySession(v, secret)).toBe(true);
+  const adminId = "11111111-1111-4111-8111-111111111111";
+  it("round-trips a future expiry, returning the signed admin id", () => {
+    const v = signAdminSession(adminId, Date.now() + 60_000, secret);
+    expect(verifyAdminSession(v, secret)).toBe(adminId);
   });
   it("rejects expired sessions", () => {
-    const v = signSession(Date.now() - 1_000, secret);
-    expect(verifySession(v, secret)).toBe(false);
+    const v = signAdminSession(adminId, Date.now() - 1_000, secret);
+    expect(verifyAdminSession(v, secret)).toBeNull();
+  });
+  it("rejects a tampered admin id (can't claim to be a different admin)", () => {
+    const exp = Date.now() + 60_000;
+    const v = signAdminSession(adminId, exp, secret);
+    const otherAdminId = "22222222-2222-4222-8222-222222222222";
+    const tampered = `${otherAdminId}.${exp}.${v.split(".")[2]}`;
+    expect(verifyAdminSession(tampered, secret)).toBeNull();
   });
   it("rejects tampered expiry and wrong key", () => {
     const exp = Date.now() + 60_000;
-    const v = signSession(exp, secret);
-    const tampered = `${exp + 3600_000}.${v.split(".")[1]}`;
-    expect(verifySession(tampered, secret)).toBe(false);
-    expect(verifySession(v, "other-secret")).toBe(false);
-    expect(verifySession("garbage", secret)).toBe(false);
+    const v = signAdminSession(adminId, exp, secret);
+    const tampered = `${adminId}.${exp + 3600_000}.${v.split(".")[2]}`;
+    expect(verifyAdminSession(tampered, secret)).toBeNull();
+    expect(verifyAdminSession(v, "other-secret")).toBeNull();
+    expect(verifyAdminSession("garbage", secret)).toBeNull();
+  });
+});
+
+describe("base32Encode", () => {
+  it("round-trips through base32Decode", () => {
+    const buf = Buffer.from("12345678901234567890", "ascii");
+    expect(base32Decode(base32Encode(buf)).equals(buf)).toBe(true);
   });
 });

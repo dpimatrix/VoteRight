@@ -1,4 +1,5 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 export default async function AnomaliesPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("anomalies"))) return <AdminAccessDenied screen="anomalies" />;
   const queue = await adminAnomalyQueue();
   return (
     <>

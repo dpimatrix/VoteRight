@@ -22,17 +22,14 @@ rather than letting this drift out of sync with reality.
   credentials to test end-to-end** — built 2026-08-19, `tsc`/tests pass, but
   no live charge has actually been run through either gateway yet. Do this
   before any real user sees `/verify/payment`.
-- **Admin role-based access control** — owner asked for this while the
-  payment feature was mid-build: admin access is currently one shared TOTP
-  login with zero permission granularity (`isAdmin()` is a flat yes/no
-  gate used identically by all 10 admin screens). Needs real per-admin
-  accounts (own TOTP enrollment each) + a role/permission model restricting
-  which screens each admin can reach, before it's safe to hand a second
-  person admin access for just one area (e.g. reconciling check payments)
-  without giving them everything else too. Not yet designed — the
-  role taxonomy (how many roles, which screens each covers) needs the
-  owner's input before building, since retrofitting the wrong shape across
-  every existing admin route would be expensive to redo.
+- ~~Admin role-based access control~~ **DONE (2026-08-19, migration 086)**
+  — per-admin accounts (own TOTP enrollment each) + per-screen checkboxes
+  (owner's explicit choice over named roles), replacing the flat shared-
+  TOTP login across all 11 admin screens. `/admin/admin-accounts` manages
+  it. See ARCHITECTURE.md §10.3. **Real deploy-order gotcha documented in
+  DEPLOY.md — `db/bootstrap-admin.mjs` MUST run immediately after migration
+  086 on the next production deploy**, or every admin screen locks with no
+  way back in through the app.
 - **Device fingerprint correlation** — the third leg of §9's anomaly-detection
   design, deliberately deferred rather than built weakly. Real vendor-cost/
   privacy tradeoff (a proper fingerprinting SDK) similar in shape to

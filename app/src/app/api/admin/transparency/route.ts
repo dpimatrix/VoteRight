@@ -1,9 +1,9 @@
 import { redirectTo } from "@/lib/redirect";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 import { adminAddEndorsement, adminAddExpenditure } from "@/lib/transparency";
 
 export async function POST(request: Request) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("transparency"))) return new Response("forbidden", { status: 403 });
   const form = await request.formData();
   const action = String(form.get("action") ?? "");
   const s = (k: string) => String(form.get(k) ?? "").trim();

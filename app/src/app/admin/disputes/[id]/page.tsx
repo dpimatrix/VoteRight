@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminFlagDetail } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function DisputeDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("disputes"))) return <AdminAccessDenied screen="disputes" />;
   const { id } = await params;
   const flag = await adminFlagDetail(id);
   if (!flag) notFound();

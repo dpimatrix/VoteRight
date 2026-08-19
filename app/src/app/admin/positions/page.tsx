@@ -1,4 +1,5 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import {
   axesForCoding,
   politiciansWithVotes,
@@ -13,7 +14,7 @@ export default async function AdminPositionsPage({
 }: {
   searchParams: Promise<{ politician?: string; ok?: string; e?: string }>;
 }) {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("positions"))) return <AdminAccessDenied screen="positions" />;
   const sp = await searchParams;
   const pols = await politiciansWithVotes();
   const selected = pols.find((p) => p.id === sp.politician) ?? null;

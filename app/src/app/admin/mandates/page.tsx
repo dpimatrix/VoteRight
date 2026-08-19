@@ -1,4 +1,5 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function AdminMandatesPage({
 }: {
   searchParams: Promise<{ e?: string }>;
 }) {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("mandates"))) return <AdminAccessDenied screen="mandates" />;
   const { e } = await searchParams;
   const p = await adminMandatePipeline();
 

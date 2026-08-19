@@ -1058,6 +1058,25 @@ CREATE TABLE payment_verifications (
     verified_at             TIMESTAMPTZ
 );
 
+-- Per-admin accounts + per-screen access (migration 086, 2026-08-19).
+-- Replaces the single shared ADMIN_TOTP_SECRET model -- see
+-- ARCHITECTURE.md §10.3 for the full reasoning and db/bootstrap-admin.mjs
+-- for seeding the first account.
+CREATE TABLE admin_accounts (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username     TEXT NOT NULL UNIQUE,
+    totp_secret  TEXT NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    disabled_at  TIMESTAMPTZ
+);
+
+CREATE TABLE admin_screen_access (
+    admin_id    UUID NOT NULL REFERENCES admin_accounts(id) ON DELETE CASCADE,
+    screen_key  TEXT NOT NULL,
+    granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (admin_id, screen_key)
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- INDEXES
 -- ══════════════════════════════════════════════════════════════

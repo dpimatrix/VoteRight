@@ -79,6 +79,21 @@ preferred consolidating onto it.
   and stored in `payment_settings` (migration 085). Nothing to add to
   `.env.production` for this feature; `npm install` picks up the new
   `stripe` package dependency on the next deploy that includes it.
+- **Admin accounts (added 2026-08-19, migration 086) — CRITICAL deploy-order
+  step, do not skip**: this replaces the single shared `ADMIN_TOTP_SECRET`
+  admin login with per-admin accounts in the database. The rewritten
+  `adminAuth.ts` has **no code path left that reads `ADMIN_TOTP_SECRET`** —
+  deploying this migration + code with zero rows in `admin_accounts` locks
+  every admin screen, with no way to log back in through the app itself.
+  **Immediately after running `node db/migrate.mjs up` for migration 086**,
+  run (as the `voteright` user, with the VPS's existing `ADMIN_TOTP_SECRET`
+  still set in the shell environment or sourced from `.env.production`):
+  `node db/bootstrap-admin.mjs --username=owner` — this seeds one admin
+  account, granted all screens, using that SAME secret, so the owner's
+  already-enrolled authenticator app entry keeps working with zero
+  re-enrollment. `ADMIN_TOTP_SECRET` itself can stay in `.env.production`
+  harmlessly afterward (unread by the app, but the bootstrap script needs
+  it available at least once) or be removed once bootstrap has run.
 - **Debate audio/video (added 2026-08-14)**: uploaded media is transcoded server-side
   via ffmpeg and stored as plain files on local disk at `app/debate-media/` (gitignored,
   created automatically on first upload via `mkdir -p`-style recursive create — no

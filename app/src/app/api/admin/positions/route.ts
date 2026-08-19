@@ -1,9 +1,9 @@
 import { redirectTo } from "@/lib/redirect";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 import { createPositionFromVote } from "@/lib/positions";
 
 export async function POST(request: Request) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("positions"))) return new Response("forbidden", { status: 403 });
   const form = await request.formData();
   const politicianId = String(form.get("politician_id") ?? "");
   const res = await createPositionFromVote({

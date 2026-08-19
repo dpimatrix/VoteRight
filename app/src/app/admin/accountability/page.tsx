@@ -1,5 +1,6 @@
 import { adminCampaigns } from "@/lib/accountability";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ const EXT = [
 ];
 
 export default async function AdminAccountabilityPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("accountability"))) return <AdminAccessDenied screen="accountability" />;
   const campaigns = await adminCampaigns();
   return (
     <>

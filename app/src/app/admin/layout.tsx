@@ -37,6 +37,13 @@ export default async function AdminLayout({
           <div className="pagetitle" style={{ marginTop: 0 }}>Sign in</div>
           <form className="admform" method="post" action="/api/admin/login">
             <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              placeholder="Username"
+              aria-label="Username"
+            />
+            <input
               type="password"
               name="token"
               inputMode="numeric"
@@ -47,8 +54,9 @@ export default async function AdminLayout({
             <button type="submit">Enter</button>
           </form>
           <p className="nopos">
-            Six-digit code from the enrolled authenticator app (TOTP). Sessions last 12 hours.
-            Local dev without ADMIN_TOTP_SECRET falls back to the ADMIN_TOKEN value.
+            Each admin has their own account and authenticator enrollment (2026-08-19 — see
+            db/bootstrap-admin.mjs for the first one). Sessions last 12 hours. Local dev without a
+            configured account falls back to the ADMIN_TOKEN value with an empty username field.
           </p>
         </div>
       )}

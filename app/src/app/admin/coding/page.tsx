@@ -1,10 +1,11 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminCodingQueue } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function CodingPage() {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("coding"))) return <AdminAccessDenied screen="coding" />;
   const queue = await adminCodingQueue();
   return (
     <>

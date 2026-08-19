@@ -1,5 +1,5 @@
 import { redirectTo } from "@/lib/redirect";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 import {
   certifyReferendum,
   closeReferendumNow,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/referenda";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("mandates"))) return new Response("forbidden", { status: 403 });
   const { id } = await params; // referendum id, or mandate id for action=publish
   const form = await request.formData();
   const action = String(form.get("action") ?? "");

@@ -1,9 +1,9 @@
 import { redirectTo } from "@/lib/redirect";
 import { adminUpdateCampaign } from "@/lib/accountability";
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return new Response("forbidden", { status: 403 });
+  if (!(await hasAdminAccess("accountability"))) return new Response("forbidden", { status: 403 });
   const { id } = await params;
   const form = await request.formData();
   await adminUpdateCampaign(

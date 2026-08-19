@@ -1,4 +1,5 @@
-import { isAdmin } from "@/lib/adminAuth";
+import { hasAdminAccess } from "@/lib/adminAuth";
+import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { adminTransparencyData } from "@/lib/transparency";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export default async function AdminTransparencyPage({
 }: {
   searchParams: Promise<{ e?: string; ok?: string }>;
 }) {
-  if (!(await isAdmin())) return null;
+  if (!(await hasAdminAccess("transparency"))) return <AdminAccessDenied screen="transparency" />;
   const sp = await searchParams;
   const t = await adminTransparencyData();
 
