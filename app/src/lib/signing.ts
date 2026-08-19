@@ -46,10 +46,32 @@ export function chainHash(prevHash: string | null, canonicalPayload: string, sig
   return createHash("sha256").update(`${prevHash ?? ""}|${canonicalPayload}|${signatureB64}`).digest("base64url");
 }
 
-/** A key is valid for signing iff its most recent user_key_events row (for that
-    exact fingerprint) is 'registered' - a later 'rotated' or 'revoked' row retires
-    it. Must be called inside the same transaction as the eventual insert to avoid
-    a TOCTOU gap between checking and writing. */
+/* A key is "retired" only once it's been explicitly rotated away or revoked
+   -- every OTHER event a key can log (registered, recovered,
+   used_from_new_context) annotates its history without retiring it, so
+   "currently valid" must check against this allowlist, not equality against
+   the single literal 'registered'.
+
+   Real bug found live 2026-08-19: both functions below used to require the
+   most recent row to be exactly 'registered'. That's true for a key's
+   FIRST-ever row, but 'recovered' (ownerOfValidKey below, migration 088's
+   identity-recovery feature) and 'used_from_new_context' (anomalyDetection's
+   flagIfNewContext, whenever a key signs from a second device/network) both
+   log a NEWER row for a key that is still perfectly valid to keep signing
+   with. The strict-equality check treated that newer, non-retiring row as if
+   the key had been retired -- so right after a successful identity recovery,
+   the recovered key could no longer sign anything new (recordSignedAction
+   called keyCurrentlyValid and got false), and couldn't even self-heal via
+   /api/keys/rotate, which gates on this exact same check. The same flaw
+   already existed for any key that had ever signed from two different
+   network contexts, predating today's recovery feature. */
+const NON_RETIRING_EVENTS = new Set(["registered", "recovered", "used_from_new_context"]);
+
+/** A key is valid for signing iff its most recent user_key_events row (for
+    that exact fingerprint) is one of NON_RETIRING_EVENTS above -- a later
+    'rotated' or 'revoked' row is what actually retires it. Must be called
+    inside the same transaction as the eventual insert to avoid a TOCTOU gap
+    between checking and writing. */
 export async function keyCurrentlyValid(
   client: PoolClient,
   userId: string,
@@ -61,19 +83,24 @@ export async function keyCurrentlyValid(
       ORDER BY created_at DESC LIMIT 1`,
     [userId, publicKeyFingerprint],
   );
-  return rows[0]?.event === "registered";
+  return NON_RETIRING_EVENTS.has(rows[0]?.event);
 }
 
 /** Identity recovery (2026-08-19): which user_id currently owns this key --
     i.e. its most recent user_key_events row for this exact fingerprint is
-    'registered' -- or null if the key was never registered, or has since
-    been rotated/revoked away. Same "most recent event wins" rule
-    keyCurrentlyValid() already uses, just discovering the user_id instead
-    of confirming one already in hand -- that's the whole mechanism behind
+    one of NON_RETIRING_EVENTS above -- or null if the key was never
+    registered, or has since been rotated/revoked away. Same "most recent
+    event wins, checked against the non-retiring allowlist" rule
+    keyCurrentlyValid() uses, just discovering the user_id instead of
+    confirming one already in hand -- that's the whole mechanism behind
     KeySettings.tsx's "Restore from a backup" re-associating a session with
-    its original identity. A revoked key's most recent event is 'revoked',
-    not 'registered', so this correctly returns null for it -- a leaked,
-    revoked backup can never recover the old identity. */
+    its original identity. A revoked (or rotated-away) key's most recent
+    event is 'revoked'/'rotated', neither of which is in the allowlist, so
+    this correctly returns null for it -- a leaked, revoked backup can never
+    recover the old identity, and a second recovery with the same backup
+    file still finds the right owner instead of minting an unrelated new
+    identity (recovery itself logs 'recovered', which stays in the
+    allowlist). */
 export async function ownerOfValidKey(publicKeyFingerprint: string): Promise<string | null> {
   const { rows } = await db().query(
     `SELECT user_id, event FROM user_key_events
@@ -81,7 +108,7 @@ export async function ownerOfValidKey(publicKeyFingerprint: string): Promise<str
       ORDER BY created_at DESC LIMIT 1`,
     [publicKeyFingerprint],
   );
-  return rows[0]?.event === "registered" ? (rows[0].user_id as string) : null;
+  return rows[0] && NON_RETIRING_EVENTS.has(rows[0].event) ? (rows[0].user_id as string) : null;
 }
 
 export type ActionType = "argument" | "issue_proposal" | "second" | "accountability_support";
