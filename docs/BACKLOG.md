@@ -99,16 +99,23 @@ rather than letting this drift out of sync with reality.
   production as of this note** — the only remaining item is the mobile gap
   directly below, and Authorize.Net remaining untested against any live
   account (not the near-term priority per the owner's gateway choice).
-- **Mobile app not updated for payment_verified gating** — the debate-action
-  API routes (second/argue/ctq/agree/propose) now return a new JSON error
-  code (`"pay"`, distinct from the pre-existing `"verify"`) when someone is
-  address-verified but not payment-verified. The web pages route this to
-  `/verify/payment`; mobile's existing screens only handle the old
-  `"verify"` code, so a mobile user attempting any debate action right now
-  hits an error the app doesn't know how to react to — most likely a
-  dead end, not a clear "pay to continue" path. Needs its own pass
-  (equivalent screen/flow in `mobile/`) before mobile users try to
-  participate in debates again.
+- ~~Mobile app not updated for payment_verified gating~~ **DONE (2026-08-19,
+  commits `12dac58`/`5464102`)** — mobile's `post()`/`get()` now expose the
+  parsed JSON error body (`errorCode()` helper) instead of swallowing it;
+  every debate-action screen's UI gate changed from the loose
+  `tier !== 'unverified'` to `tier === 'payment_verified'`, routing to
+  `/verify` or the new native `/verify-payment` screen based on tier,
+  matching web's `verifiedUserId()`/`paymentVerifiedUserId()` split exactly.
+  `/verify-payment` does real in-app card payment via
+  `@stripe/stripe-react-native` (a new native dependency — Authorize.Net has
+  no native SDK path, shown as an honest "not available in the app yet"
+  state) plus mail-in check (no payment SDK needed). New backend pieces:
+  `GET /api/payment-verification/config` (public-safe fee/gateway
+  allowlist) and JSON mode on `/api/payment-verification/check`. Verified
+  live against a real running dev server. **Not yet in a shipped build** —
+  needs a new EAS build + App Store/Play Store review cycle on both
+  platforms (native module, not OTA-updatable) before it reaches real
+  users.
 - ~~Admin role-based access control~~ **DONE (2026-08-19, migration 086)**
   — per-admin accounts (own TOTP enrollment each) + per-screen checkboxes
   (owner's explicit choice over named roles), replacing the flat shared-
