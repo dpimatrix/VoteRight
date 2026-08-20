@@ -77,9 +77,13 @@ export default function DebatesScreen() {
           {d.debates_sub}
         </ThemedText>
 
-        {tier === 'unverified' && (
+        {/* Debate participation (2026-08-19) needs payment_verified specifically
+            -- see web's anon.ts's paymentVerifiedUserId() doc comment. Someone
+            who's only address_verified goes straight to /verify-payment, not
+            back through address verification they've already done. */}
+        {tier !== null && tier !== 'payment_verified' && (
           <Pressable
-            onPress={() => router.push('/verify')}
+            onPress={() => router.push(tier === 'unverified' ? '/verify' : '/verify-payment')}
             style={[styles.verifyBtn, { borderColor: colors.evidence }]}
           >
             <ThemedText type="small" style={{ color: colors.evidence }}>
@@ -129,7 +133,7 @@ export default function DebatesScreen() {
             ),
         )}
 
-        {tier && tier !== 'unverified' && (
+        {tier === 'payment_verified' && (
           <Pressable
             onPress={() => router.push('/debates/new')}
             style={[styles.newBtn, { backgroundColor: colors.evidence }]}

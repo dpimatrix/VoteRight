@@ -1,10 +1,11 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalArgumentPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
-import { post } from '@/services/api';
+import { errorCode, post } from '@/services/api';
 
 import { ThemedText } from './themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -14,6 +15,7 @@ import { t, tf } from '@/lib/i18n';
 type Side = 'for' | 'against' | 'neutral_info';
 
 export function DebateComposer({ threadId, onPosted }: { threadId: string; onPosted: () => void }) {
+  const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { lang } = useLanguagePreference();
@@ -67,6 +69,12 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       onPosted();
     } catch (e) {
       console.error('Argument post failed:', e);
+      // Defense in depth: the parent only renders this composer once
+      // payment_verified is already true, but tier can lapse mid-session
+      // (e.g. a refund) between that check and this submit.
+      const code = errorCode(e);
+      if (code === 'pay') router.push('/verify-payment');
+      else if (code === 'verify') router.push('/verify');
     } finally {
       setBusy(false);
     }

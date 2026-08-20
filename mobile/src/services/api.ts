@@ -52,11 +52,32 @@ const withTimeout = (ms: number) => {
   return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
 };
 
+// carries the parsed JSON error body (2026-08-19) -- routes across this app
+// return typed codes on failure (e.g. {error: "pay"} vs {error: "verify"},
+// see app/src/app/api/debates/[id]/second/route.ts and siblings), and until
+// now every one of those codes was silently dropped: both get() and post()
+// only threw a generic Error built from the HTTP status, so a caller had no
+// way to tell "you need to verify" apart from "you need to pay" apart from
+// "the server errored" -- they all just landed in the same bare
+// catch (e) { console.error(...) } with nothing shown to the user. body is
+// best-effort (undefined if the response wasn't JSON, e.g. a plain-text
+// admin-route "forbidden") so a caller can safely do
+// `e instanceof ApiError && (e.body as { error?: string })?.error === 'pay'`.
 export class ApiError extends Error {
   status: number;
-  constructor(path: string, status: number) {
-    super(`GET ${path} failed: ${status}`);
+  body: unknown;
+  constructor(method: string, path: string, status: number, body: unknown) {
+    super(`${method} ${path} failed: ${status}`);
     this.status = status;
+    this.body = body;
+  }
+}
+
+async function parseBodyBestEffort(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return undefined;
   }
 }
 
@@ -65,7 +86,7 @@ export const get = async <T = unknown>(path: string): Promise<T> => {
   const { signal, clear } = withTimeout(15000);
   try {
     const res = await fetch(`${API_URL}${path}`, { method: "GET", headers: getHeaders(), signal });
-    if (!res.ok) throw new ApiError(path, res.status);
+    if (!res.ok) throw new ApiError("GET", path, res.status, await parseBodyBestEffort(res));
     return (await res.json()) as T;
   } finally {
     clear();
@@ -82,9 +103,18 @@ export const post = async <T = unknown>(path: string, body?: unknown): Promise<T
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     });
-    if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+    if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));
     return (await res.json()) as T;
   } finally {
     clear();
   }
 };
+
+/** Convenience for the common "route to the right screen" branch every
+ *  payment-gated action needs -- see debates/[id].tsx, (tabs)/debates.tsx,
+ *  debates/new.tsx, and DebateComposer.tsx. */
+export function errorCode(e: unknown): string | null {
+  if (!(e instanceof ApiError)) return null;
+  const body = e.body as { error?: unknown } | undefined;
+  return typeof body?.error === "string" ? body.error : null;
+}

@@ -23,6 +23,7 @@ const DICT = {
     title_debate: 'Debate',
     title_propose: 'Propose an issue',
     title_verify: 'Verify',
+    title_verify_payment: 'Pay to verify',
     title_referendum: 'Referendum',
     title_mandate: 'Mandate',
     title_accountability: 'Accountability',
@@ -274,6 +275,23 @@ const DICT = {
     no_match_error: 'Could not match that address — check the street number, name, and state.',
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
+
+    // ---- verify-payment.tsx ----
+    pay_h: 'Verify with a payment',
+    pay_p: 'Debate participation (proposing, seconding, arguing, calling the question) requires this step. A successful card, bank transfer, or check payment is the verification — no ID document, no third-party identity check.',
+    pay_fee_label: 'Fee',
+    pay_pay_by_card_btn: 'Pay by card',
+    pay_card_label: 'Card details',
+    pay_processing: 'Processing…',
+    pay_error: 'Something went wrong — try again.',
+    pay_not_configured: "Payment verification isn't set up yet — check back soon.",
+    pay_gateway_unsupported:
+      "Card payment isn't available in the app yet — visit voteright.dpimatrix.com to pay by card, or use the mail-in check option below.",
+    pay_check_h: 'Prefer to pay by check?',
+    pay_check_btn: 'Get mailing instructions',
+    pay_check_code_h: 'Your reference code',
+    pay_check_code_note: 'Write this code on your check so it can be matched to your account once received.',
+    pay_success: "✓ Payment received — you're verified and can now participate in debates.",
   },
   es: {
     // ---- nav (app-tabs.tsx) ----
@@ -288,6 +306,7 @@ const DICT = {
     title_debate: 'Debate',
     title_propose: 'Proponer un tema',
     title_verify: 'Verificar',
+    title_verify_payment: 'Pagar para verificar',
     title_referendum: 'Referéndum',
     title_mandate: 'Mandato',
     title_accountability: 'Rendición de cuentas',
@@ -539,6 +558,23 @@ const DICT = {
     no_match_error: 'No se pudo encontrar esa dirección — revisa el número, el nombre de la calle y el estado.',
     generic_error: 'Algo salió mal. Intenta de nuevo.',
     verify_btn: 'Verificar',
+
+    // ---- verify-payment.tsx ----
+    pay_h: 'Verifica con un pago',
+    pay_p: 'Participar en los debates (proponer, apoyar, argumentar, pedir el cierre del debate) requiere este paso. Un pago exitoso con tarjeta, transferencia bancaria o cheque es la verificación — sin documento de identidad, sin verificación de identidad de terceros.',
+    pay_fee_label: 'Costo',
+    pay_pay_by_card_btn: 'Pagar con tarjeta',
+    pay_card_label: 'Datos de la tarjeta',
+    pay_processing: 'Procesando…',
+    pay_error: 'Algo salió mal — inténtalo de nuevo.',
+    pay_not_configured: 'La verificación por pago aún no está configurada — vuelve pronto.',
+    pay_gateway_unsupported:
+      'El pago con tarjeta aún no está disponible en la app — visita voteright.dpimatrix.com para pagar con tarjeta, o usa la opción de pago por cheque a continuación.',
+    pay_check_h: '¿Prefieres pagar con cheque?',
+    pay_check_btn: 'Obtener instrucciones de envío',
+    pay_check_code_h: 'Tu código de referencia',
+    pay_check_code_note: 'Escribe este código en tu cheque para poder relacionarlo con tu cuenta al recibirlo.',
+    pay_success: '✓ Pago recibido — estás verificado y ya puedes participar en los debates.',
   },
 } as const;
 

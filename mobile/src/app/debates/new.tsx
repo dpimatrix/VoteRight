@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalProposalPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
-import { get, post } from '@/services/api';
+import { errorCode, get, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
 import { t } from '@/lib/i18n';
@@ -25,16 +25,18 @@ export default function NewProposalScreen() {
   const d = t(lang);
   const [topics, setTopics] = useState<Topic[] | null>(null);
   const [topicId, setTopicId] = useState<string | null>(null);
+  const [tier, setTier] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [error, setError] = useState<boolean | string>(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    get<{ topics: Topic[] }>('/api/topics')
-      .then((res) => {
+    Promise.all([get<{ topics: Topic[] }>('/api/topics'), get<{ tier: string }>('/api/whoami')])
+      .then(([res, who]) => {
         setTopics(res.topics);
         if (res.topics[0]) setTopicId(res.topics[0].topic_id);
+        setTier(who.tier);
       })
       .catch((e) => {
         console.error('Topics load failed:', e);
@@ -69,13 +71,24 @@ export default function NewProposalScreen() {
       router.replace({ pathname: '/debates/[id]', params: { id: res.id! } });
     } catch (e) {
       console.error('Proposal save failed:', e);
-      setError(d.proposal_save_error);
+      // Defense in depth: reachable only when tier is already payment_verified
+      // per the gate below, but tier can lapse between load and submit.
+      const code = errorCode(e);
+      if (code === 'pay') router.replace('/verify-payment');
+      else if (code === 'verify') router.replace('/verify');
+      else setError(d.proposal_save_error);
     } finally {
       setBusy(false);
     }
   }
 
   const canSubmit = !!topicId && title.trim().length >= 10 && body.trim().length >= 30;
+  // Debate participation (2026-08-19) needs payment_verified specifically --
+  // see web's anon.ts's paymentVerifiedUserId() doc comment. The debates list
+  // screen already hides the entry point to this screen for anyone else, but
+  // this route is directly addressable (deep link, or a tier that lapses
+  // while this screen is already open), so it needs its own gate too.
+  const needsVerification = tier !== null && tier !== 'payment_verified';
 
   return (
     <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
@@ -86,54 +99,67 @@ export default function NewProposalScreen() {
         {!topics && !error && <ActivityIndicator style={styles.spinner} />}
         {error && <ThemedText type="small">{typeof error === 'string' ? error : d.topics_load_error}</ThemedText>}
 
-        {topics && (
-          <View style={styles.topicRow}>
-            {topics.map((tp) => (
-              <Pressable
-                key={tp.topic_id}
-                onPress={() => setTopicId(tp.topic_id)}
-                style={[
-                  styles.topicChip,
-                  {
-                    borderColor: topicId === tp.topic_id ? colors.evidence : colors.textSecondary,
-                    backgroundColor: topicId === tp.topic_id ? colors.backgroundSelected : 'transparent',
-                  },
-                ]}
-              >
-                <ThemedText type="small">{tp.name}</ThemedText>
-              </Pressable>
-            ))}
-          </View>
+        {topics && needsVerification && (
+          <Pressable
+            onPress={() => router.replace(tier === 'unverified' ? '/verify' : '/verify-payment')}
+            style={[styles.verifyBtn, { borderColor: colors.evidence }]}
+          >
+            <ThemedText type="small" style={{ color: colors.evidence }}>
+              {d.verify_to_participate}
+            </ThemedText>
+          </Pressable>
         )}
 
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder={d.proposal_title_placeholder}
-          placeholderTextColor={colors.textSecondary}
-          style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
-        />
-        <TextInput
-          value={body}
-          onChangeText={setBody}
-          placeholder={d.proposal_body_placeholder}
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={6}
-          style={[styles.input, styles.textArea, { borderColor: colors.textSecondary, color: colors.text }]}
-        />
+        {topics && !needsVerification && (
+          <>
+            <View style={styles.topicRow}>
+              {topics.map((tp) => (
+                <Pressable
+                  key={tp.topic_id}
+                  onPress={() => setTopicId(tp.topic_id)}
+                  style={[
+                    styles.topicChip,
+                    {
+                      borderColor: topicId === tp.topic_id ? colors.evidence : colors.textSecondary,
+                      backgroundColor: topicId === tp.topic_id ? colors.backgroundSelected : 'transparent',
+                    },
+                  ]}
+                >
+                  <ThemedText type="small">{tp.name}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
 
-        <ThemedText type="small" themeColor="textSecondary">
-          {d.proposal_attrib_note}
-        </ThemedText>
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder={d.proposal_title_placeholder}
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+            />
+            <TextInput
+              value={body}
+              onChangeText={setBody}
+              placeholder={d.proposal_body_placeholder}
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={6}
+              style={[styles.input, styles.textArea, { borderColor: colors.textSecondary, color: colors.text }]}
+            />
 
-        <Pressable
-          disabled={!canSubmit || busy}
-          onPress={submit}
-          style={[styles.submitBtn, { backgroundColor: !canSubmit || busy ? colors.backgroundElement : colors.evidence }]}
-        >
-          <ThemedText type="smallBold">{d.submit_proposal}</ThemedText>
-        </Pressable>
+            <ThemedText type="small" themeColor="textSecondary">
+              {d.proposal_attrib_note}
+            </ThemedText>
+
+            <Pressable
+              disabled={!canSubmit || busy}
+              onPress={submit}
+              style={[styles.submitBtn, { backgroundColor: !canSubmit || busy ? colors.backgroundElement : colors.evidence }]}
+            >
+              <ThemedText type="smallBold">{d.submit_proposal}</ThemedText>
+            </Pressable>
+          </>
+        )}
     </KeyboardAwareScreen>
   );
 }
@@ -142,6 +168,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
+  verifyBtn: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
   topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   topicChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
   input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, fontSize: 16 },

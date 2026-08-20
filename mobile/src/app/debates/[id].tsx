@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalSecondPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
-import { ensureSession, get, hasSession, post } from '@/services/api';
+import { ensureSession, errorCode, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
 import { t, tf } from '@/lib/i18n';
@@ -99,6 +99,16 @@ export default function DebateScreen() {
     }, [load]),
   );
 
+  // Debate participation (2026-08-19) needs payment_verified specifically,
+  // not just an address on file -- see web's anon.ts's paymentVerifiedUserId()
+  // doc comment. An address-verified-but-unpaid user goes to /verify-payment,
+  // not back through address verification they've already done; a fully
+  // unverified user still goes to /verify.
+  function routeToVerification(code: string | null) {
+    if (code === 'pay') router.push('/verify-payment');
+    else if (code === 'verify') router.push('/verify');
+  }
+
   async function second() {
     if (!detail) return;
     setBusy(true);
@@ -118,6 +128,10 @@ export default function DebateScreen() {
       await load();
     } catch (e) {
       console.error('Second failed:', e);
+      // Defense in depth: the button itself is only shown when paymentVerified
+      // is already true, but tier can lapse between load() and this tap (e.g.
+      // a refund) -- route to the right screen instead of failing silently.
+      routeToVerification(errorCode(e));
     } finally {
       setBusy(false);
     }
@@ -131,6 +145,7 @@ export default function DebateScreen() {
       await load();
     } catch (e) {
       console.error('Call-the-question vote failed:', e);
+      routeToVerification(errorCode(e));
     } finally {
       setBusy(false);
     }
@@ -142,10 +157,12 @@ export default function DebateScreen() {
       await load();
     } catch (e) {
       console.error('Agreement vote failed:', e);
+      routeToVerification(errorCode(e));
     }
   }
 
-  const verified = tier !== null && tier !== 'unverified';
+  const paymentVerified = tier === 'payment_verified';
+  const payHref = tier === 'unverified' ? ('/verify' as const) : ('/verify-payment' as const);
 
   if (!detail && !error) {
     return (
@@ -186,7 +203,7 @@ export default function DebateScreen() {
               </ThemedText>
             ) : detail.has_seconded ? (
               <ThemedText type="small">{d.already_seconded}</ThemedText>
-            ) : verified ? (
+            ) : paymentVerified ? (
               <Pressable
                 disabled={busy}
                 onPress={second}
@@ -195,7 +212,7 @@ export default function DebateScreen() {
                 <ThemedText type="smallBold">{d.second_proposal_btn}</ThemedText>
               </Pressable>
             ) : (
-              <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
+              <Pressable onPress={() => router.push(payHref)} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
                 <ThemedText type="smallBold">{d.verify_to_second}</ThemedText>
               </Pressable>
             )}
@@ -216,7 +233,7 @@ export default function DebateScreen() {
                 </ThemedText>
                 {detail.ctq.voted ? (
                   <ThemedText type="small">{d.already_ctq_voted}</ThemedText>
-                ) : detail.ctq.eligible && verified ? (
+                ) : detail.ctq.eligible && paymentVerified ? (
                   <Pressable
                     disabled={busy}
                     onPress={ctqVote}
@@ -264,7 +281,7 @@ export default function DebateScreen() {
                 ))}
                 {a.moderation_status === 'pending' ? (
                   <ThemedText type="small">{d.pending_moderation}</ThemedText>
-                ) : detail.thread_status === 'open' && verified ? (
+                ) : detail.thread_status === 'open' && paymentVerified ? (
                   <View style={styles.voteRow}>
                     {(['agree', 'disagree', 'pass'] as const).map((r) => (
                       <Pressable
@@ -294,10 +311,10 @@ export default function DebateScreen() {
             ))}
 
             {detail.thread_status === 'open' &&
-              (verified ? (
+              (paymentVerified ? (
                 <DebateComposer threadId={detail.thread_id} onPosted={load} />
               ) : (
-                <Pressable onPress={() => router.push('/verify')} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
+                <Pressable onPress={() => router.push(payHref)} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
                   <ThemedText type="smallBold">{d.verify_to_argue}</ThemedText>
                 </Pressable>
               ))}

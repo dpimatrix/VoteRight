@@ -22,6 +22,7 @@ function RootLayoutNav() {
         <Stack.Screen name="debates/[id]" options={{ headerShown: true, title: d.title_debate }} />
         <Stack.Screen name="debates/new" options={{ headerShown: true, title: d.title_propose }} />
         <Stack.Screen name="verify" options={{ headerShown: true, title: d.title_verify }} />
+        <Stack.Screen name="verify-payment" options={{ headerShown: true, title: d.title_verify_payment }} />
         <Stack.Screen name="referenda/[id]" options={{ headerShown: true, title: d.title_referendum }} />
         <Stack.Screen name="mandates/[id]" options={{ headerShown: true, title: d.title_mandate }} />
         <Stack.Screen name="accountability/list" options={{ headerShown: true, title: d.title_accountability }} />
