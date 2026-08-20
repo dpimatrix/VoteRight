@@ -122,6 +122,47 @@ export function formatFeeCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+export interface PublicPaymentConfig {
+  feeCents: number | null;
+  activeGateway: Gateway | null;
+  configured: boolean;
+  checkPaymentEnabled: boolean;
+  checkInstructions: string | null;
+  // A Stripe PUBLISHABLE key is designed to be public -- it's already shipped
+  // to every browser that loads /verify/payment (see PaymentCheckout.tsx's
+  // StartResult). Exposing it here too (mobile, 2026-08-19) just lets a
+  // native screen init the Stripe SDK before the user commits to paying,
+  // instead of only learning it from startCardPayment()'s side-effectful
+  // response. Everything else in PaymentSettings (secret keys, webhook
+  // secrets, Authorize.Net transaction key) stays server-only -- never add
+  // a field here without checking it belongs on this allowlist.
+  stripePublishableKey: string | null;
+}
+
+/** The subset of getPaymentSettings() safe to hand to an unauthenticated-
+    beyond-address-verification client. Web's /verify/payment gets the full
+    settings object server-side (SSR, never serialized to the client);
+    mobile has no server-side render, so it needs this over-the-wire
+    equivalent -- kept as a strict allowlist rather than omitting a
+    denylist of secret fields, so a future new secret field defaults to
+    NOT exposed. */
+export async function getPublicPaymentConfig(): Promise<PublicPaymentConfig> {
+  const settings = await getPaymentSettings();
+  const configured = Boolean(
+    settings.feeCents &&
+      settings.activeGateway &&
+      ((settings.activeGateway === "stripe" && settings.stripe) || (settings.activeGateway === "authorizenet" && settings.authorizenet)),
+  );
+  return {
+    feeCents: settings.feeCents,
+    activeGateway: settings.activeGateway,
+    configured,
+    checkPaymentEnabled: settings.checkPaymentEnabled,
+    checkInstructions: settings.checkInstructions,
+    stripePublishableKey: settings.activeGateway === "stripe" ? (settings.stripe?.publishableKey ?? null) : null,
+  };
+}
+
 export class PaymentNotConfigured extends Error {
   constructor(detail: string) {
     super(`Payment verification isn't fully configured yet: ${detail}. Set it up in /admin/payments.`);
