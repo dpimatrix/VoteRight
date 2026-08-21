@@ -11,9 +11,10 @@
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.dpimatrix.voteright",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "VoteRight may use your camera to scan your payment card details during payment verification, instead of typing them in by hand."
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +25,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.dpimatrix.voteright.mobile",
-      "versionCode": 6
+      "versionCode": 7
     },
     "web": {
       "output": "static",
