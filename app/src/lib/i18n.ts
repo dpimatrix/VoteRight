@@ -13,7 +13,7 @@ const DICT = {
     ballot_note:
       "Unscored seats stay on the list — an incomplete ballot must never look complete.",
     tracked: "Match available",
-    later: "Not yet tracked",
+    later: "Pending",
     judicial: "Different treatment",
     jud_note:
       "Judges can’t campaign on issues, so this seat gets background and bar evaluations — never a match score.",
@@ -398,7 +398,7 @@ const DICT = {
     ballot_note:
       "Los cargos sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa.",
     tracked: "Coincidencia disponible",
-    later: "Aún sin seguimiento",
+    later: "Pendiente",
     judicial: "Tratamiento distinto",
     jud_note:
       "Los jueces no pueden hacer campaña sobre temas; este cargo recibe trayectoria y evaluaciones — nunca una puntuación.",
