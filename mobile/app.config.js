@@ -15,8 +15,8 @@ export default ({ config }) => {
     },
     extra: {
       ...config.extra,
-      apiUrl: isLocal ? "http://192.168.86.205:3000" : "https://voteright.dpimatrix.com",
-      webUrl: isLocal ? "http://192.168.86.205:3000" : "https://voteright.dpimatrix.com",
+      apiUrl: isLocal ? "http://192.168.86.235:3000" : "https://voteright.dpimatrix.com",
+      webUrl: isLocal ? "http://192.168.86.235:3000" : "https://voteright.dpimatrix.com",
     },
   };
 };
