@@ -303,7 +303,7 @@ const DICT = {
     pay_check_h: 'Prefer to pay by check?',
     pay_check_btn: 'Get mailing instructions',
     pay_check_code_h: 'Your reference code',
-    pay_check_code_note: 'Write this code on your check so it can be matched to your account once received.',
+    pay_check_code_note: 'Write this code on your check so it can be matched to you once received.',
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
   },
   es: {
@@ -589,7 +589,7 @@ const DICT = {
     pay_check_h: '¿Prefieres pagar con cheque?',
     pay_check_btn: 'Obtener instrucciones de envío',
     pay_check_code_h: 'Tu código de referencia',
-    pay_check_code_note: 'Escribe este código en tu cheque para poder relacionarlo con tu cuenta al recibirlo.',
+    pay_check_code_note: 'Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.',
     pay_success: '✓ Pago recibido — estás verificado y ya puedes participar en los debates.',
   },
 } as const;

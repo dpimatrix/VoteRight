@@ -24,8 +24,13 @@ const DICT = {
     prio_h: "What matters to you?",
     prio_p:
       "Pick at least 3 issues. Choose your side of each question and set how much it matters.",
+    // Real bug found live testing (2026-08-23): "your account" implies a
+    // registered/named account, which this project deliberately never has
+    // (anonymous cookie identity only, per §10) -- deletion actually
+    // happens via the in-app privacy request form (MODPA), not an
+    // "account" being deleted.
     prio_priv:
-      "Private to you — used only to compute your matches. Deleted if you delete your account.",
+      "Private to you — used only to compute your matches. Deleted if you request deletion.",
     weight: ["", "Barely matters", "Matters a little", "Matters", "Matters a lot", "Non-negotiable"],
     see_matches: "See my matches",
     need_more: "Pick at least 3 issues to continue",
@@ -224,7 +229,9 @@ const DICT = {
     pay_check_h: "Prefer to pay by check?",
     pay_check_btn: "Get mailing instructions",
     pay_check_code_h: "Your reference code",
-    pay_check_code_note: "Write this code on your check so it can be matched to your account once received.",
+    // Real bug found live testing (2026-08-23): "your account" -- same fix
+    // as prio_priv above, no account exists to match this to.
+    pay_check_code_note: "Write this code on your check so it can be matched to you once received.",
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
     sub_h: "Support VoteRight",
     sub_p:
@@ -403,7 +410,7 @@ const DICT = {
     prio_p:
       "Elige al menos 3 temas. Escoge tu lado de cada pregunta y decide cuánto importa.",
     prio_priv:
-      "Privado — solo se usa para calcular tus coincidencias. Se elimina si borras tu cuenta.",
+      "Privado — solo se usa para calcular tus coincidencias. Se elimina si solicitas su eliminación.",
     weight: ["", "Casi no importa", "Importa poco", "Importa", "Importa mucho", "Innegociable"],
     see_matches: "Ver mis coincidencias",
     need_more: "Elige al menos 3 temas para continuar",
@@ -586,7 +593,7 @@ const DICT = {
     pay_check_h: "¿Prefieres pagar con cheque?",
     pay_check_btn: "Obtener instrucciones de envío",
     pay_check_code_h: "Tu código de referencia",
-    pay_check_code_note: "Escribe este código en tu cheque para poder relacionarlo con tu cuenta al recibirlo.",
+    pay_check_code_note: "Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.",
     pay_success: "✓ Pago recibido — estás verificado y ya puedes participar en los debates.",
     sub_h: "Apoya a VoteRight",
     sub_p:
