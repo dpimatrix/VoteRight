@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
@@ -65,24 +65,38 @@ export default function VerifyScreen() {
           {d.unverified_note}
         </ThemedText>
       )}
-      <TextInput
-        value={address}
-        onChangeText={setAddress}
-        placeholder={d.address_placeholder}
-        placeholderTextColor={colors.textSecondary}
-        autoComplete="street-address"
-        // Belt-and-suspenders (2026-08-22): autoComplete alone is documented as
-        // sufficient cross-platform, but real-device testing found iOS QuickType
-        // suggestions not appearing -- textContentType is iOS's own native prop
-        // for this and takes precedence when both are set, so this is a safe,
-        // free hedge against a version-specific autoComplete->iOS mapping gap
-        // rather than a guess at the "right" prop. If suggestions still don't
-        // appear after this, the device itself likely has no saved address data
-        // (Contacts/Safari/Apple ID) for iOS to offer -- a device-data issue,
-        // not a code one.
-        textContentType={Platform.OS === 'ios' ? 'fullStreetAddress' : undefined}
-        style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
-      />
+      <View style={styles.inputWrap}>
+        <TextInput
+          value={address}
+          onChangeText={setAddress}
+          placeholder={d.address_placeholder}
+          placeholderTextColor={colors.textSecondary}
+          autoComplete="street-address"
+          // Belt-and-suspenders (2026-08-22): autoComplete alone is documented as
+          // sufficient cross-platform, but real-device testing found iOS QuickType
+          // suggestions not appearing -- textContentType is iOS's own native prop
+          // for this and takes precedence when both are set, so this is a safe,
+          // free hedge against a version-specific autoComplete->iOS mapping gap
+          // rather than a guess at the "right" prop. If suggestions still don't
+          // appear after this, the device itself likely has no saved address data
+          // (Contacts/Safari/Apple ID) for iOS to offer -- a device-data issue,
+          // not a code one.
+          textContentType={Platform.OS === 'ios' ? 'fullStreetAddress' : undefined}
+          style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+        />
+        {/* Owner-requested (2026-08-23): the native placeholder disappears the
+            moment typing starts, losing the format example right when it's
+            most useful -- kept as a persistent hint anchored inside the
+            bottom of the field instead, shown once there's real text so it
+            never overlaps the native placeholder itself. pointerEvents:
+            'none' (via style, not the deprecated prop) so taps here still
+            focus the input underneath. */}
+        {address.length > 0 && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.inlineHint}>
+            {d.address_placeholder}
+          </ThemedText>
+        )}
+      </View>
       {error && (
         <ThemedText type="small" style={styles.error}>
           {error}
@@ -105,7 +119,23 @@ export default function VerifyScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
-  input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, fontSize: 16 },
+  inputWrap: { position: 'relative' },
+  input: {
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    paddingTop: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: 34, // extra room below the typed text for inlineHint
+    fontSize: 16,
+  },
+  inlineHint: {
+    position: 'absolute',
+    left: Spacing.three,
+    right: Spacing.three,
+    bottom: 10,
+    fontSize: 12,
+    pointerEvents: 'none',
+  },
   error: { color: '#C0392B' },
   submitBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
 });
