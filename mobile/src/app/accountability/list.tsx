@@ -36,6 +36,7 @@ interface Politician {
   full_name: string;
   party: string | null;
   office_title: string;
+  jurisdiction_name: string;
 }
 
 interface SimilarCampaign {
@@ -100,15 +101,19 @@ export default function AccountabilityScreen() {
   const petitionPathway = pathways?.find((p) => p.mechanism_type === 'charter_amendment_petition');
   const verified = tier !== null && tier !== 'unverified';
 
-  // Grouped by office (2026-08-23, owner asked directly on this screen) --
-  // a resident can represent several offices at once (council seat,
-  // executive, school board...) and a flat, unlabeled name list gave no way
-  // to tell which office a given person actually held.
-  const politiciansByOffice = new Map<string, Politician[]>();
+  // Grouped by jurisdiction, then office (2026-08-23, owner asked directly:
+  // "group by the offices across the ecosystem the address belongs to") --
+  // the same stack the Ballot screen already groups by (county -> state ->
+  // country), not a second scheme. politicians arrives pre-sorted
+  // local-to-national (see ownOfficeholders()), so Map insertion order
+  // alone keeps that order here.
+  const politiciansByJurisdiction = new Map<string, Map<string, Politician[]>>();
   for (const p of politicians ?? []) {
-    const group = politiciansByOffice.get(p.office_title) ?? [];
+    const byOffice = politiciansByJurisdiction.get(p.jurisdiction_name) ?? new Map<string, Politician[]>();
+    const group = byOffice.get(p.office_title) ?? [];
     group.push(p);
-    politiciansByOffice.set(p.office_title, group);
+    byOffice.set(p.office_title, group);
+    politiciansByJurisdiction.set(p.jurisdiction_name, byOffice);
   }
 
   // Duplicate-campaign suggestions (2026-08-23) -- suggest, never block,
@@ -245,31 +250,36 @@ export default function AccountabilityScreen() {
                 ))}
               </View>
               <View style={styles.pickerGroups}>
-                {[...politiciansByOffice.entries()].map(([officeTitle, group]) => (
-                  <View key={officeTitle} style={styles.pickerGroup}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {officeTitle}
-                    </ThemedText>
-                    <View style={styles.pickerRow}>
-                      {group.map((p) => (
-                        <Pressable
-                          key={p.id}
-                          onPress={() => setPoliticianId(p.id)}
-                          style={[
-                            styles.pickerChip,
-                            {
-                              borderColor: politicianId === p.id ? colors.evidence : colors.textSecondary,
-                              backgroundColor: politicianId === p.id ? colors.backgroundSelected : 'transparent',
-                            },
-                          ]}
-                        >
-                          <ThemedText type="small">
-                            {p.full_name}
-                            {p.party ? ` (${p.party})` : ''}
-                          </ThemedText>
-                        </Pressable>
-                      ))}
-                    </View>
+                {[...politiciansByJurisdiction.entries()].map(([jurisdictionName, byOffice]) => (
+                  <View key={jurisdictionName} style={styles.pickerJurisdiction}>
+                    <ThemedText type="smallBold">{jurisdictionName}</ThemedText>
+                    {[...byOffice.entries()].map(([officeTitle, group]) => (
+                      <View key={officeTitle} style={styles.pickerGroup}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {officeTitle}
+                        </ThemedText>
+                        <View style={styles.pickerRow}>
+                          {group.map((p) => (
+                            <Pressable
+                              key={p.id}
+                              onPress={() => setPoliticianId(p.id)}
+                              style={[
+                                styles.pickerChip,
+                                {
+                                  borderColor: politicianId === p.id ? colors.evidence : colors.textSecondary,
+                                  backgroundColor: politicianId === p.id ? colors.backgroundSelected : 'transparent',
+                                },
+                              ]}
+                            >
+                              <ThemedText type="small">
+                                {p.full_name}
+                                {p.party ? ` (${p.party})` : ''}
+                              </ThemedText>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 ))}
               </View>
@@ -375,7 +385,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, flexWrap: 'wrap' },
   chip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.half, paddingHorizontal: Spacing.two },
-  pickerGroups: { gap: Spacing.two },
+  pickerGroups: { gap: Spacing.three },
+  pickerJurisdiction: { gap: Spacing.two },
   pickerGroup: { gap: Spacing.half },
   pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },

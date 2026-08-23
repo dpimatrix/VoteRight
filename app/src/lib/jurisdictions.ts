@@ -780,7 +780,9 @@ export async function ownRaceIds(userId: string | null): Promise<Set<string> | n
     unscoped list once did. */
 export async function ownOfficeholders(
   userId: string | null,
-): Promise<{ id: string; full_name: string; party: string | null; office_title: string }[] | null> {
+): Promise<
+  { id: string; full_name: string; party: string | null; office_title: string; jurisdiction_name: string }[] | null
+> {
   const residence = userId ? await userResidence(userId) : null;
   if (!residence) return null;
   const allOffices = await ballotForJurisdiction(residence.ocd_id);
@@ -794,10 +796,18 @@ export async function ownOfficeholders(
   });
   const officeIds = offices.map((o) => o.id);
   if (officeIds.length === 0) return [];
+  // jurisdiction_name + depth per office, reused from the same stack
+  // ballotForJurisdiction already built (depth 0 = the resident's own most
+  // local jurisdiction, increasing toward country -- see its own "ORDER BY
+  // s.depth" comment). Grouping the politician picker by this (owner asked
+  // directly, 2026-08-23: "group by the offices across the ecosystem the
+  // address belongs to") reuses the EXACT hierarchy the Ballot screen
+  // already groups by, rather than inventing a second, parallel scheme.
+  const jurisdictionByOffice = new Map(offices.map((o) => [o.id, { name: o.jurisdiction_name, depth: o.depth }]));
   // Same "most recent office_terms row per office wins" convention
   // ballotForJurisdiction's own lateral join already uses above.
   const { rows } = await db().query(
-    `SELECT DISTINCT ON (o.id) p.id, p.full_name, p.party, o.title AS office_title
+    `SELECT DISTINCT ON (o.id) o.id AS office_id, p.id, p.full_name, p.party, o.title AS office_title
        FROM offices o
        JOIN office_terms ot ON ot.office_id = o.id
        JOIN politicians p ON p.id = ot.politician_id
@@ -805,7 +815,17 @@ export async function ownOfficeholders(
       ORDER BY o.id, ot.term_start DESC`,
     [officeIds],
   );
-  return rows as { id: string; full_name: string; party: string | null; office_title: string }[];
+  return (rows as { office_id: string; id: string; full_name: string; party: string | null; office_title: string }[])
+    .map((r) => ({
+      id: r.id,
+      full_name: r.full_name,
+      party: r.party,
+      office_title: r.office_title,
+      jurisdiction_name: jurisdictionByOffice.get(r.office_id)?.name ?? "",
+      depth: jurisdictionByOffice.get(r.office_id)?.depth ?? 0,
+    }))
+    .sort((a, b) => a.depth - b.depth)
+    .map(({ depth: _depth, ...rest }) => rest);
 }
 
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.

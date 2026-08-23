@@ -20,7 +20,7 @@ export function PoliticianCampaignFields({
   d,
 }: {
   officePathways: { id: string; mechanism_type: string; office_title: string | null }[];
-  politicians: { id: string; full_name: string; party: string | null; office_title: string }[];
+  politicians: { id: string; full_name: string; party: string | null; office_title: string; jurisdiction_name: string }[];
   mechLabel: Record<string, string>;
   lang: Lang;
   d: ReturnType<typeof t>;
@@ -29,15 +29,19 @@ export function PoliticianCampaignFields({
   const [politicianId, setPoliticianId] = useState(politicians[0]?.id ?? "");
   const [matches, setMatches] = useState<SimilarCampaign[]>([]);
 
-  // Grouped by office (2026-08-23, owner asked directly on the accountability
-  // screen) -- a resident can represent several offices at once (council
-  // seat, executive, school board...) and a flat, unlabeled name list gave
-  // no way to tell which office a given person actually held.
-  const byOffice = new Map<string, typeof politicians>();
+  // Grouped by jurisdiction (2026-08-23, owner asked directly: "group by
+  // the offices across the ecosystem the address belongs to") -- the same
+  // stack the Ballot screen already groups by (county -> state -> country),
+  // not a second scheme. politicians arrives pre-sorted local-to-national
+  // (see ownOfficeholders()), so Map insertion order alone keeps that
+  // order here -- no separate depth field needed on the frontend. A native
+  // <select> can't nest <optgroup>s, so office_title rides along in each
+  // option's own text instead of a second grouping level.
+  const byJurisdiction = new Map<string, typeof politicians>();
   for (const p of politicians) {
-    const group = byOffice.get(p.office_title) ?? [];
+    const group = byJurisdiction.get(p.jurisdiction_name) ?? [];
     group.push(p);
-    byOffice.set(p.office_title, group);
+    byJurisdiction.set(p.jurisdiction_name, group);
   }
 
   useEffect(() => {
@@ -62,11 +66,11 @@ export function PoliticianCampaignFields({
         ))}
       </select>
       <select name="politician_id" required value={politicianId} onChange={(e) => setPoliticianId(e.target.value)}>
-        {[...byOffice.entries()].map(([officeTitle, group]) => (
-          <optgroup key={officeTitle} label={officeTitle}>
+        {[...byJurisdiction.entries()].map(([jurisdictionName, group]) => (
+          <optgroup key={jurisdictionName} label={jurisdictionName}>
             {group.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.full_name}
+                {p.office_title} — {p.full_name}
                 {p.party ? ` (${p.party})` : ""}
               </option>
             ))}
