@@ -10,6 +10,7 @@ import { ApiError, ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
 import { t, tf } from '@/lib/i18n';
+import { bandChipStyle } from '@/lib/score-colors';
 
 interface Race {
   id: string;
@@ -98,6 +99,10 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<MatchesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<{ politicianId: string; axisId: string } | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggleCompare = (id: string) =>
+    setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-2)));
+  const nameOf = (id: string) => matches?.results.find((r) => r.politicianId === id)?.fullName ?? '';
 
   const loadRaces = useCallback(async () => {
     try {
@@ -121,6 +126,7 @@ export default function MatchesScreen() {
       setMatches(null);
       setError(null);
       setExpanded(null);
+      setSelected([]);
       get<MatchesResponse>(`/api/matches?race=${raceId}`)
         .then(setMatches)
         .catch((e) => {
@@ -168,6 +174,32 @@ export default function MatchesScreen() {
 
         {raceId && !matches && !error && <ActivityIndicator style={styles.spinner} />}
 
+        {matches && selected.length > 0 && (
+          <View style={[styles.compareBar, { backgroundColor: colors.backgroundElement }]}>
+            {selected.length === 1 ? (
+              <ThemedText type="small" style={styles.flexOne}>
+                {tf(d.compare_pick_one_more, { name: nameOf(selected[0]) })}
+              </ThemedText>
+            ) : (
+              <Pressable
+                style={styles.flexOne}
+                onPress={() =>
+                  router.push({ pathname: '/compare', params: { race: raceId ?? '', a: selected[0], b: selected[1] } })
+                }
+              >
+                <ThemedText type="smallBold" style={{ color: colors.evidence }}>
+                  {tf(d.compare_cta, { a: nameOf(selected[0]), b: nameOf(selected[1]) })}
+                </ThemedText>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setSelected([])}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {d.compare_clear}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
         {matches && (
           <View style={styles.grid}>
             {matches.results.map((m) => (
@@ -180,10 +212,28 @@ export default function MatchesScreen() {
                 <ThemedText style={styles.candName} numberOfLines={2}>
                   {m.fullName} ({m.party ?? d.nonpartisan})
                 </ThemedText>
-                <View style={[styles.chip, { borderColor: colors.evidence }]}>
-                  <ThemedText type="small" style={{ color: colors.evidence }}>
-                    {BAND_LABEL[m.score.overall]}
-                  </ThemedText>
+                <View style={styles.rowWrap}>
+                  <View style={[styles.chip, { borderColor: colors.evidence }]}>
+                    <ThemedText type="small" style={{ color: colors.evidence }}>
+                      {BAND_LABEL[m.score.overall]}
+                    </ThemedText>
+                  </View>
+                  <Pressable
+                    onPress={() => toggleCompare(m.politicianId)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: selected.includes(m.politicianId) }}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor: colors.textSecondary,
+                        backgroundColor: selected.includes(m.politicianId) ? colors.backgroundSelected : 'transparent',
+                      },
+                    ]}
+                  >
+                    <ThemedText type="small">
+                      {selected.includes(m.politicianId) ? d.compare_selected : d.compare_add}
+                    </ThemedText>
+                  </Pressable>
                 </View>
                 {m.score.dealbreaker && (
                   <View style={[styles.chip, styles.dealbreakerChip]}>
@@ -226,8 +276,16 @@ export default function MatchesScreen() {
                             {p.question}
                           </ThemedText>
                           {pa?.agreement !== null && pa?.agreement !== undefined && (
-                            <View style={[styles.chip, { borderColor: colors.evidence }]}>
-                              <ThemedText type="small" style={{ color: colors.evidence }}>
+                            <View
+                              style={[
+                                styles.chip,
+                                {
+                                  backgroundColor: bandChipStyle(pa.agreement, colors).backgroundColor,
+                                  borderColor: bandChipStyle(pa.agreement, colors).borderColor,
+                                },
+                              ]}
+                            >
+                              <ThemedText type="small" style={{ color: bandChipStyle(pa.agreement, colors).textColor }}>
                                 {AGREEMENT_LABEL[String(pa.agreement)]}
                               </ThemedText>
                             </View>
@@ -330,4 +388,12 @@ const styles = StyleSheet.create({
   evidenceRow: { gap: Spacing.half },
   covbar: { height: 4, borderRadius: 999, overflow: 'hidden' },
   covbarFill: { height: '100%', borderRadius: 999 },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
+  compareBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderRadius: Spacing.two,
+    padding: Spacing.three,
+  },
 });

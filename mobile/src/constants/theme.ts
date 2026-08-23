@@ -23,6 +23,10 @@ export const Colors = {
     differ: '#a24a33',
     agreeSoft: '#e3edec',
     differSoft: '#f3e2dc',
+    // Readable text on a solid agree/differ fill (matches globals.css
+    // --b2-fg/--bm2-fg) -- white reads on the light palette's dark teal/rust,
+    // near-black reads on the dark palette's pastel teal/peach.
+    onStrong: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -37,6 +41,7 @@ export const Colors = {
     // near-black, so only the border carries the color there too.
     agreeSoft: 'transparent',
     differSoft: 'transparent',
+    onStrong: '#101413',
   },
 } as const;
 

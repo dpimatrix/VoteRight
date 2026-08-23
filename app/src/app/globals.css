@@ -198,6 +198,33 @@ a.seat:active, a.cand:active { transform: scale(0.99); background: var(--surface
 .dots .dm2 { background: var(--differ); border-color: var(--differ); }
 .dots .dnull { background: transparent; border-style: dashed; }
 
+/* ── Compare-two-candidates (2026-08-23) ── */
+.compare-toggle { cursor: pointer; }
+.compare-toggle.on { color: var(--ink); border-color: var(--ink); background: var(--chip-neutral); }
+.compare-toggle:focus-visible { outline: 2px solid var(--agree); outline-offset: 2px; }
+.compare-bar {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  border: 1px solid var(--line); background: var(--surface-2); border-radius: 12px;
+  padding: 0.55rem 0.75rem; margin: 0.6rem 0;
+}
+.compare-bar .btn { padding: 0.45rem 0.9rem; font-size: 0.86rem; }
+.compare-bar button.chip.cite { cursor: pointer; }
+.comparehead { display: flex; gap: 0.8rem; margin: 0.8rem 0; }
+.comparecand {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+  text-align: center; border: 1px solid var(--card-bd); background: var(--surface);
+  box-shadow: var(--elev); border-radius: 16px; padding: 0.9rem 0.6rem;
+}
+.comparecand .cname { font-weight: 750; font-size: 0.94rem; }
+.comparecand .cparty { font-size: 0.76rem; color: var(--muted); }
+.comparerow { border-top: 1px solid var(--line); padding: 0.8rem 0; }
+.comparerow .tn { font-weight: 750; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.comparecells { display: flex; gap: 0.8rem; }
+.comparecell { flex: 1; min-width: 0; }
+.comparecell .chip.band { width: 100%; justify-content: center; cursor: pointer; border-style: solid; font: inherit; }
+.comparecell .chip.band.bnull { border-style: dashed; }
+.comparerow .topicrow { border-top: 1px dashed var(--line); margin-top: 0.6rem; }
+
 /* ── Chips & registers ── */
 .chip {
   display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;

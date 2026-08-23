@@ -29,6 +29,7 @@ const DICT = {
     title_accountability: 'Accountability',
     title_campaign: 'Campaign',
     title_settings: 'Settings',
+    title_compare: 'Compare',
 
     // ---- (tabs)/index.tsx: ballot ----
     ballot_title: 'Your ballot',
@@ -98,6 +99,13 @@ const DICT = {
       'We could confirm this candidate’s position on fewer than half the priorities you picked — too few to score fairly. Shown last, not hidden.',
     nonpartisan: 'Nonpartisan',
     method: 'How scoring works: published methodology, human-confirmed evidence, bands not numbers.',
+    compare_add: 'Compare',
+    compare_selected: '✓ Comparing',
+    compare_pick_one_more: 'Comparing {name} — pick one more to compare.',
+    compare_clear: 'Clear',
+    compare_cta: 'Compare {a} vs {b}',
+    compare_h: 'Comparing',
+    compare_not_found: "Couldn't find one of these candidates in this race.",
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
@@ -332,6 +340,7 @@ const DICT = {
     title_accountability: 'Rendición de cuentas',
     title_campaign: 'Campaña',
     title_settings: 'Ajustes',
+    title_compare: 'Comparación',
 
     // ---- (tabs)/index.tsx: ballot ----
     ballot_title: 'Tu boleta',
@@ -401,6 +410,13 @@ const DICT = {
       'Pudimos confirmar la posición de este candidato en menos de la mitad de las prioridades que elegiste — muy pocas para calificar con justicia. Se muestra al final, no se oculta.',
     nonpartisan: 'No partidista',
     method: 'Cómo funciona la puntuación: metodología publicada, evidencia confirmada por humanos, bandas en lugar de números.',
+    compare_add: 'Comparar',
+    compare_selected: '✓ Comparando',
+    compare_pick_one_more: 'Comparando a {name} — elige uno más para comparar.',
+    compare_clear: 'Borrar',
+    compare_cta: 'Comparar {a} vs {b}',
+    compare_h: 'Comparación',
+    compare_not_found: 'No se pudo encontrar uno de estos candidatos en esta contienda.',
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',

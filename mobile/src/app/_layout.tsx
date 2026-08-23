@@ -28,6 +28,7 @@ function RootLayoutNav() {
         <Stack.Screen name="accountability/list" options={{ headerShown: true, title: d.title_accountability }} />
         <Stack.Screen name="accountability/[id]" options={{ headerShown: true, title: d.title_campaign }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: d.title_settings }} />
+        <Stack.Screen name="compare" options={{ headerShown: true, title: d.title_compare }} />
       </Stack>
     </ThemeProvider>
   );
