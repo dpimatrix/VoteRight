@@ -41,6 +41,7 @@ const DICT = {
     sample:
       "Prototype sample — fictional candidates, illustrative sources. Real data lands with the data-operations phase.",
     incumbent: "Incumbent",
+    nonpartisan: "Nonpartisan",
     // Renamed from seats4 (2026-08-23, real bug found live testing): a
     // nationwide race can elect any number of seats, not just the original
     // county pilot's 4-seat At-Large council contest -- was hardcoded
@@ -422,6 +423,7 @@ const DICT = {
     sample:
       "Prototipo de muestra — candidatos ficticios, fuentes ilustrativas. Los datos reales llegan con la fase de operaciones de datos.",
     incumbent: "En el cargo",
+    nonpartisan: "No partidista",
     seats_multi: "Esta contienda elige {n} escaños — puedes votar hasta por {n}.",
     open_seat: "Contienda de un solo escaño.",
     ov: {

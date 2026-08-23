@@ -96,6 +96,7 @@ const DICT = {
     of_your: 'of your priorities',
     insuff_note:
       'We could confirm this candidate’s position on fewer than half the priorities you picked — too few to score fairly. Shown last, not hidden.',
+    nonpartisan: 'Nonpartisan',
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
@@ -397,6 +398,7 @@ const DICT = {
     of_your: 'de tus prioridades',
     insuff_note:
       'Pudimos confirmar la posición de este candidato en menos de la mitad de las prioridades que elegiste — muy pocas para calificar con justicia. Se muestra al final, no se oculta.',
+    nonpartisan: 'No partidista',
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',

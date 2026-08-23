@@ -132,7 +132,7 @@ export default function MatchesScreen() {
               >
                 <PolAvatar name={m.fullName} photoUrl={m.photoUrl} />
                 <ThemedText style={styles.candName} numberOfLines={2}>
-                  {m.fullName} {m.party ? `(${m.party})` : ''}
+                  {m.fullName} ({m.party ?? d.nonpartisan})
                 </ThemedText>
                 <View style={[styles.chip, { borderColor: colors.evidence }]}>
                   <ThemedText type="small" style={{ color: colors.evidence }}>

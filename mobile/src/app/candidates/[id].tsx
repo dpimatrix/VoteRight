@@ -103,7 +103,7 @@ interface CandidateResponse {
   profile: {
     id: string;
     fullName: string;
-    party: string;
+    party: string | null;
     bio: string | null;
     photoUrl: string | null;
     currentOffice: string | null;
@@ -197,7 +197,7 @@ export default function CandidateScreen() {
           <View style={styles.headerText}>
             <ThemedText type="subtitle">{profile.fullName}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              ({profile.party}){profile.currentOffice ? ` · ${profile.currentOffice}` : ''}
+              ({profile.party ?? d.nonpartisan}){profile.currentOffice ? ` · ${profile.currentOffice}` : ''}
             </ThemedText>
           </View>
         </View>

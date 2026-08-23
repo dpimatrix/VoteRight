@@ -85,7 +85,7 @@ export default async function MatchesPage({
                   <span className="body">
                     <span className="row1">
                       <span className="cname">{r.fullName}</span>
-                      <span className="cparty">({r.party})</span>
+                      <span className="cparty">({r.party ?? d.nonpartisan})</span>
                       {r.incumbent && <span className="inc">{d.incumbent}</span>}
                     </span>
                     <span className="row2">

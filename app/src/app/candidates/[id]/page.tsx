@@ -97,7 +97,7 @@ export default async function CandidatePage({
         <span className="cname serif" style={{ fontSize: "1.4rem" }}>
           {profile.full_name}
         </span>
-        <span className="cparty">({profile.party})</span>
+        <span className="cparty">({profile.party ?? d.nonpartisan})</span>
         {profile.current_office && <span className="inc">{d.incumbent}</span>}
       </div>
       <div className="disclosure">
