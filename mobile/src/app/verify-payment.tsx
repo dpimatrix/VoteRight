@@ -256,6 +256,25 @@ export default function VerifyPaymentScreen() {
                 <CardField
                   postalCodeEnabled
                   style={styles.cardField}
+                  // Real bug found live testing (2026-08-23): CardField is a
+                  // native component, not a themed RN TextInput -- with no
+                  // cardStyle at all it falls back to Stripe's own default
+                  // (light theme, white background), rendering as a solid
+                  // white box with unreadable text/placeholder against this
+                  // app's true-black dark theme. Matched to the same
+                  // border/text tokens every other TextInput in this app
+                  // already uses.
+                  cardStyle={{
+                    backgroundColor: colors.backgroundElement,
+                    borderWidth: 1,
+                    borderColor: colors.textSecondary,
+                    borderRadius: 8,
+                    textColor: colors.text,
+                    placeholderColor: colors.textSecondary,
+                    cursorColor: colors.evidence,
+                    textErrorColor: '#C0392B',
+                    fontSize: 16,
+                  }}
                   onCardChange={(details) => setCardComplete(details.complete)}
                 />
                 <Pressable
