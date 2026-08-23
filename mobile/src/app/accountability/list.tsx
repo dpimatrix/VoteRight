@@ -35,6 +35,7 @@ interface Politician {
   id: string;
   full_name: string;
   party: string | null;
+  office_title: string;
 }
 
 interface SimilarCampaign {
@@ -98,6 +99,17 @@ export default function AccountabilityScreen() {
   const officePathways = pathways?.filter((p) => p.mechanism_type !== 'charter_amendment_petition') ?? [];
   const petitionPathway = pathways?.find((p) => p.mechanism_type === 'charter_amendment_petition');
   const verified = tier !== null && tier !== 'unverified';
+
+  // Grouped by office (2026-08-23, owner asked directly on this screen) --
+  // a resident can represent several offices at once (council seat,
+  // executive, school board...) and a flat, unlabeled name list gave no way
+  // to tell which office a given person actually held.
+  const politiciansByOffice = new Map<string, Politician[]>();
+  for (const p of politicians ?? []) {
+    const group = politiciansByOffice.get(p.office_title) ?? [];
+    group.push(p);
+    politiciansByOffice.set(p.office_title, group);
+  }
 
   // Duplicate-campaign suggestions (2026-08-23) -- suggest, never block,
   // same spirit as the debates composer's claim heuristic. Real incident:
@@ -232,24 +244,33 @@ export default function AccountabilityScreen() {
                   </Pressable>
                 ))}
               </View>
-              <View style={styles.pickerRow}>
-                {politicians?.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setPoliticianId(p.id)}
-                    style={[
-                      styles.pickerChip,
-                      {
-                        borderColor: politicianId === p.id ? colors.evidence : colors.textSecondary,
-                        backgroundColor: politicianId === p.id ? colors.backgroundSelected : 'transparent',
-                      },
-                    ]}
-                  >
-                    <ThemedText type="small">
-                      {p.full_name}
-                      {p.party ? ` (${p.party})` : ''}
+              <View style={styles.pickerGroups}>
+                {[...politiciansByOffice.entries()].map(([officeTitle, group]) => (
+                  <View key={officeTitle} style={styles.pickerGroup}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {officeTitle}
                     </ThemedText>
-                  </Pressable>
+                    <View style={styles.pickerRow}>
+                      {group.map((p) => (
+                        <Pressable
+                          key={p.id}
+                          onPress={() => setPoliticianId(p.id)}
+                          style={[
+                            styles.pickerChip,
+                            {
+                              borderColor: politicianId === p.id ? colors.evidence : colors.textSecondary,
+                              backgroundColor: politicianId === p.id ? colors.backgroundSelected : 'transparent',
+                            },
+                          ]}
+                        >
+                          <ThemedText type="small">
+                            {p.full_name}
+                            {p.party ? ` (${p.party})` : ''}
+                          </ThemedText>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
                 ))}
               </View>
               <TextInput
@@ -354,6 +375,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, flexWrap: 'wrap' },
   chip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.half, paddingHorizontal: Spacing.two },
+  pickerGroups: { gap: Spacing.two },
+  pickerGroup: { gap: Spacing.half },
   pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
   input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, fontSize: 15 },

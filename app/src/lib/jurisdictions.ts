@@ -778,7 +778,9 @@ export async function ownRaceIds(userId: string | null): Promise<Set<string> | n
     politician outside the resident's own represented officials, so null/
     empty here means "nothing to offer yet", not "show everyone" the way an
     unscoped list once did. */
-export async function ownOfficeholders(userId: string | null): Promise<{ id: string; full_name: string; party: string | null }[] | null> {
+export async function ownOfficeholders(
+  userId: string | null,
+): Promise<{ id: string; full_name: string; party: string | null; office_title: string }[] | null> {
   const residence = userId ? await userResidence(userId) : null;
   if (!residence) return null;
   const allOffices = await ballotForJurisdiction(residence.ocd_id);
@@ -795,7 +797,7 @@ export async function ownOfficeholders(userId: string | null): Promise<{ id: str
   // Same "most recent office_terms row per office wins" convention
   // ballotForJurisdiction's own lateral join already uses above.
   const { rows } = await db().query(
-    `SELECT DISTINCT ON (o.id) p.id, p.full_name, p.party
+    `SELECT DISTINCT ON (o.id) p.id, p.full_name, p.party, o.title AS office_title
        FROM offices o
        JOIN office_terms ot ON ot.office_id = o.id
        JOIN politicians p ON p.id = ot.politician_id
@@ -803,7 +805,7 @@ export async function ownOfficeholders(userId: string | null): Promise<{ id: str
       ORDER BY o.id, ot.term_start DESC`,
     [officeIds],
   );
-  return rows as { id: string; full_name: string; party: string | null }[];
+  return rows as { id: string; full_name: string; party: string | null; office_title: string }[];
 }
 
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
