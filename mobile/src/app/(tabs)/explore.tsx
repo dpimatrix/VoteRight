@@ -90,6 +90,9 @@ export default function MatchesScreen() {
         <ThemedText type="title" style={styles.title}>
           {d.matches_title}
         </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {d.matches_sub}
+        </ThemedText>
 
         {!races && !error && <ActivityIndicator style={styles.spinner} />}
 

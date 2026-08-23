@@ -42,6 +42,7 @@ export default async function MatchesPage({
       <SiteHeader lang={lang} path={`/matches?race=${raceId ?? ""}`} />
       <div className="pagepad">
         <div className="pagetitle">{d.matches_h}</div>
+        <p className="sub">{d.matches_p}</p>
         <div className="seg">
           {allRaces.map((r) => (
             <Link

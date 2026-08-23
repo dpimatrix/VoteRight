@@ -83,6 +83,7 @@ const DICT = {
 
     // ---- (tabs)/explore.tsx: matches ----
     matches_title: 'Matches',
+    matches_sub: "How each candidate on your ballot aligns with the priorities you set — shown as bands, not raw scores.",
     races_load_error: 'Could not load races. Pull down to try again.',
     need_priorities_error: 'Set at least 3 priorities on the Priorities tab to see matches.',
     band_strong: 'Strong match',
@@ -379,6 +380,7 @@ const DICT = {
 
     // ---- (tabs)/explore.tsx: matches ----
     matches_title: 'Coincidencias',
+    matches_sub: 'Cómo se alinea cada candidato de tu boleta con las prioridades que elegiste — mostrado en bandas, no en puntajes exactos.',
     races_load_error: 'No se pudieron cargar las contiendas. Desliza hacia abajo para intentar de nuevo.',
     need_priorities_error: 'Elige al menos 3 prioridades en la pestaña Prioridades para ver coincidencias.',
     band_strong: 'Fuerte coincidencia',

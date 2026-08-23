@@ -35,6 +35,7 @@ const DICT = {
     see_matches: "See my matches",
     need_more: "Pick at least 3 issues to continue",
     matches_h: "Your matches",
+    matches_p: "How each candidate on your ballot aligns with the priorities you set — shown as bands, not raw scores.",
     based_on: "Based on",
     of_your: "of your priorities",
     sample:
@@ -415,6 +416,7 @@ const DICT = {
     see_matches: "Ver mis coincidencias",
     need_more: "Elige al menos 3 temas para continuar",
     matches_h: "Tus coincidencias",
+    matches_p: "Cómo se alinea cada candidato de tu boleta con las prioridades que elegiste — mostrado en bandas, no en puntajes exactos.",
     based_on: "Basado en",
     of_your: "de tus prioridades",
     sample:
