@@ -69,7 +69,7 @@ const DICT = {
     },
     deal: "Conflicts with one of your top priorities",
     insuff_note:
-      "Too few public positions found to score fairly. Shown last, not hidden — silence is information too.",
+      "We could confirm this candidate's position on fewer than half the priorities you picked — too few to score fairly. Shown last, not hidden — silence is information too.",
     silence_row:
       "No public position found. Not counted for or against — shown so silence stays visible.",
     you_said: "You said:",
@@ -441,7 +441,7 @@ const DICT = {
     },
     deal: "Choca con una de tus prioridades principales",
     insuff_note:
-      "Muy pocas posiciones públicas para calificar con justicia. Se muestra al final, no se oculta — el silencio también es información.",
+      "Pudimos confirmar la posición de este candidato en menos de la mitad de las prioridades que elegiste — muy pocas para calificar con justicia. Se muestra al final, no se oculta — el silencio también es información.",
     silence_row:
       "No se encontró posición pública. No cuenta ni a favor ni en contra — se muestra para que el silencio sea visible.",
     you_said: "Dijiste:",

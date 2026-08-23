@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PolAvatar } from '@/components/pol-avatar';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ApiError, ensureSession, get, hasSession } from '@/services/api';
@@ -26,6 +27,7 @@ interface MatchResult {
   politicianId: string;
   fullName: string;
   party: string | null;
+  photoUrl: string | null;
   score: CandidateScore;
 }
 
@@ -128,6 +130,7 @@ export default function MatchesScreen() {
                 onPress={() => router.push({ pathname: '/candidates/[id]', params: { id: m.politicianId } })}
                 style={[styles.cand, { backgroundColor: colors.backgroundElement }]}
               >
+                <PolAvatar name={m.fullName} photoUrl={m.photoUrl} />
                 <ThemedText style={styles.candName} numberOfLines={2}>
                   {m.fullName} {m.party ? `(${m.party})` : ''}
                 </ThemedText>
@@ -142,6 +145,14 @@ export default function MatchesScreen() {
                       {d.dealbreaker_chip}
                     </ThemedText>
                   </View>
+                )}
+                <ThemedText type="small" themeColor="textSecondary">
+                  {d.based_on} {m.score.answered}/{m.score.total} {d.of_your}
+                </ThemedText>
+                {m.score.overall === 'insufficient' && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {d.insuff_note}
+                  </ThemedText>
                 )}
               </Pressable>
             ))}

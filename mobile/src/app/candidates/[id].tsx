@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PolAvatar } from '@/components/pol-avatar';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
@@ -192,10 +193,13 @@ export default function CandidateScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
-          <ThemedText type="subtitle">{profile.fullName}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            ({profile.party}){profile.currentOffice ? ` · ${profile.currentOffice}` : ''}
-          </ThemedText>
+          <PolAvatar name={profile.fullName} photoUrl={profile.photoUrl} size={56} />
+          <View style={styles.headerText}>
+            <ThemedText type="subtitle">{profile.fullName}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              ({profile.party}){profile.currentOffice ? ` · ${profile.currentOffice}` : ''}
+            </ThemedText>
+          </View>
         </View>
         <ThemedText type="small" themeColor="textSecondary">
           {data.sample ? d.sample_data : d.real_data}
@@ -421,7 +425,8 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   spinner: { marginTop: Spacing.five },
   centerPad: { padding: Spacing.four },
-  headerRow: { gap: Spacing.half },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  headerText: { flex: 1, gap: Spacing.half },
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   flexOne: { flex: 1 },

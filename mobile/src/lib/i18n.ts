@@ -92,6 +92,10 @@ const DICT = {
     band_weak: 'Leans opposed',
     band_insufficient: 'Not enough data',
     dealbreaker_chip: '⚠ Dealbreaker issue',
+    based_on: 'Based on',
+    of_your: 'of your priorities',
+    insuff_note:
+      'We could confirm this candidate’s position on fewer than half the priorities you picked — too few to score fairly. Shown last, not hidden.',
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
@@ -389,6 +393,10 @@ const DICT = {
     band_weak: 'Tiende a oponerse',
     band_insufficient: 'Datos insuficientes',
     dealbreaker_chip: '⚠ Tema decisivo',
+    based_on: 'Basado en',
+    of_your: 'de tus prioridades',
+    insuff_note:
+      'Pudimos confirmar la posición de este candidato en menos de la mitad de las prioridades que elegiste — muy pocas para calificar con justicia. Se muestra al final, no se oculta.',
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
