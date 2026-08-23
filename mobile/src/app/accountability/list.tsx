@@ -222,7 +222,7 @@ export default function AccountabilityScreen() {
                 onPress={submitPoliticianCampaign}
                 style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
               >
-                <ThemedText type="smallBold">{d.start_campaign_btn}</ThemedText>
+                <ThemedText type="smallBold">{d.start_campaign_politician_btn}</ThemedText>
               </Pressable>
             </View>
 
@@ -250,7 +250,7 @@ export default function AccountabilityScreen() {
                   onPress={submitReformCampaign}
                   style={[styles.submitBtn, { backgroundColor: colors.evidence }]}
                 >
-                  <ThemedText type="smallBold">{d.start_campaign_btn}</ThemedText>
+                  <ThemedText type="smallBold">{d.start_campaign_reform_btn}</ThemedText>
                 </Pressable>
               </View>
             )}

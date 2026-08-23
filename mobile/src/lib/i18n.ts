@@ -244,9 +244,16 @@ const DICT = {
     start_campaign_h: 'Start a campaign',
     target_politician_h: 'Target a politician',
     why_campaign_placeholder: 'Why this campaign?',
-    start_campaign_btn: 'Start campaign',
+    // Real bug found live testing (2026-08-23): both cards on this screen
+    // used the same "Start campaign" label on their submit button -- two
+    // identically-worded buttons with no visual link back to which card
+    // (politician vs. reform) each belonged to. Split so each button names
+    // its own target, matching this screen's own "Target a politician" /
+    // "Target a charter or law change" heading style.
+    start_campaign_politician_btn: 'Start politician campaign',
     target_reform_h: 'Target a charter or law change',
     reform_title_placeholder: 'Reform title',
+    start_campaign_reform_btn: 'Start reform campaign',
     verify_to_start_campaign: 'Verify to start a campaign',
     signature_requirement_note: 'Signature requirement: {note}',
     supporters_count: '{n} supporters · {date}',
@@ -545,9 +552,10 @@ const DICT = {
     start_campaign_h: 'Iniciar una campaña',
     target_politician_h: 'Dirigirse a un funcionario',
     why_campaign_placeholder: '¿Por qué esta campaña?',
-    start_campaign_btn: 'Iniciar campaña',
+    start_campaign_politician_btn: 'Iniciar campaña contra funcionario',
     target_reform_h: 'Dirigirse a un cambio de estatuto o ley',
     reform_title_placeholder: 'Título de la reforma',
+    start_campaign_reform_btn: 'Iniciar campaña de reforma',
     verify_to_start_campaign: 'Verifica para iniciar una campaña',
     signature_requirement_note: 'Requisito de firmas: {note}',
     supporters_count: '{n} personas de apoyo · {date}',
