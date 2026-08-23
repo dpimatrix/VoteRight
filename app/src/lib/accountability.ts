@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { ownOfficeholders } from "./jurisdictions";
+import { ownAccountabilityScope, ownOfficeholders } from "./jurisdictions";
 
 /* Phase 4 slice 2: accountability pathways (§2.1, §2.1.1, §7.4). The table tells a
    voter, truthfully, what mechanisms actually exist for a given seat — the word
@@ -235,20 +235,29 @@ export async function createCampaign(opts: {
 }
 
 /* ── creation-form data ── */
-/** Scoped to the resident's own represented officials (2026-08-22 fix -- see
-    ownOfficeholders()'s own doc comment for the real unscoped-nationwide-
-    fetch bug this replaces). userId null (anonymous/pre-verification)
-    correctly yields an empty politicians list, not everyone -- matches the
-    screen's own gate, which never shows the campaign-creation UI at all
-    until the resident is address_verified. */
+/** Scoped to the resident's own represented officials AND own jurisdiction's
+    pathways (2026-08-22 fix for politicians, 2026-08-23 fix for pathways --
+    see ownOfficeholders()'s and ownAccountabilityScope()'s own doc comments
+    for the real unscoped-nationwide-fetch bugs these replace). userId null
+    (anonymous/pre-verification) correctly yields empty lists, not everyone
+    -- matches the screen's own gate, which never shows the campaign-
+    creation UI at all until the resident is address_verified. */
 export async function creatableTargets(userId: string | null) {
-  const pathways = await db().query(
-    `SELECT ap.id, ap.mechanism_type, ap.is_binding, ap.legal_citation, o.title AS office_title
-       FROM accountability_pathways ap
-       LEFT JOIN offices o ON o.id = ap.office_id
-      WHERE ap.mechanism_type NOT IN ('no_removal_mechanism_exists')
-      ORDER BY ap.is_binding DESC, o.title NULLS FIRST`,
-  );
+  const scope = await ownAccountabilityScope(userId);
+  const pathways = scope
+    ? await db().query(
+        `SELECT ap.id, ap.mechanism_type, ap.is_binding, ap.legal_citation, o.title AS office_title
+           FROM accountability_pathways ap
+           LEFT JOIN offices o ON o.id = ap.office_id
+          WHERE ap.mechanism_type NOT IN ('no_removal_mechanism_exists')
+            AND (
+              (ap.office_id IS NOT NULL AND ap.office_id = ANY($1::uuid[]))
+              OR (ap.office_id IS NULL AND ap.jurisdiction_id = ANY($2::text[]))
+            )
+          ORDER BY ap.is_binding DESC, o.title NULLS FIRST`,
+        [scope.officeIds, scope.jurisdictionIds],
+      )
+    : { rows: [] };
   const politicians = await ownOfficeholders(userId);
   return { pathways: pathways.rows, politicians: politicians ?? [] };
 }

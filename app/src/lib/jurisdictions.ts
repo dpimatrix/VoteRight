@@ -828,6 +828,42 @@ export async function ownOfficeholders(
     .map(({ depth: _depth, ...rest }) => rest);
 }
 
+/** Office ids AND jurisdiction ids actually on this user's own ballot, after
+    the same district narrowing ownOfficeholders()/ownRaceIds() apply above.
+    Real gap found live 2026-08-23 while checking the reform-campaign
+    picker: creatableTargets()'s `pathways` query has NEVER been scoped --
+    every accountability_pathways row in the whole system (131 as of this
+    fix, spanning Virginia counties, D.C., and towns nationwide) ships to
+    every verified user's Accountability screen, meaning the reform card's
+    petitionPathway = pathways.find(...) could silently hand a Montgomery
+    County resident PRINCE GEORGE'S COUNTY'S charter-petition pathway (or
+    any other jurisdiction's) depending on nothing more than row order --
+    the exact same unscoped-nationwide-list bug ownOfficeholders() fixed
+    for `politicians` on 2026-08-22, just never applied to `pathways` too.
+    jurisdictionIds covers the OFFICE-LESS, jurisdiction-wide pathways
+    (e.g. the charter-amendment petition, office_id IS NULL) that officeIds
+    alone can't scope. Null when residence is unknown, same convention as
+    its siblings above. */
+export async function ownAccountabilityScope(
+  userId: string | null,
+): Promise<{ officeIds: string[]; jurisdictionIds: string[] } | null> {
+  const residence = userId ? await userResidence(userId) : null;
+  if (!residence) return null;
+  const allOffices = await ballotForJurisdiction(residence.ocd_id);
+  const offices = filterToOwnDistricts(allOffices, {
+    congressional: residence.congressional_district,
+    stateSenate: residence.state_senate_district,
+    stateHouse: residence.state_house_district,
+    countyCouncil: residence.county_council_district,
+    boardOfEducation: residence.board_of_education_district,
+    appellateCircuit: residence.appellate_circuit,
+  });
+  return {
+    officeIds: offices.map((o) => o.id),
+    jurisdictionIds: [...new Set(offices.map((o) => o.jurisdiction_id))],
+  };
+}
+
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
     Browsing NEVER touches residence or participation rights — every eligibility
     check in the app reads users.residence_jurisdiction_id from the database,
