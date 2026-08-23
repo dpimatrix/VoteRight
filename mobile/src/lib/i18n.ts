@@ -94,7 +94,11 @@ const DICT = {
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
-    debates_sub: "Advisory — residents propose, second, and debate issues; the county isn't bound by outcomes.",
+    // Real bug found live testing (2026-08-23): "the county" was hardcoded
+    // from the original Montgomery County pilot, but this screen is
+    // nationwide -- a resident's actual local government may be a city,
+    // parish, borough, etc., not necessarily a county.
+    debates_sub: "Advisory — residents propose, second, and debate issues; local government isn't bound by outcomes.",
     verify_to_participate: 'Verify your address to participate',
     // Real bug found live 2026-08-23: this label was shown for BOTH the
     // fully-unverified case and the address-verified-but-not-paid case (the
@@ -386,7 +390,7 @@ const DICT = {
 
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
-    debates_sub: 'Consultivo — los residentes proponen, secundan y debaten temas; el condado no está obligado por los resultados.',
+    debates_sub: 'Consultivo — los residentes proponen, secundan y debaten temas; el gobierno local no está obligado por los resultados.',
     verify_to_participate: 'Verifica tu dirección para participar',
     pay_to_participate: 'Dirección verificada — paga para completar la verificación',
     debates_load_error: 'No se pudieron cargar los debates. Desliza hacia abajo para intentar de nuevo.',

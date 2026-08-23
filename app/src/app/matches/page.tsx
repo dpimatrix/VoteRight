@@ -3,7 +3,7 @@ import { Chev } from "@/components/Chev";
 import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
-import { langFrom, t } from "@/lib/i18n";
+import { langFrom, t, tf } from "@/lib/i18n";
 import { ownRaceIds } from "@/lib/jurisdictions";
 import { matchesForRace } from "@/lib/matches";
 import { isSampleData, races } from "@/lib/queries";
@@ -53,7 +53,11 @@ export default async function MatchesPage({
             </Link>
           ))}
         </div>
-        {race && <p className="sub">{race.seats_elected > 1 ? d.seats4 : d.open_seat}</p>}
+        {race && (
+          <p className="sub">
+            {race.seats_elected > 1 ? tf(d.seats_multi, { n: race.seats_elected }) : d.open_seat}
+          </p>
+        )}
         <div className="disclosure">
           <span className="tag">{sample ? (lang === "es" ? "Muestra" : "Sample") : lang === "es" ? "Datos" : "Data"}</span>
           <span>{sample ? d.sample : d.realdata_note}</span>

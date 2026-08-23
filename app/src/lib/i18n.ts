@@ -35,8 +35,17 @@ const DICT = {
     sample:
       "Prototype sample — fictional candidates, illustrative sources. Real data lands with the data-operations phase.",
     incumbent: "Incumbent",
-    seats4: "This contest elects 4 councilmembers — you can vote for up to 4.",
-    open_seat: "Open seat — the current County Executive is term-limited.",
+    // Renamed from seats4 (2026-08-23, real bug found live testing): a
+    // nationwide race can elect any number of seats, not just the original
+    // county pilot's 4-seat At-Large council contest -- was hardcoded
+    // regardless of the actual race's seats_elected value.
+    seats_multi: "This contest elects {n} seats — you can vote for up to {n}.",
+    // Real bug found live testing (2026-08-23): hardcoded to describe one
+    // specific county pilot race (County Executive, term-limited) but shown
+    // for EVERY single-seat race nationwide regardless of why it's
+    // single-seat or who (if anyone) currently holds it -- replaced with
+    // wording that doesn't assert a specific, unverified reason.
+    open_seat: "Single-seat contest.",
     ov: {
       strong: "Strong match",
       good: "Good match",
@@ -145,7 +154,7 @@ const DICT = {
     claim_op: "It’s my opinion",
     claim_dismiss: "Post as-is",
     new_title_ph: "Proposal title (a clear question or ask)",
-    new_body_ph: "What exactly should the county do, and why?",
+    new_body_ph: "What exactly should local government do, and why?",
     new_topic: "Topic",
     new_submit: "Submit proposal",
     new_pub: "Public — your name appears as the proposer.",
@@ -254,7 +263,7 @@ const DICT = {
     ref_secret:
       "Your ballot is secret: your choice is stored against a one-time token, never your name. After the result is certified, the token's link to you is permanently deleted.",
     ref_voted: "✓ Ballot cast. Your choice was recorded without your name attached.",
-    ref_one: "One ballot per verified county resident.",
+    ref_one: "One ballot per verified resident.",
     ref_not_eligible: "Your verified address is outside this referendum's jurisdiction.",
     ref_too_recent: "Your address was verified after this referendum opened — eligibility follows where you lived when voting started, not a same-day address change.",
     ref_view: "See the referendum",
@@ -335,7 +344,7 @@ const DICT = {
       "What voters can actually do, seat by seat — real mechanisms with real citations, never a button that pretends to a power that doesn't exist.",
     acct_none_note:
       "No removal mechanism exists for this office before the next election. That is the honest answer — the levers below are what's real.",
-    acct_not_office: "This person holds no current office; countywide mechanisms are shown.",
+    acct_not_office: "This person holds no current office; jurisdiction-wide mechanisms are shown.",
     acct_binding: "Binding",
     acct_organizing: "Organizing",
     acct_sig_req: "Signature requirement",
@@ -404,8 +413,8 @@ const DICT = {
     sample:
       "Prototipo de muestra — candidatos ficticios, fuentes ilustrativas. Los datos reales llegan con la fase de operaciones de datos.",
     incumbent: "En el cargo",
-    seats4: "Esta contienda elige 4 concejales — puedes votar hasta por 4.",
-    open_seat: "Escaño abierto — el Ejecutivo actual llegó a su límite de mandatos.",
+    seats_multi: "Esta contienda elige {n} escaños — puedes votar hasta por {n}.",
+    open_seat: "Contienda de un solo escaño.",
     ov: {
       strong: "Coincidencia fuerte",
       good: "Buena coincidencia",
@@ -514,7 +523,7 @@ const DICT = {
     claim_op: "Es mi opinión",
     claim_dismiss: "Publicar tal cual",
     new_title_ph: "Título de la propuesta (una pregunta o petición clara)",
-    new_body_ph: "¿Qué debería hacer exactamente el condado, y por qué?",
+    new_body_ph: "¿Qué debería hacer exactamente el gobierno local, y por qué?",
     new_topic: "Tema",
     new_submit: "Enviar propuesta",
     new_pub: "Público — tu nombre aparece como proponente.",
@@ -616,7 +625,7 @@ const DICT = {
     ref_secret:
       "Tu papeleta es secreta: tu elección se guarda contra una ficha de un solo uso, nunca contra tu nombre. Tras certificar el resultado, el vínculo de la ficha contigo se elimina de forma permanente.",
     ref_voted: "✓ Papeleta emitida. Tu elección se registró sin tu nombre.",
-    ref_one: "Una papeleta por residente verificado del condado.",
+    ref_one: "Una papeleta por residente verificado.",
     ref_not_eligible: "Tu dirección verificada está fuera de la jurisdicción de este referendo.",
     ref_too_recent: "Tu dirección se verificó después de que este referendo abriera — la elegibilidad sigue dónde vivías cuando comenzó la votación, no un cambio de dirección del mismo día.",
     ref_view: "Ver el referendo",
@@ -697,7 +706,7 @@ const DICT = {
       "Lo que los votantes realmente pueden hacer, asiento por asiento — mecanismos reales con citas reales, nunca un botón que finja un poder que no existe.",
     acct_none_note:
       "No existe ningún mecanismo de destitución para este cargo antes de la próxima elección. Esa es la respuesta honesta — las palancas de abajo son lo real.",
-    acct_not_office: "Esta persona no ocupa un cargo actual; se muestran los mecanismos del condado.",
+    acct_not_office: "Esta persona no ocupa un cargo actual; se muestran los mecanismos de toda la jurisdicción.",
     acct_binding: "Vinculante",
     acct_organizing: "Organizativo",
     acct_sig_req: "Requisito de firmas",
@@ -742,4 +751,11 @@ const DICT = {
 export type Dict = (typeof DICT)["en"];
 export function t(lang: Lang): Dict {
   return DICT[lang] as Dict;
+}
+
+/** Tiny {placeholder} interpolator, mirroring mobile's lib/i18n.ts tf() --
+ *  added 2026-08-23 for seats_multi (a nationwide-scoped race can elect any
+ *  number of seats, not just the county pilot's original 4). */
+export function tf(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 }
