@@ -75,7 +75,7 @@ export default async function AccountabilityPage({
                   ))}
                 </select>
                 <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
-                <button className="btn" type="submit">{d.acct_submit}</button>
+                <button className="btn" type="submit">{d.acct_submit_politician}</button>
               </form>
             </div>
             {petitionPathway && (
@@ -87,7 +87,7 @@ export default async function AccountabilityPage({
                   <input type="hidden" name="pathway_id" value={(petitionPathway as { id: string }).id} />
                   <input name="reform_title" placeholder={d.acct_reform_ph} required />
                   <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
-                  <button className="btn" type="submit">{d.acct_submit}</button>
+                  <button className="btn" type="submit">{d.acct_submit_reform}</button>
                 </form>
               </div>
             )}

@@ -378,7 +378,12 @@ const DICT = {
     acct_target_reform: "Change the law or charter",
     acct_desc_ph: "What should happen, and why? Cite the record.",
     acct_reform_ph: "Reform title (e.g., Add a recall provision to the County Charter)",
-    acct_submit: "Start campaign — public, attributed",
+    // Split from one shared acct_submit (2026-08-23, matching the same real
+    // bug found live testing mobile's copy of this screen): both forms used
+    // the identical button label with nothing tying either back to its own
+    // card.
+    acct_submit_politician: "Start politician campaign — public, attributed",
+    acct_submit_reform: "Start reform campaign — public, attributed",
     acct_ext_status: "Real petition status",
     acct_mech: "Mechanism",
     mech: {
@@ -750,7 +755,8 @@ const DICT = {
     acct_target_reform: "Cambiar la ley o la carta del condado",
     acct_desc_ph: "¿Qué debería pasar, y por qué? Cita el historial.",
     acct_reform_ph: "Título de la reforma (p. ej., Añadir la revocatoria a la Carta del Condado)",
-    acct_submit: "Iniciar campaña — pública y atribuida",
+    acct_submit_politician: "Iniciar campaña contra funcionario — pública y atribuida",
+    acct_submit_reform: "Iniciar campaña de reforma — pública y atribuida",
     acct_ext_status: "Estado de la petición real",
     acct_mech: "Mecanismo",
     mech: {
