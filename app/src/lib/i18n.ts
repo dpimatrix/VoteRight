@@ -384,6 +384,10 @@ const DICT = {
     // card.
     acct_submit_politician: "Start politician campaign — public, attributed",
     acct_submit_reform: "Start reform campaign — public, attributed",
+    // Duplicate-campaign suggestions (2026-08-23) -- suggest, never block,
+    // same spirit as the debates composer's claim heuristic.
+    acct_similar_h: "Already exists",
+    acct_similar_support_cta: "Support this instead →",
     acct_ext_status: "Real petition status",
     acct_mech: "Mechanism",
     mech: {
@@ -757,6 +761,8 @@ const DICT = {
     acct_reform_ph: "Título de la reforma (p. ej., Añadir la revocatoria a la Carta del Condado)",
     acct_submit_politician: "Iniciar campaña contra funcionario — pública y atribuida",
     acct_submit_reform: "Iniciar campaña de reforma — pública y atribuida",
+    acct_similar_h: "Ya existe",
+    acct_similar_support_cta: "Apoyar esta en su lugar →",
     acct_ext_status: "Estado de la petición real",
     acct_mech: "Mecanismo",
     mech: {

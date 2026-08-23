@@ -1,6 +1,7 @@
 -- VoteRight relational schema (PostgreSQL)
 -- See ARCHITECTURE.md Section 5 for design rationale.
 -- Requires: PostgreSQL 15+ (UNIQUE NULLS NOT DISTINCT); CREATE EXTENSION IF NOT EXISTS pgcrypto; -- for gen_random_uuid()
+-- Requires: CREATE EXTENSION IF NOT EXISTS pg_trgm; -- for accountability_campaigns' duplicate-detection similarity search (migration 089)
 
 -- ══════════════════════════════════════════════════════════════
 -- GEOGRAPHY & OFFICES
@@ -535,6 +536,13 @@ CREATE TABLE accountability_campaigns (
       (target_type = 'charter_or_law_change' AND reform_title IS NOT NULL AND politician_id IS NULL)
     )
 );
+
+-- Duplicate-campaign detection (migration 089): trigram similarity search
+-- over reform_title, the free-text field reform campaigns get typed into.
+-- Politician campaigns are matched by (politician_id, pathway_id) instead
+-- (ordinary equality, no index needed beyond the FK columns above).
+CREATE INDEX idx_accountability_campaigns_reform_title_trgm
+    ON accountability_campaigns USING gin (reform_title gin_trgm_ops);
 
 -- One support per verified user, attributed — supporting a campaign is a public
 -- act in the Section 10.2 sense (like signing a public petition or seconding a

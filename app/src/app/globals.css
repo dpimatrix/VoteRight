@@ -147,6 +147,13 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 }
 .card.raised { background: var(--surface-2); box-shadow: none; border-color: var(--line); }
 
+/* Duplicate-campaign suggestions (2026-08-23) -- suggest, never block. */
+.similar-box {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  border: 1px dashed var(--adv); border-radius: 12px; padding: 0.6rem 0.7rem;
+}
+.similar-box .seat { margin: 0; }
+
 .seat, .cand {
   display: flex; align-items: center; gap: 0.7rem;
   border: 1px solid var(--card-bd); background: var(--surface); box-shadow: var(--elev);

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
@@ -35,6 +35,13 @@ interface Politician {
   id: string;
   full_name: string;
   party: string | null;
+}
+
+interface SimilarCampaign {
+  id: string;
+  label: string;
+  description: string;
+  supportCount: number;
 }
 
 export default function AccountabilityScreen() {
@@ -91,6 +98,43 @@ export default function AccountabilityScreen() {
   const officePathways = pathways?.filter((p) => p.mechanism_type !== 'charter_amendment_petition') ?? [];
   const petitionPathway = pathways?.find((p) => p.mechanism_type === 'charter_amendment_petition');
   const verified = tier !== null && tier !== 'unverified';
+
+  // Duplicate-campaign suggestions (2026-08-23) -- suggest, never block,
+  // same spirit as the debates composer's claim heuristic. Real incident:
+  // 3 byte-identical reform campaigns from repeated testing (see
+  // db/migrations/089_campaign_similarity.sql). Politician campaigns have
+  // no free-text title to debounce -- checked immediately once both
+  // pickers are set instead (see accountability.ts's similarCampaigns()
+  // on the web side for why that's an exact match, not fuzzy).
+  const [similarReform, setSimilarReform] = useState<SimilarCampaign[]>([]);
+  const [similarPolitician, setSimilarPolitician] = useState<SimilarCampaign[]>([]);
+
+  useEffect(() => {
+    if (!petitionPathway || reformTitle.trim().length < 3) {
+      setSimilarReform([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      get<{ matches: SimilarCampaign[] }>(
+        `/api/accountability/similar?targetType=charter_or_law_change&pathwayId=${petitionPathway.id}&q=${encodeURIComponent(reformTitle)}`,
+      )
+        .then((res) => setSimilarReform(res.matches ?? []))
+        .catch(() => setSimilarReform([]));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [reformTitle, petitionPathway]);
+
+  useEffect(() => {
+    if (!pathwayId || !politicianId) {
+      setSimilarPolitician([]);
+      return;
+    }
+    get<{ matches: SimilarCampaign[] }>(
+      `/api/accountability/similar?targetType=politician&pathwayId=${pathwayId}&politicianId=${politicianId}`,
+    )
+      .then((res) => setSimilarPolitician(res.matches ?? []))
+      .catch(() => setSimilarPolitician([]));
+  }, [pathwayId, politicianId]);
 
   async function submitPoliticianCampaign() {
     if (!pathwayId || !politicianId || politicianDescription.trim().length === 0) return;
@@ -217,6 +261,25 @@ export default function AccountabilityScreen() {
                 numberOfLines={3}
                 style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
               />
+              {similarPolitician.length > 0 && (
+                <View style={[styles.similarBox, { borderColor: colors.textSecondary }]}>
+                  <ThemedText type="small" themeColor="textSecondary">{d.similar_h}</ThemedText>
+                  {similarPolitician.map((m) => (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => router.push({ pathname: '/accountability/[id]', params: { id: m.id } })}
+                      style={styles.rowBetween}
+                    >
+                      <ThemedText type="small" style={styles.flexOne} numberOfLines={1}>
+                        {m.label} · {tf(d.supporters_word, { n: m.supportCount })}
+                      </ThemedText>
+                      <ThemedText type="small" style={{ color: colors.evidence }}>
+                        {d.similar_support_cta}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
               <Pressable
                 disabled={busy || !pathwayId || !politicianId || politicianDescription.trim().length === 0}
                 onPress={submitPoliticianCampaign}
@@ -236,6 +299,25 @@ export default function AccountabilityScreen() {
                   placeholderTextColor={colors.textSecondary}
                   style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
                 />
+                {similarReform.length > 0 && (
+                  <View style={[styles.similarBox, { borderColor: colors.textSecondary }]}>
+                    <ThemedText type="small" themeColor="textSecondary">{d.similar_h}</ThemedText>
+                    {similarReform.map((m) => (
+                      <Pressable
+                        key={m.id}
+                        onPress={() => router.push({ pathname: '/accountability/[id]', params: { id: m.id } })}
+                        style={styles.rowBetween}
+                      >
+                        <ThemedText type="small" style={styles.flexOne} numberOfLines={1}>
+                          {m.label} · {tf(d.supporters_word, { n: m.supportCount })}
+                        </ThemedText>
+                        <ThemedText type="small" style={{ color: colors.evidence }}>
+                          {d.similar_support_cta}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
                 <TextInput
                   value={reformDescription}
                   onChangeText={setReformDescription}
@@ -276,4 +358,7 @@ const styles = StyleSheet.create({
   pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
   input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, fontSize: 15 },
   submitBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
+  similarBox: { borderWidth: 1, borderStyle: 'dashed', borderRadius: Spacing.two, padding: Spacing.two, gap: Spacing.half },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  flexOne: { flex: 1 },
 });

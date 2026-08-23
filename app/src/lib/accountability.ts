@@ -253,6 +253,60 @@ export async function creatableTargets(userId: string | null) {
   return { pathways: pathways.rows, politicians: politicians ?? [] };
 }
 
+/* ── duplicate-campaign detection ── */
+export interface SimilarCampaign {
+  id: string;
+  label: string;
+  description: string;
+  supportCount: number;
+}
+
+/** Suggest, never block (2026-08-23) -- same spirit as the debates
+    composer's claim heuristic. Real incident this fixes: 3 byte-identical
+    reform campaigns ("Reduce & Balance Montgomery County Budget"), same
+    user, created minutes apart, clearly repeated testing rather than 3
+    distinct efforts (see migration 089's own comment).
+
+    Reform campaigns: free-text `q` (the title being typed) against existing
+    reform_title values on the SAME pathway, via pg_trgm similarity --
+    catches close wording, not just exact repeats.
+
+    Politician campaigns: no comparable free-text field exists (the
+    resident picks a politician + pathway from fixed lists), so this is an
+    exact match on (politician_id, pathway_id) instead -- a stronger,
+    more precise signal than fuzzy text would give for that case. */
+export async function similarCampaigns(
+  opts:
+    | { targetType: "charter_or_law_change"; pathwayId: string; q: string }
+    | { targetType: "politician"; pathwayId: string; politicianId: string },
+): Promise<SimilarCampaign[]> {
+  if (opts.targetType === "charter_or_law_change") {
+    if (opts.q.trim().length < 3) return []; // too short for a meaningful trigram score
+    const { rows } = await db().query(
+      `SELECT id, reform_title AS label, description, support_count
+         FROM accountability_campaigns
+        WHERE target_type = 'charter_or_law_change'
+          AND pathway_id = $1
+          AND similarity(reform_title, $2) > 0.3
+        ORDER BY similarity(reform_title, $2) DESC
+        LIMIT 5`,
+      [opts.pathwayId, opts.q],
+    );
+    return rows.map((r) => ({ id: r.id, label: r.label, description: r.description, supportCount: r.support_count }));
+  }
+  const { rows } = await db().query(
+    `SELECT c.id, p.full_name AS label, c.description, c.support_count
+       FROM accountability_campaigns c
+       JOIN politicians p ON p.id = c.politician_id
+      WHERE c.target_type = 'politician'
+        AND c.pathway_id = $1
+        AND c.politician_id = $2
+      LIMIT 5`,
+    [opts.pathwayId, opts.politicianId],
+  );
+  return rows.map((r) => ({ id: r.id, label: r.label, description: r.description, supportCount: r.support_count }));
+}
+
 /* ── admin ── */
 export async function adminCampaigns() {
   const { rows } = await db().query(

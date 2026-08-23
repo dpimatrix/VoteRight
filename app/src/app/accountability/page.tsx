@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PoliticianCampaignFields } from "@/components/PoliticianCampaignFields";
+import { ReformTitleField } from "@/components/ReformTitleField";
 import { SiteHeader } from "@/components/SiteHeader";
 import { creatableTargets, listCampaigns } from "@/lib/accountability";
 import { currentUserId } from "@/lib/anon";
@@ -62,18 +64,13 @@ export default async function AccountabilityPage({
               <form method="post" action="/api/accountability" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
                 <input type="hidden" name="lang" value={lang} />
                 <input type="hidden" name="target_type" value="politician" />
-                <select name="pathway_id" required>
-                  {officePathways.map((p: { id: string; mechanism_type: string; office_title: string | null }) => (
-                    <option key={p.id} value={p.id}>
-                      {p.office_title ?? ""} — {d.mech[p.mechanism_type as keyof typeof d.mech] ?? p.mechanism_type}
-                    </option>
-                  ))}
-                </select>
-                <select name="politician_id" required>
-                  {politicians.map((p: { id: string; full_name: string; party: string | null }) => (
-                    <option key={p.id} value={p.id}>{p.full_name}{p.party ? ` (${p.party})` : ""}</option>
-                  ))}
-                </select>
+                <PoliticianCampaignFields
+                  officePathways={officePathways}
+                  politicians={politicians}
+                  mechLabel={d.mech as Record<string, string>}
+                  lang={lang}
+                  d={d}
+                />
                 <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
                 <button className="btn" type="submit">{d.acct_submit_politician}</button>
               </form>
@@ -85,7 +82,12 @@ export default async function AccountabilityPage({
                   <input type="hidden" name="lang" value={lang} />
                   <input type="hidden" name="target_type" value="charter_or_law_change" />
                   <input type="hidden" name="pathway_id" value={(petitionPathway as { id: string }).id} />
-                  <input name="reform_title" placeholder={d.acct_reform_ph} required />
+                  <ReformTitleField
+                    pathwayId={(petitionPathway as { id: string }).id}
+                    placeholder={d.acct_reform_ph}
+                    lang={lang}
+                    d={d}
+                  />
                   <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
                   <button className="btn" type="submit">{d.acct_submit_reform}</button>
                 </form>

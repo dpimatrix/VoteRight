@@ -254,6 +254,12 @@ const DICT = {
     target_reform_h: 'Target a charter or law change',
     reform_title_placeholder: 'Reform title',
     start_campaign_reform_btn: 'Start reform campaign',
+    // Duplicate-campaign suggestions (2026-08-23) -- suggest, never block,
+    // same spirit as the debates composer's claim heuristic. Real incident:
+    // 3 byte-identical reform campaigns from repeated testing (see
+    // db/migrations/089_campaign_similarity.sql).
+    similar_h: 'Already exists',
+    similar_support_cta: 'Support this instead',
     verify_to_start_campaign: 'Verify to start a campaign',
     signature_requirement_note: 'Signature requirement: {note}',
     supporters_count: '{n} supporters · {date}',
@@ -556,6 +562,8 @@ const DICT = {
     target_reform_h: 'Dirigirse a un cambio de estatuto o ley',
     reform_title_placeholder: 'Título de la reforma',
     start_campaign_reform_btn: 'Iniciar campaña de reforma',
+    similar_h: 'Ya existe',
+    similar_support_cta: 'Apoyar esta en su lugar',
     verify_to_start_campaign: 'Verifica para iniciar una campaña',
     signature_requirement_note: 'Requisito de firmas: {note}',
     supporters_count: '{n} personas de apoyo · {date}',
