@@ -73,7 +73,7 @@ export default async function DebatePage({
               </form>
             ) : (
               <Link className="btn secondary" style={{ marginTop: "0.6rem" }} href={verifyHref}>
-                {d.verify_need}
+                {tier === "unverified" ? d.verify_need : d.pay_need}
               </Link>
             )}
             <div className="privnote" style={{ marginBottom: 0 }}>
@@ -226,7 +226,7 @@ export default async function DebatePage({
                   }}
                 />
               ) : (
-                <Link className="btn secondary" href={verifyHref}>{d.verify_need}</Link>
+                <Link className="btn secondary" href={verifyHref}>{tier === "unverified" ? d.verify_need : d.pay_need}</Link>
               ))}
           </>
         )}

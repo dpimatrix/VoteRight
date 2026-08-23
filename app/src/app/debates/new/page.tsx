@@ -27,7 +27,7 @@ export default async function NewProposalPage({
       <div className="pagepad">
         <div className="pagetitle">{d.deb_new}</div>
         {tier !== "payment_verified" ? (
-          <Link className="btn secondary" href={verifyHref}>{d.verify_need}</Link>
+          <Link className="btn secondary" href={verifyHref}>{tier === "unverified" ? d.verify_need : d.pay_need}</Link>
         ) : (
           <div className="card">
             <form method="post" action="/api/debates" style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>

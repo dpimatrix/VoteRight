@@ -213,7 +213,7 @@ export default function DebateScreen() {
               </Pressable>
             ) : (
               <Pressable onPress={() => router.push(payHref)} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                <ThemedText type="smallBold">{d.verify_to_second}</ThemedText>
+                <ThemedText type="smallBold">{tier === 'unverified' ? d.verify_to_second : d.pay_to_second}</ThemedText>
               </Pressable>
             )}
             <ThemedText type="small" themeColor="textSecondary">
@@ -315,7 +315,7 @@ export default function DebateScreen() {
                 <DebateComposer threadId={detail.thread_id} onPosted={load} />
               ) : (
                 <Pressable onPress={() => router.push(payHref)} style={[styles.actionBtn, { backgroundColor: colors.evidence }]}>
-                  <ThemedText type="smallBold">{d.verify_to_argue}</ThemedText>
+                  <ThemedText type="smallBold">{tier === 'unverified' ? d.verify_to_argue : d.pay_to_argue}</ThemedText>
                 </Pressable>
               ))}
           </>

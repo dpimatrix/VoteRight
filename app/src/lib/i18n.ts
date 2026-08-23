@@ -187,6 +187,14 @@ const DICT = {
     ballot_state_only_note:
       "We have your federal and state-level offices — county and city-level detail isn't covered for your address yet, so this ballot is real but not the complete local picture.",
     verify_need: "Verify your address to participate in debates.",
+    // Real bug found live 2026-08-23: debate-participation screens reused
+    // verify_need's "Verify your address..." wording for BOTH the fully
+    // unverified case AND the address-verified-but-not-payment-verified
+    // case (the href already correctly split between /verify and
+    // /verify/payment, migration 085, but the label text never did) --
+    // telling an already address-verified resident to "verify your
+    // address" reads as if their verification failed or didn't save.
+    pay_need: "Address verified — pay to complete verification and participate in debates.",
     verify_done: "✓ Address verified — you can now vote on referenda and mandates.",
     verify_pay_next: "Debate participation (proposing, seconding, arguing, calling the question) needs one more step — a payment, which is the identity verification for that part of the platform.",
     verify_pay_link: "Verify with a payment →",
@@ -548,6 +556,7 @@ const DICT = {
     ballot_state_only_note:
       "Tenemos tus cargos federales y estatales — todavía no cubrimos el detalle a nivel de condado o ciudad para tu dirección, así que esta boleta es real pero no es el panorama local completo.",
     verify_need: "Verifica tu dirección para participar en los debates.",
+    pay_need: "Dirección verificada — paga para completar la verificación y participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes votar en referendos y mandatos.",
     verify_current: "Actualmente verificado como",
     verify_since: "verificado",

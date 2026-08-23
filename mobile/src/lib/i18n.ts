@@ -96,6 +96,13 @@ const DICT = {
     debates_title: 'Debates',
     debates_sub: "Advisory — residents propose, second, and debate issues; the county isn't bound by outcomes.",
     verify_to_participate: 'Verify your address to participate',
+    // Real bug found live 2026-08-23: this label was shown for BOTH the
+    // fully-unverified case and the address-verified-but-not-paid case (the
+    // navigation target already correctly split between /verify and
+    // /verify-payment, but the label text never did) -- telling an already
+    // address-verified resident to "verify your address" reads as if their
+    // verification failed or didn't save.
+    pay_to_participate: 'Address verified — pay to complete verification',
     debates_load_error: 'Could not load debates. Pull down to try again.',
     status_debating: 'Debating',
     status_seconding: 'Seconding',
@@ -122,6 +129,7 @@ const DICT = {
     already_seconded: "You've already seconded this proposal.",
     second_proposal_btn: 'Second this proposal',
     verify_to_second: 'Verify to second',
+    pay_to_second: 'Pay to complete verification',
     seconding_attrib_note: 'Seconding is public and attributed.',
     call_the_question: 'Call the question',
     ctq_progress: '{votes} / {active} active participants',
@@ -134,6 +142,7 @@ const DICT = {
     pass: 'Pass',
     agree_disagree_readonly: 'Agree {agree} · Disagree {disagree}',
     verify_to_argue: 'Verify to argue',
+    pay_to_argue: 'Pay to complete verification',
 
     // ---- DebateComposer.tsx ----
     side_option_for: 'For',
@@ -379,6 +388,7 @@ const DICT = {
     debates_title: 'Debates',
     debates_sub: 'Consultivo — los residentes proponen, secundan y debaten temas; el condado no está obligado por los resultados.',
     verify_to_participate: 'Verifica tu dirección para participar',
+    pay_to_participate: 'Dirección verificada — paga para completar la verificación',
     debates_load_error: 'No se pudieron cargar los debates. Desliza hacia abajo para intentar de nuevo.',
     status_debating: 'En debate',
     status_seconding: 'Buscando apoyo',
@@ -405,6 +415,7 @@ const DICT = {
     already_seconded: 'Ya apoyaste esta propuesta.',
     second_proposal_btn: 'Apoyar esta propuesta',
     verify_to_second: 'Verifica para apoyar',
+    pay_to_second: 'Paga para completar la verificación',
     seconding_attrib_note: 'Apoyar es público y atribuido.',
     call_the_question: 'Pedir votación',
     ctq_progress: '{votes} / {active} participantes activos',
@@ -417,6 +428,7 @@ const DICT = {
     pass: 'Abstenerse',
     agree_disagree_readonly: 'De acuerdo {agree} · En desacuerdo {disagree}',
     verify_to_argue: 'Verifica para argumentar',
+    pay_to_argue: 'Paga para completar la verificación',
 
     // ---- DebateComposer.tsx ----
     side_option_for: 'A favor',

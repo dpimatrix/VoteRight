@@ -36,7 +36,7 @@ export default async function DebatesPage({
         </div>
         {tier !== "payment_verified" && (
           <Link className="btn secondary" href={tier === "unverified" ? `/verify?lang=${lang}` : `/verify/payment?lang=${lang}`}>
-            {d.verify_need}
+            {tier === "unverified" ? d.verify_need : d.pay_need}
           </Link>
         )}
         {groups.map(

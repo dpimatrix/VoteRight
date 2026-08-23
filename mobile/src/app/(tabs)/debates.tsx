@@ -87,7 +87,7 @@ export default function DebatesScreen() {
             style={[styles.verifyBtn, { borderColor: colors.evidence }]}
           >
             <ThemedText type="small" style={{ color: colors.evidence }}>
-              {d.verify_to_participate}
+              {tier === 'unverified' ? d.verify_to_participate : d.pay_to_participate}
             </ThemedText>
           </Pressable>
         )}
