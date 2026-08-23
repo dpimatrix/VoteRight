@@ -4,7 +4,7 @@ import { currentUserId, verifiedUserId } from "@/lib/anon";
 
 export async function GET() {
   const userId = await currentUserId();
-  const [campaigns, targets] = await Promise.all([listCampaigns(userId), creatableTargets()]);
+  const [campaigns, targets] = await Promise.all([listCampaigns(userId), creatableTargets(userId)]);
   return Response.json({ campaigns, pathways: targets.pathways, politicians: targets.politicians });
 }
 

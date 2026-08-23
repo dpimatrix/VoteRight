@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
@@ -71,6 +71,16 @@ export default function VerifyScreen() {
         placeholder={d.address_placeholder}
         placeholderTextColor={colors.textSecondary}
         autoComplete="street-address"
+        // Belt-and-suspenders (2026-08-22): autoComplete alone is documented as
+        // sufficient cross-platform, but real-device testing found iOS QuickType
+        // suggestions not appearing -- textContentType is iOS's own native prop
+        // for this and takes precedence when both are set, so this is a safe,
+        // free hedge against a version-specific autoComplete->iOS mapping gap
+        // rather than a guess at the "right" prop. If suggestions still don't
+        // appear after this, the device itself likely has no saved address data
+        // (Contacts/Safari/Apple ID) for iOS to offer -- a device-data issue,
+        // not a code one.
+        textContentType={Platform.OS === 'ios' ? 'fullStreetAddress' : undefined}
         style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
       />
       {error && (

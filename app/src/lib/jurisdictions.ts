@@ -762,6 +762,50 @@ export async function ownRaceIds(userId: string | null): Promise<Set<string> | n
   return new Set(offices.filter((o): o is StackedOffice & { race_id: string } => o.race_id !== null).map((o) => o.race_id));
 }
 
+/** Politicians currently holding an office actually on this user's own
+    ballot, after the same district narrowing ownRaceIds() applies above --
+    used to scope the Accountability "start a campaign against a politician"
+    picker to a resident's own officeholders instead of every politician in
+    the system nationwide. Real bug found live 2026-08-22: accountability.ts's
+    creatableTargets() fetched every row in `politicians` unscoped --
+    harmless back when the pilot had only ~17 seeded people, but silently
+    grew into shipping the ENTIRE nationwide roster (9,800+ rows as of this
+    fix) to every single Accountability screen load, verified or not,
+    regardless of whether the picker section was even shown -- the real
+    cause of live-tested "buffering" on that screen. Null (not an empty
+    array) when residence is unknown, matching ownRaceIds' own convention --
+    but unlike races, an accountability campaign genuinely can't target a
+    politician outside the resident's own represented officials, so null/
+    empty here means "nothing to offer yet", not "show everyone" the way an
+    unscoped list once did. */
+export async function ownOfficeholders(userId: string | null): Promise<{ id: string; full_name: string; party: string | null }[] | null> {
+  const residence = userId ? await userResidence(userId) : null;
+  if (!residence) return null;
+  const allOffices = await ballotForJurisdiction(residence.ocd_id);
+  const offices = filterToOwnDistricts(allOffices, {
+    congressional: residence.congressional_district,
+    stateSenate: residence.state_senate_district,
+    stateHouse: residence.state_house_district,
+    countyCouncil: residence.county_council_district,
+    boardOfEducation: residence.board_of_education_district,
+    appellateCircuit: residence.appellate_circuit,
+  });
+  const officeIds = offices.map((o) => o.id);
+  if (officeIds.length === 0) return [];
+  // Same "most recent office_terms row per office wins" convention
+  // ballotForJurisdiction's own lateral join already uses above.
+  const { rows } = await db().query(
+    `SELECT DISTINCT ON (o.id) p.id, p.full_name, p.party
+       FROM offices o
+       JOIN office_terms ot ON ot.office_id = o.id
+       JOIN politicians p ON p.id = ot.politician_id
+      WHERE o.id = ANY($1::uuid[])
+      ORDER BY o.id, ot.term_start DESC`,
+    [officeIds],
+  );
+  return rows as { id: string; full_name: string; party: string | null }[];
+}
+
 /** Jurisdictions a visitor may browse read-only: anywhere with elected offices.
     Browsing NEVER touches residence or participation rights — every eligibility
     check in the app reads users.residence_jurisdiction_id from the database,

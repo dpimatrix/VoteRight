@@ -18,7 +18,7 @@ export default async function AccountabilityPage({
   const tier = userId ? await userTier(userId) : "unverified";
   const verified = tier !== "unverified";
   const campaigns = await listCampaigns(userId);
-  const { pathways, politicians } = await creatableTargets();
+  const { pathways, politicians } = await creatableTargets(userId);
   const petitionPathway = pathways.find(
     (p: { mechanism_type: string }) => p.mechanism_type === "charter_amendment_petition",
   );
