@@ -19,22 +19,12 @@ import {
 import { campaignsForPolitician, pathwaysForPolitician } from "@/lib/accountability";
 import { commitmentsFor } from "@/lib/referenda";
 import { agreement, axisValue } from "@/lib/scoring/engine";
+import { BAND_CLASS, BAND_KEY, SRC_LABEL } from "@/lib/scoreLabels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const SRC_LABEL: Record<string, { en: string; es: string }> = {
-  voting_record_inferred: { en: "Recorded vote", es: "Voto registrado" },
-  questionnaire: { en: "Questionnaire", es: "Cuestionario" },
-  campaign_site: { en: "Campaign site", es: "Sitio de campaña" },
-  debate_transcript: { en: "Debate transcript", es: "Transcripción de debate" },
-  interview: { en: "Interview", es: "Entrevista" },
-};
-const BAND_KEY = (a: number | null) =>
-  a === null ? "none" : (String(a) as "2" | "1" | "0" | "-1" | "-2");
-const BAND_CLASS = (a: number | null) =>
-  a === null ? "bnull" : ({ 2: "b2", 1: "b1", 0: "b0", "-1": "bm1", "-2": "bm2" } as Record<string, string>)[String(a)];
 // lead_sponsor/co_sponsor: Maryland charter counties' bill sponsorship.
 // mover/seconder: Virginia boards' parliamentary convention (schema
 // widened in migration 008) -- a genuinely different fact, not the same

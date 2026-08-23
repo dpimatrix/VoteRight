@@ -182,14 +182,21 @@ a.seat:active, a.cand:active { transform: scale(0.99); background: var(--surface
 .covbar { height: 4px; border-radius: 999px; background: var(--chip-neutral); overflow: hidden; margin-top: 0.45rem; }
 .covbar i { display: block; height: 100%; background: var(--ev); border-radius: 999px; }
 
-.dots { display: inline-flex; gap: 4px; }
-.dots i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; border: 1px solid var(--line); }
-.dots i.d2 { background: var(--agree); border-color: var(--agree); }
-.dots i.d1 { background: var(--b1-bg); border-color: var(--agree); }
-.dots i.d0 { background: var(--chip-neutral); }
-.dots i.dm1 { background: var(--bm1-bg); border-color: var(--differ); }
-.dots i.dm2 { background: var(--differ); border-color: var(--differ); }
-.dots i.dnull { background: transparent; border-style: dashed; }
+/* Own row now (2026-08-23) -- used to sit inline next to the band chip in
+   .row2, but the dots became tappable (see AxisDots.tsx) and needed real
+   touch targets, which crowded the chip. */
+.dots { display: inline-flex; gap: 6px; margin-top: 0.4rem; }
+.dots [role="button"] {
+  width: 14px; height: 14px; border-radius: 4px; display: inline-block;
+  border: 1px solid var(--line); cursor: pointer;
+}
+.dots [role="button"]:focus-visible { outline: 2px solid var(--agree); outline-offset: 2px; }
+.dots .d2 { background: var(--agree); border-color: var(--agree); }
+.dots .d1 { background: var(--b1-bg); border-color: var(--agree); }
+.dots .d0 { background: var(--chip-neutral); }
+.dots .dm1 { background: var(--bm1-bg); border-color: var(--differ); }
+.dots .dm2 { background: var(--differ); border-color: var(--differ); }
+.dots .dnull { background: transparent; border-style: dashed; }
 
 /* ── Chips & registers ── */
 .chip {

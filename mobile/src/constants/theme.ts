@@ -14,9 +14,15 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
-    // Evidence register (matches app/src/app/globals.css --ev) — never used for
-    // plain surfaces/text, only borders/chips, same discipline as the web app.
+    // Evidence register (matches app/src/app/globals.css --ev/--agree) — never
+    // used for plain surfaces/text, only borders/chips, same discipline as
+    // the web app.
     evidence: '#19606a',
+    // Per-axis agreement palette (matches globals.css --differ/--b1-bg/--bm1-bg),
+    // added for the Matches screen's tappable per-axis dots (2026-08-23).
+    differ: '#a24a33',
+    agreeSoft: '#e3edec',
+    differSoft: '#f3e2dc',
   },
   dark: {
     text: '#ffffff',
@@ -25,6 +31,12 @@ export const Colors = {
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
     evidence: '#7cc2bc',
+    differ: '#de9276',
+    // Dark mode drops the tinted fill for the "leans" levels (see globals.css
+    // --b1-bg/--bm1-bg) -- a translucent teal/orange wash reads muddy on
+    // near-black, so only the border carries the color there too.
+    agreeSoft: 'transparent',
+    differSoft: 'transparent',
   },
 } as const;
 

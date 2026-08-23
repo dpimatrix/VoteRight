@@ -10,9 +10,13 @@ export async function GET(request: Request) {
   if (priorities.length < 3) {
     return Response.json({ error: "no priorities set" }, { status: 409 });
   }
+  // evidence now included (mobile's tappable per-axis dots need it, same as
+  // web's server-rendered page already had for free) -- same public-record
+  // citations already shown in full on each candidate's profile page, so
+  // sending them here isn't a new disclosure, just an earlier one.
   return Response.json({
     algorithmVersion: results[0]?.score.algorithmVersion ?? null,
     priorities,
-    results: results.map(({ evidence: _evidence, ...r }) => r),
+    results,
   });
 }

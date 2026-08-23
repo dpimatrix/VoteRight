@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AxisDots } from "@/components/AxisDots";
 import { Chev } from "@/components/Chev";
 import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -10,9 +11,10 @@ import { isSampleData, races } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-const BAND_CLASS = { strong: "b2", good: "b1", mixed: "b0", weak: "bm1", insufficient: "bnull" } as const;
-const DOT = (a: number | null) =>
-  a === null ? "dnull" : ({ 2: "d2", 1: "d1", 0: "d0", "-1": "dm1", "-2": "dm2" } as Record<string, string>)[String(a)];
+// Overall-band chip (strong/good/mixed/weak/insufficient) -- distinct from
+// scoreLabels.ts's BAND_CLASS, which maps a single axis's -2..2 agreement
+// value, not this aggregate band.
+const OVERALL_BAND_CLASS = { strong: "b2", good: "b1", mixed: "b0", weak: "bm1", insufficient: "bnull" } as const;
 
 export default async function MatchesPage({
   searchParams,
@@ -89,13 +91,8 @@ export default async function MatchesPage({
                       {r.incumbent && <span className="inc">{d.incumbent}</span>}
                     </span>
                     <span className="row2">
-                      <span className={`chip band ${BAND_CLASS[r.score.overall]}`}>
+                      <span className={`chip band ${OVERALL_BAND_CLASS[r.score.overall]}`}>
                         {d.ov[r.score.overall]}
-                      </span>
-                      <span className="dots" aria-hidden>
-                        {data!.priorities.map((p) => (
-                          <i key={p.axisId} className={DOT(r.score.perAxis[p.axisId]?.agreement ?? null)} />
-                        ))}
                       </span>
                     </span>
                     {r.score.dealbreaker && (
@@ -103,6 +100,13 @@ export default async function MatchesPage({
                         <span className="chip band bm1">⚠ {d.deal}</span>
                       </span>
                     )}
+                    <AxisDots
+                      priorities={data!.priorities}
+                      perAxis={r.score.perAxis}
+                      evidence={r.evidence}
+                      d={d}
+                      lang={lang}
+                    />
                     <span className="covbar" aria-hidden>
                       <i style={{ width: `${Math.round(r.score.coverage * 100)}%` }} />
                     </span>
