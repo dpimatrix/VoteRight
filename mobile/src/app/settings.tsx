@@ -1,8 +1,11 @@
+import type { Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
+import { WEB_URL } from '@/constants/Config';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemePreference, type ThemePreference } from '@/hooks/theme-preference';
 import { useLanguagePreference, type LanguagePreference } from '@/hooks/language-preference';
@@ -82,6 +85,24 @@ export default function SettingsScreen() {
               )}
             </Pressable>
           ))}
+        </View>
+
+        {/* Web's /verify already links to /privacy right under the address
+            form; mobile had no reference to the privacy policy anywhere at
+            all until now (found 2026-08-24 auditing web/mobile parity) --
+            both app stores generally expect an in-app privacy-policy link
+            for an app collecting address data, so this isn't just a UX
+            nicety. Opens the same web page (ExternalLink's in-app browser
+            sheet on native) rather than duplicating the policy text
+            natively -- one copy to keep accurate, not two. */}
+        <ThemedText type="smallBold">{d.about_h}</ThemedText>
+        <View style={styles.group}>
+          {/* Runtime-built external URL -- expo-router's typed routes only
+              statically recognize literal href strings, not one built from
+              WEB_URL at runtime, even though it's a perfectly valid href. */}
+          <ExternalLink href={`${WEB_URL}/privacy?lang=${lang}` as Href & string} style={[styles.row, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="small">{d.privacy_link}</ThemedText>
+          </ExternalLink>
         </View>
       </View>
     </SafeAreaView>

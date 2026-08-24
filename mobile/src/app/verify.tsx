@@ -1,10 +1,12 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { ExternalLink } from '@/components/external-link';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
+import { WEB_URL } from '@/constants/Config';
 import { post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
@@ -136,6 +138,15 @@ export default function VerifyScreen() {
       >
         <ThemedText type="smallBold">{d.verify_btn}</ThemedText>
       </Pressable>
+      {/* Matches web's /verify, which links to /privacy right under this
+          same form -- mobile had no reference to the privacy policy
+          anywhere until now (2026-08-24). Also on /settings for a durable
+          home outside this one moment. */}
+      <ExternalLink href={`${WEB_URL}/privacy?lang=${lang}` as Href & string}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {d.privacy_link}
+        </ThemedText>
+      </ExternalLink>
     </KeyboardAwareScreen>
   );
 }

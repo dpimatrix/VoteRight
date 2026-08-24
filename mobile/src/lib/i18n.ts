@@ -74,6 +74,8 @@ const DICT = {
     lang_en_desc: 'Always use English',
     lang_es: 'Español',
     lang_es_desc: 'Usar siempre español',
+    about_h: 'About',
+    privacy_link: 'Privacy policy',
 
     // ---- (tabs)/priorities.tsx ----
     priorities_title: 'Your priorities',
@@ -411,6 +413,8 @@ const DICT = {
     lang_en_desc: 'Usar siempre inglés',
     lang_es: 'Español',
     lang_es_desc: 'Usar siempre español',
+    about_h: 'Acerca de',
+    privacy_link: 'Política de privacidad',
 
     // ---- (tabs)/priorities.tsx ----
     priorities_title: 'Tus prioridades',
