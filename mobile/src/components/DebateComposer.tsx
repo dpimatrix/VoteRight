@@ -83,11 +83,25 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const elapsedTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartedAt = useRef(0);
+  const recordingRef = useRef(false); // mirrors `recording` for the unmount cleanup below, which can't read state
+  useEffect(() => {
+    recordingRef.current = recording;
+  }, [recording]);
 
   useEffect(() => {
     return () => {
       if (elapsedTimer.current) clearInterval(elapsedTimer.current);
+      // Stop a still-running recording on unmount (e.g. the user backs out
+      // of this screen mid-recording) -- otherwise the native recording
+      // session is never released: no more state updates to react to, but
+      // the mic stays open and the next recording attempt anywhere in the
+      // app can fail or behave oddly.
+      if (recordingRef.current) void recorder.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorder is
+    // stable for the component's lifetime (useAudioRecorder's own
+    // contract); only want this to run once, on unmount.
   }, []);
 
   function selectFormat(v: Format) {
@@ -117,17 +131,31 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
   async function startRecording() {
     setMediaError(null);
     const status = await AudioModule.requestRecordingPermissionsAsync();
-    if (!status.granted) return; // OS-level denial already tells the user why; nothing more to show here
+    // Only the FIRST denial shows the OS's own rationale dialog -- once a
+    // user has denied it before (or picked "don't ask again" on Android),
+    // requesting again just silently returns granted: false with no
+    // dialog at all. Without this, that second tap would look like a
+    // dead/broken button.
+    if (!status.granted) {
+      setMediaError(d.err_permission_denied);
+      return;
+    }
     await recorder.prepareToRecordAsync();
     recorder.record();
     setRecording(true);
     setElapsed(0);
+    // Wall-clock-based, not an incrementing counter -- immune to
+    // setInterval drift, and keeps the max-duration side effect
+    // (stopRecording) out of the setElapsed updater below. A React state
+    // updater function is meant to be pure; calling an async,
+    // side-effecting function from inside one is fragile (StrictMode's
+    // double-invoke behavior would call it twice) even though nothing
+    // here currently exercises that.
+    recordingStartedAt.current = Date.now();
     elapsedTimer.current = setInterval(() => {
-      setElapsed((s) => {
-        const next = s + 1;
-        if (next >= MAX_MEDIA_SECONDS) stopRecording();
-        return next;
-      });
+      const secs = Math.floor((Date.now() - recordingStartedAt.current) / 1000);
+      setElapsed(secs);
+      if (secs >= MAX_MEDIA_SECONDS) stopRecording();
     }, 1000);
   }
 
@@ -137,9 +165,18 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       elapsedTimer.current = null;
     }
     setRecording(false);
+    // Computed from the ref, not the `elapsed` state -- stopRecording's own
+    // closure over `elapsed` can be stale when it's invoked from inside
+    // the setInterval callback above (that callback was created once,
+    // back when recording started, and keeps referencing whichever
+    // `stopRecording` was in scope then); the ref is always current
+    // regardless of which render defined the closure that's calling this.
+    const durationSeconds = Math.round((Date.now() - recordingStartedAt.current) / 1000);
     await recorder.stop();
     if (recorder.uri) {
-      setMedia({ uri: recorder.uri, name: 'argument.m4a', mimeType: 'audio/m4a', durationSeconds: elapsed });
+      setMedia({ uri: recorder.uri, name: 'argument.m4a', mimeType: 'audio/m4a', durationSeconds });
+    } else {
+      setMediaError(d.err_media_invalid);
     }
   }
 
@@ -167,7 +204,12 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
   async function recordVideo() {
     setMediaError(null);
     const status = await ImagePicker.requestCameraPermissionsAsync();
-    if (!status.granted) return;
+    // Same "silent no-op on a repeat denial" concern as startRecording
+    // above -- without this, a second tap after denying once looks dead.
+    if (!status.granted) {
+      setMediaError(d.err_permission_denied);
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['videos'], videoMaxDuration: MAX_MEDIA_SECONDS });
     handlePickedVideo(result);
   }
@@ -175,7 +217,10 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
   async function chooseVideo() {
     setMediaError(null);
     const status = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!status.granted) return;
+    if (!status.granted) {
+      setMediaError(d.err_permission_denied);
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'] });
     handlePickedVideo(result);
   }

@@ -76,6 +76,7 @@ const DICT = {
     lang_es_desc: 'Usar siempre español',
     about_h: 'About',
     sub_h: 'Support VoteRight',
+    membership_h: 'Membership',
     privacy_link: 'Privacy policy',
 
     // ---- (tabs)/priorities.tsx ----
@@ -197,6 +198,7 @@ const DICT = {
     err_too_long: 'That recording is longer than 3 minutes — trim it and try again.',
     err_too_large: 'That file is too large to upload.',
     err_media_invalid: "That file couldn't be read — try a different one.",
+    err_permission_denied: 'Permission denied — enable it in your device settings and try again.',
     err_processing_failed: 'Something went wrong converting that file — try again.',
     err_rate_limited: "You've hit today's limit for audio/video posts — try again tomorrow.",
     record_btn: 'Record',
@@ -435,6 +437,7 @@ const DICT = {
     lang_es_desc: 'Usar siempre español',
     about_h: 'Acerca de',
     sub_h: 'Apoya a VoteRight',
+    membership_h: 'Membresía',
     privacy_link: 'Política de privacidad',
 
     // ---- (tabs)/priorities.tsx ----
@@ -542,6 +545,7 @@ const DICT = {
     err_too_long: 'Esa grabación dura más de 3 minutos — recórtala e intenta de nuevo.',
     err_too_large: 'Ese archivo es demasiado grande para subirlo.',
     err_media_invalid: 'No se pudo leer ese archivo — intenta con otro.',
+    err_permission_denied: 'Permiso denegado — actívalo en la configuración de tu dispositivo e intenta de nuevo.',
     err_processing_failed: 'Algo falló al convertir ese archivo — intenta de nuevo.',
     err_rate_limited: 'Alcanzaste el límite de hoy para publicaciones de audio/video — intenta mañana.',
     record_btn: 'Grabar',

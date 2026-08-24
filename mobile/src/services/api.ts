@@ -117,13 +117,20 @@ export const post = async <T = unknown>(path: string, body?: unknown): Promise<T
 // (2) a media upload (up to 250MB, MAX_UPLOAD_BYTES in web's media.ts) needs
 // a much longer timeout than every other call this app makes -- 15s is
 // tuned for a plain JSON request/response, not a large file transfer plus
-// server-side ffmpeg transcoding (which has its own 120s wall-clock kill on
-// the server, see ARCHITECTURE.md §9.1). getHeaders() itself stays private
-// to this module either way -- this exposes only what a caller actually
-// needs (the session header applied), not the session state itself.
+// server-side ffmpeg transcoding. getHeaders() itself stays private to this
+// module either way -- this exposes only what a caller actually needs (the
+// session header applied), not the session state itself.
+//
+// 300s, not just the server's own 120s ffmpeg wall-clock kill (§9.1) --
+// that 120s only covers the TRANSCODE step, which starts AFTER the full
+// upload already lands server-side. A tighter client timeout budgeted only
+// for the transcode would abort mid-upload on anything but a fast
+// connection (250MB in under a minute needs a sustained ~35+ Mbps
+// upload, not guaranteed on cellular), which would show a false failure
+// even though the server might go on to succeed anyway.
 export const postFormData = async <T = unknown>(path: string, form: FormData): Promise<T> => {
   await sessionReady;
-  const { signal, clear } = withTimeout(180000);
+  const { signal, clear } = withTimeout(300000);
   try {
     const res = await fetch(`${API_URL}${path}`, { method: "POST", headers: getHeaders(), body: form, signal });
     if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));

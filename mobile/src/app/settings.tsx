@@ -101,7 +101,7 @@ export default function SettingsScreen() {
             subscription in-app as a result. Fine for the ask actually
             made (get a working, compliant path to pay at all); real
             identity unification would be its own separate piece of work. */}
-        <ThemedText type="smallBold">{d.sub_h}</ThemedText>
+        <ThemedText type="smallBold">{d.membership_h}</ThemedText>
         <View style={styles.group}>
           <ExternalLink href={`${WEB_URL}/subscribe?lang=${lang}` as Href & string} style={[styles.row, { backgroundColor: colors.backgroundElement }]}>
             <ThemedText type="small">{d.sub_h}</ThemedText>
