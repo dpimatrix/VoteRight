@@ -9,6 +9,7 @@ import { Colors, Spacing, type ThemeColor } from '@/constants/theme';
 import { ApiError, ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
+import { useRetryOnForeground } from '@/hooks/use-retry-on-foreground';
 import { t, tf } from '@/lib/i18n';
 import { bandChipStyle } from '@/lib/score-colors';
 
@@ -162,6 +163,10 @@ export default function MatchesScreen() {
       loadMatches();
     }, [loadMatches]),
   );
+  // Gated to the generic load error specifically, not need_priorities_error
+  // -- that one means "you haven't set priorities yet," which resuming
+  // from the background doesn't change; retrying would just 409 again.
+  useRetryOnForeground(error === d.matches_load_error, loadMatches);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>

@@ -8,6 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
+import { useRetryOnForeground } from '@/hooks/use-retry-on-foreground';
 import { t, tf } from '@/lib/i18n';
 
 interface Proposal {
@@ -60,6 +61,7 @@ export default function DebatesScreen() {
   }, [d.debates_load_error]);
 
   useFocusEffect(useCallback(() => { loadDebates(); }, [loadDebates]));
+  useRetryOnForeground(error === d.debates_load_error, loadDebates);
 
   const groups = proposals && [
     { key: 'debating', label: d.status_debating, items: proposals.filter((p) => p.status === 'debating') },

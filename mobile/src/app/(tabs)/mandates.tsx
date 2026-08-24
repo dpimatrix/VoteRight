@@ -8,6 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
+import { useRetryOnForeground } from '@/hooks/use-retry-on-foreground';
 import { t, tf } from '@/lib/i18n';
 
 interface Referendum {
@@ -74,6 +75,7 @@ export default function MandatesScreen() {
   }, [d.mandates_load_error]);
 
   useFocusEffect(useCallback(() => { loadMandates(); }, [loadMandates]));
+  useRetryOnForeground(error === d.mandates_load_error, loadMandates);
 
   const open = referenda?.filter((r) => r.status === 'open') ?? [];
   const scheduled = referenda?.filter((r) => r.status === 'scheduled') ?? [];

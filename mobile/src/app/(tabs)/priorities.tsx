@@ -8,6 +8,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
+import { useRetryOnForeground } from '@/hooks/use-retry-on-foreground';
 import { t, tf } from '@/lib/i18n';
 
 interface Topic {
@@ -82,6 +83,9 @@ export default function PrioritiesScreen() {
   }, [d.topics_load_error]);
 
   useFocusEffect(useCallback(() => { loadTopics(); }, [loadTopics]));
+  // Gated to the load error specifically, not priorities_save_error --
+  // a failed save shouldn't silently retry as a topics reload on resume.
+  useRetryOnForeground(error === d.topics_load_error, loadTopics);
 
   function pick(axisId: string, direction: 1 | -1, poleText: string) {
     setSel((s) => {
