@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { ExternalLink } from '@/components/external-link';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
@@ -92,23 +93,19 @@ export default function VerifyScreen() {
         </ThemedText>
       )}
       <View style={styles.inputWrap}>
-        <TextInput
+        {/* Predictive autocomplete (2026-08-24, closing a real web/mobile
+            parity gap -- web already had this). Falls back to a plain
+            TextInput with zero third-party calls if GOOGLE_PLACES_API_KEY
+            isn't configured -- verification is unaffected either way, see
+            the component's own header for the full design. The
+            iOS-QuickType belt-and-suspenders textContentType prop (found
+            live 2026-08-22) is preserved inside that fallback path. */}
+        <AddressAutocomplete
           value={address}
           onChangeText={setAddress}
           placeholder={d.address_placeholder}
-          placeholderTextColor={colors.textSecondary}
-          autoComplete="street-address"
-          // Belt-and-suspenders (2026-08-22): autoComplete alone is documented as
-          // sufficient cross-platform, but real-device testing found iOS QuickType
-          // suggestions not appearing -- textContentType is iOS's own native prop
-          // for this and takes precedence when both are set, so this is a safe,
-          // free hedge against a version-specific autoComplete->iOS mapping gap
-          // rather than a guess at the "right" prop. If suggestions still don't
-          // appear after this, the device itself likely has no saved address data
-          // (Contacts/Safari/Apple ID) for iOS to offer -- a device-data issue,
-          // not a code one.
-          textContentType={Platform.OS === 'ios' ? 'fullStreetAddress' : undefined}
-          style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+          colors={colors}
+          inputStyle={styles.input}
         />
         {/* Owner-requested (2026-08-23): the native placeholder disappears the
             moment typing starts, losing the format example right when it's
