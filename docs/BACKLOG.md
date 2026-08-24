@@ -169,11 +169,28 @@ rather than letting this drift out of sync with reality.
   SoS), Dave Young (CO Treasurer), Mark Metcalf (KY Treasurer), John Fleming
   (LA Treasurer).
 - **55 people confirmed to have no Wikidata photo at all** for this office
-  tier — a real ceiling for Wikidata as the sole source. Most promising next
-  source, researched but not built: NAAG's "Find my AG" directory has all 50
-  states in one consistent scrapeable format (confirmed live 2026-08-14);
-  NASS/NAST/NASACT would need the same per-association format check before
-  assuming they're equally uniform.
+  tier — a real ceiling for Wikidata as the sole source.
+- ~~NAAG "Find my AG" scraper for the 25 AGs currently missing a photo~~
+  **BUILT, BLOCKED (2026-08-23)** — `db/ingest/naag-ag-photos.mjs`. Parsing
+  logic is verified correct against a real saved copy of the directory
+  page (all 56 state/DC/territory entries parse cleanly, one page load
+  covers everyone so no per-person ambiguous-name risk the way Wikidata's
+  loose scan had), and it cross-checks NAAG's listed name against our own
+  DB's current officeholder before applying anything (the real risk here
+  is temporal staleness on either side, not identity collision). But the
+  live run hit a wall: naag.org sits behind Cloudflare bot-detection that
+  returns a 403 "Just a moment..." JS-challenge for requests from Node's
+  own `fetch` client specifically -- reproducible every time, while `curl`
+  from the same machine gets a clean 200 every time, which is itself the
+  signature of a client-fingerprint check, not a rate limit. Not worked
+  around (this project doesn't build around bot-detection, full stop --
+  see the script's own header). robots.txt doesn't disallow the page, so
+  this isn't a crawling-policy problem, just a technical one. Left
+  un-scheduled pending either a legitimate access path (a NAAG data-
+  sharing contact, an API) or a policy change on their end.
+  NASS/NAST/NASACT (SoS/Treasurer/Auditor associations) would need the
+  same per-association format AND bot-detection check before assuming
+  they're any more reachable.
 - **Remaining nationwide photo tiers not yet started**: Public Service
   Commissioners (~37), State Supreme Courts (~229), State Boards of Education
   (~100), Tier-C commissioners (~39), staggered state senates (~1,000+),
