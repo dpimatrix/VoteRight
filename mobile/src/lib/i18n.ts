@@ -243,7 +243,11 @@ const DICT = {
     organizing_chip: 'Organizing',
     start_campaign_h: 'Start a campaign',
     target_politician_h: 'Target a politician',
-    why_campaign_placeholder: 'Why this campaign?',
+    // Real gap found live testing (2026-08-23): web's equivalent field
+    // (acct_desc_ph) asks for both an outcome and a citation; this asked
+    // for neither -- the same field, giving different instructions
+    // depending on which app you're using.
+    why_campaign_placeholder: 'What should happen, and why? Cite the record.',
     // Real bug found live testing (2026-08-23): both cards on this screen
     // used the same "Start campaign" label on their submit button -- two
     // identically-worded buttons with no visual link back to which card
@@ -557,7 +561,7 @@ const DICT = {
     organizing_chip: 'Organizativo',
     start_campaign_h: 'Iniciar una campaña',
     target_politician_h: 'Dirigirse a un funcionario',
-    why_campaign_placeholder: '¿Por qué esta campaña?',
+    why_campaign_placeholder: '¿Qué debería pasar, y por qué? Cita el historial.',
     start_campaign_politician_btn: 'Iniciar campaña contra funcionario',
     target_reform_h: 'Dirigirse a un cambio de estatuto o ley',
     reform_title_placeholder: 'Título de la reforma',
