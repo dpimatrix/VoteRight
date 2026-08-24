@@ -1,4 +1,4 @@
-import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { AddressForm } from "@/components/AddressForm";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { lastVerifiedAt, userTier } from "@/lib/debates";
@@ -7,63 +7,10 @@ import { userResidence } from "@/lib/jurisdictions";
 
 export const dynamic = "force-dynamic";
 
-function AddressForm({
-  lang,
-  d,
-  sp,
-  submitLabel,
-}: {
-  lang: "en" | "es";
-  d: ReturnType<typeof t>;
-  sp: { bad?: string };
-  submitLabel: string;
-}) {
-  return (
-    <>
-      {sp.bad === "outside" ? (
-        <p className="nopos">{d.verify_outside}</p>
-      ) : sp.bad === "unavailable" ? (
-        <p className="nopos">{d.verify_unavailable}</p>
-      ) : sp.bad ? (
-        <p className="nopos">{d.verify_bad}</p>
-      ) : null}
-      <form className="admform" method="post" action="/api/verify">
-        <input type="hidden" name="lang" value={lang} />
-        {/* Predictive autocomplete (2026-08-14, owner-approved reversal of
-            the original browser-native-only decision below) drives the
-            on-screen typing experience only -- production-grade resolution
-            still happens server-side at submit exactly as before (US:
-            Census Bureau geocoder — official, free, returns the
-            county/place geography the resolver needs, plus the Montgomery
-            County ArcGIS lookups migration 078 added; EU markets: national
-            open address registries, decided per-country in
-            EXPANSION-READINESS.md at market entry). Original reasoning for
-            starting browser-native-only, kept for context: as-you-type
-            services stream partial addresses (plus the user's IP) to a
-            vendor before submission, which breaks the §10 posture --
-            real testing showed the bare field felt incomplete enough that
-            the owner chose to accept that tradeoff. See
-            AddressAutocomplete.tsx for the narrow blast-radius design
-            (falls back to a plain input with zero third-party calls if
-            NEXT_PUBLIC_GOOGLE_PLACES_API_KEY isn't set). */}
-        <AddressAutocomplete placeholder={d.verify_ph} ariaLabel={d.verify_ph} />
-        <button type="submit">{submitLabel}</button>
-      </form>
-      <div className="privnote">
-        <span className="dot" />
-        <span>{d.prio_priv}</span>
-      </div>
-      <p className="nopos" style={{ margin: "0.4rem 0 0" }}>
-        <a href={`/privacy?lang=${lang}`}>{d.priv_link}</a>
-      </p>
-    </>
-  );
-}
-
 export default async function VerifyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; bad?: string; change?: string }>;
+  searchParams: Promise<{ lang?: string; change?: string }>;
 }) {
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
@@ -89,7 +36,7 @@ export default async function VerifyPage({
                 {verifiedAt ? ` (${d.verify_since} ${verifiedAt.toLocaleDateString(lang === "es" ? "es" : "en-US")})` : ""}
               </p>
               <p className="nopos" style={{ opacity: 0.8 }}>{d.verify_change_warn}</p>
-              <AddressForm lang={lang} d={d} sp={sp} submitLabel={d.verify_confirm_btn} />
+              <AddressForm lang={lang} d={d} submitLabel={d.verify_confirm_btn} />
             </div>
           ) : (
             <div className="card">
@@ -113,7 +60,7 @@ export default async function VerifyPage({
           )
         ) : (
           <div className="card">
-            <AddressForm lang={lang} d={d} sp={sp} submitLabel={d.verify_btn} />
+            <AddressForm lang={lang} d={d} submitLabel={d.verify_btn} />
           </div>
         )}
       </div>

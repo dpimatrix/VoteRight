@@ -182,6 +182,8 @@ const DICT = {
     verify_outside:
       "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     verify_unavailable: "Address verification is temporarily unavailable — please try again in a few minutes.",
+    verify_network_error: "Something went wrong — try again.",
+    continue_btn: "Continue",
     ballot_no_residence: "Verify your address to see your ballot.",
     realdata_note:
       "Early real-data phase: positions are being ingested from sourced records. A candidate is scored only once enough sourced positions exist — silence is shown as silence, never guessed.",
@@ -573,6 +575,8 @@ const DICT = {
     verify_outside:
       "No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.",
     verify_unavailable: "La verificación de direcciones no está disponible en este momento — inténtalo de nuevo en unos minutos.",
+    verify_network_error: "Algo salió mal — inténtalo de nuevo.",
+    continue_btn: "Continuar",
     ballot_no_residence: "Verifica tu dirección para ver tu boleta.",
     realdata_note:
       "Fase temprana de datos reales: las posturas se ingieren de registros con fuente. Un candidato solo se puntúa cuando existen suficientes posturas con fuente — el silencio se muestra como silencio, nunca se adivina.",
