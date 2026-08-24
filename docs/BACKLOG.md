@@ -179,15 +179,63 @@ rather than letting this drift out of sync with reality.
   (~100), Tier-C commissioners (~39), staggered state senates (~1,000+),
   intermediate appellate courts (~550), smaller niche/mop-up tiers (~40
   combined).
-- **Photo renewal on turnover** — `congress.mjs`/`openstates-legislature.mjs`
-  now correctly retire `office_terms.term_end`/`current_office_id` when an
-  incumbent leaves (fixed 2026-08-15, runs monthly via
-  `roster-refresh.timer`), but nothing yet re-triggers a photo fetch for the
-  *new* incumbent who fills that seat — the photo pipeline is a separate,
-  manually-run script (`statewide-official-photos.mjs`, no schedule).
-  Options not yet chosen between: fold a photo lookup into
-  `roster-refresh.sh` itself, or add a second timer for the photo script on
-  its own cadence.
+- ~~Photo renewal on turnover~~ **DONE (2026-08-24)** — `statewide-official-
+  photos.mjs` added as a third step in `roster-refresh.sh` itself (not a
+  second timer — it's idempotent, correctly ordered after the roster
+  scripts so a new officeholder actually exists in the DB first). Verified
+  live against the dev DB, not just read: a real run downloaded **93 new
+  photos** for statewide officials who had none, using the strict,
+  position-held-verified matcher (zero identity risk — the same trusted
+  path this project already used for the original 76). 0 download
+  failures, exit code 0.
+- ~~80 unambiguous flagged candidates ready for review~~ **32 applied
+  (2026-08-24)**, the rest triaged. First re-run of `statewide-official-
+  photos-flagged.mjs` (before the strict script above had been scheduled)
+  showed 155/21 -- running the strict script's real 93-photo catch-up in
+  between resolved many of those through its own stricter, position-held-
+  verified path, dropping the honest remaining count to 80/13 (13
+  matching the original ambiguous list above exactly -- a useful
+  consistency check). The 80 were verified via Wikidata's own bulk API
+  (batched `wbgetentities`, cross-checking each item's description
+  against the expected office+state, then a second pass resolving each
+  weak match's own "position held" claims for same-state prior-office
+  corroboration) rather than either blindly bulk-applying all 80 or
+  browsing 80 pages by hand:
+  - **31 confirmed safe by description match or corroborating prior
+    office** (15 description-strong + 16 position-held-corroborated) +
+    **Susana Mendoza (IL Comptroller)**, caught by hand after the
+    automated office-string match missed "Comptroller" vs. the roster's
+    "Controller" wording -- **32 total, applied** via
+    `apply-flagged-photo.mjs` against the dev DB, 32/32 succeeded, 0
+    skips.
+  - **3 confirmed wrong-person matches caught and deliberately NOT
+    applied**: "Andy Wilson" flagged for OH AG resolves on Wikidata to a
+    British cyclist; "Mark Hunt" flagged for WV Auditor resolves to a
+    New Zealand kickboxer; "Steven C. Johnson" flagged for KS Treasurer
+    resolves to a Maryland state delegate. All three are same-name,
+    wrong-person collisions the loose flagged-matcher can't distinguish
+    without this kind of cross-check -- exactly the failure mode the
+    strict script (`statewide-official-photos.mjs`) is designed to avoid
+    by requiring a real position-held statement.
+  - **1 likely-wrong match, held back out of caution**: "Randy Smith"
+    flagged for WV Lt. Gov describes as a "video game designer" on
+    Wikidata -- a strong red flag, but his position-held claims were
+    empty rather than actively corroborating a different person, so this
+    is slightly less certain than the 3 above. Needs the same manual
+    check as the 13 ambiguous names before either applying or discarding.
+  - **49 still unclear** -- no description or position-held corroboration
+    either way -- need individual research, same as the 13 ambiguous
+    names above.
+- **Wikimedia Commons attribution/licensing gap, found but not yet
+  addressed**: `congress.mjs` and `statewide-official-photos*.mjs`
+  download raw pixel files from Commons via `Special:FilePath` URLs with
+  no license/author/attribution metadata captured, unlike the
+  hand-curated `app/public/politicians/ATTRIBUTION.md` covering the
+  original 11 Montgomery County Council photos. Many Commons files
+  require CC-BY-SA-style attribution when redistributed. Affects 600+
+  images already downloaded (531 Congress + 93 strict-matched + 32
+  flagged-and-applied statewide this round) -- a decision on whether/how
+  to backfill attribution is still open.
 
 ## Race/candidate coverage tracking
 

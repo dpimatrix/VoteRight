@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 # Monthly roster refresh for Congress + state legislators (DATA-OPS.md §6/7
 # cadence table: roster changes are slow-moving, monthly is the right
-# frequency). Runs congress.mjs then openstates-legislature.mjs back to
-# back -- both are idempotent, and both (2026-08-15) correctly retire a
-# departed officeholder on top of adding new ones now, which is what makes
-# this safe to run completely unattended instead of only by hand right
-# after a known election.
+# frequency). Runs congress.mjs, openstates-legislature.mjs, then
+# statewide-official-photos.mjs back to back -- all three are idempotent,
+# and the first two (2026-08-15) correctly retire a departed officeholder
+# on top of adding new ones now, which is what makes this safe to run
+# completely unattended instead of only by hand right after a known
+# election.
+#
+# Photo renewal on turnover (BACKLOG.md, added 2026-08-24): congress.mjs
+# already fetches its own members' photos as part of its own run, but the
+# statewide tier (Governor/AG/SoS/etc.) never had anything re-triggering a
+# photo lookup for a NEW officeholder filling a retired one's seat --
+# statewide-official-photos.mjs existed but was a manually-run, unscheduled
+# script. It's idempotent (skips anyone who already has a photo_url), so
+# running it every cycle only ever does network work for people newly
+# added since the last run -- correctly ordered last, after the roster
+# scripts above have actually added that new officeholder to the DB.
 #
 # Each script already logs its own outcome to ingestion_runs (source=
-# 'congress-gov-roster' / 'openstates-legislature-roster') -- no separate
-# logging step needed here, unlike checkpoint-and-publish.sh's companion
-# checkpoint-log.mjs (checkpoint.mjs doesn't self-log; these two already do).
+# 'congress-gov-roster' / 'openstates-legislature-roster' /
+# 'statewide-official-photos-wikidata') -- no separate logging step needed
+# here, unlike checkpoint-and-publish.sh's companion checkpoint-log.mjs
+# (checkpoint.mjs doesn't self-log; these three already do).
 #
 # Deliberately NOT `set -e`: a transient failure in one script (e.g. an
 # OpenStates outage) shouldn't stop the other from being attempted -- both
@@ -105,5 +117,9 @@ echo "--- openstates-legislature.mjs ---"
 # be kept in sync by hand if a new state is ever added there.
 node db/ingest/openstates-legislature.mjs --states=md,va,al,la,ms,nj,mi,mn,ks,nm,sc,az,ct,ga,id,me,ma,nh,ny,nc,ri,sd,vt,ak,ar,ca,co,de,fl,hi,il,in,ia,ky,mo,mt,nv,oh,ok,or,pa,tn,tx,ut,wa,wv,wi,wy \
   || echo "openstates-legislature.mjs exited non-zero -- see ingestion_runs for detail"
+
+echo "--- statewide-official-photos.mjs ---"
+node db/ingest/statewide-official-photos.mjs \
+  || echo "statewide-official-photos.mjs exited non-zero -- see ingestion_runs for detail"
 
 echo "=== roster-refresh done $(date -u +%FT%TZ) ==="
