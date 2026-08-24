@@ -188,9 +188,14 @@ rather than letting this drift out of sync with reality.
   this isn't a crawling-policy problem, just a technical one. Left
   un-scheduled pending either a legitimate access path (a NAAG data-
   sharing contact, an API) or a policy change on their end.
-  NASS/NAST/NASACT (SoS/Treasurer/Auditor associations) would need the
-  same per-association format AND bot-detection check before assuming
-  they're any more reachable.
+- **NASS/NAST/NASACT scrapers (SoS/Treasurer/Auditor associations) —
+  not started.** The same idea as NAAG's directory, one association per
+  office tier, but each needs its own from-scratch check before assuming
+  it's worth building: whether the format is as consistently scrapeable
+  as NAAG's turned out to be, AND whether it sits behind the same kind of
+  bot-detection that blocked NAAG. Don't assume either answer -- verify
+  live per-association the way NAAG was, rather than building all three
+  on spec.
 - **Remaining nationwide photo tiers not yet started**: Public Service
   Commissioners (~37), State Supreme Courts (~229), State Boards of Education
   (~100), Tier-C commissioners (~39), staggered state senates (~1,000+),
