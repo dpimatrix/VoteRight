@@ -3,7 +3,24 @@ export default ({ config }) => {
 
   return {
     ...config,
-    plugins: [...(config.plugins ?? []), "expo-secure-store"],
+    plugins: [
+      ...(config.plugins ?? []),
+      "expo-secure-store",
+      // Audio/video debate arguments (2026-08-24, closing a real
+      // web/mobile parity gap -- web already supported both via a plain
+      // <input type="file" capture>). Custom permission strings instead
+      // of each plugin's generic default, explaining the actual VoteRight
+      // reason rather than a bare "access your microphone/camera".
+      ["expo-audio", { microphonePermission: "VoteRight needs microphone access to record an audio debate argument." }],
+      [
+        "expo-image-picker",
+        {
+          cameraPermission: "VoteRight needs camera access to record a video debate argument.",
+          microphonePermission: "VoteRight needs microphone access to record a video debate argument.",
+          photosPermission: "VoteRight needs photo library access to choose an existing video for a debate argument.",
+        },
+      ],
+    ],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {
       ...config.android,

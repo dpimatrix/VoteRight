@@ -110,6 +110,29 @@ export const post = async <T = unknown>(path: string, body?: unknown): Promise<T
   }
 };
 
+// Audio/video debate arguments (2026-08-24) -- separate from post() rather
+// than a `body instanceof FormData` branch on it, for two real reasons: (1)
+// no "Content-Type: application/json" header here -- fetch needs to set its
+// own multipart boundary, which setting Content-Type manually would break;
+// (2) a media upload (up to 250MB, MAX_UPLOAD_BYTES in web's media.ts) needs
+// a much longer timeout than every other call this app makes -- 15s is
+// tuned for a plain JSON request/response, not a large file transfer plus
+// server-side ffmpeg transcoding (which has its own 120s wall-clock kill on
+// the server, see ARCHITECTURE.md §9.1). getHeaders() itself stays private
+// to this module either way -- this exposes only what a caller actually
+// needs (the session header applied), not the session state itself.
+export const postFormData = async <T = unknown>(path: string, form: FormData): Promise<T> => {
+  await sessionReady;
+  const { signal, clear } = withTimeout(180000);
+  try {
+    const res = await fetch(`${API_URL}${path}`, { method: "POST", headers: getHeaders(), body: form, signal });
+    if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));
+    return (await res.json()) as T;
+  } finally {
+    clear();
+  }
+};
+
 /** Convenience for the common "route to the right screen" branch every
  *  payment-gated action needs -- see debates/[id].tsx, (tabs)/debates.tsx,
  *  debates/new.tsx, and DebateComposer.tsx. */
