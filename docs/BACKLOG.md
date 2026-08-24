@@ -257,21 +257,40 @@ rather than letting this drift out of sync with reality.
 
 ## Mobile
 
-- **Nothing open right now.** The standing "mobile build after web work
-  lands" hold was cleared 2026-08-15/16: shipped as **1.1.3** (not 1.1.2 —
-  the owner corrected the version mid-build after the 1.1.2 artifacts had
-  already uploaded to EAS but before they compiled, so those were cancelled
-  and rebuilt clean), build 6 on both platforms, folding in the 8 mobile-
-  touching commits from 2026-08-14 that hadn't shipped (Montgomery/PG/DC/
-  Fairfax district narrowing, MD Supreme Court circuit narrowing, term-start
-  reliability, the "on your ballot in 2026" election-year fix). iOS submitted
-  via `eas submit` (App Store Connect / TestFlight); Android's `.aab` was
-  handed to the owner directly rather than submitted via EAS (explicit
-  instruction: "submit for ios only"). **Both platforms are now in Apple/
-  Google review as of 2026-08-16** — Android was uploaded to Play Console
-  manually by the owner, outside EAS's `submit` flow, so it did not go
-  through the `releaseStatus: "draft"` internal-track path `eas.json`
-  configures; it's a real production review submission like iOS.
+- **1.1.4 is in active hands-on testing, not yet submitted to either app
+  store** (the note below described 1.1.3, which shipped 2026-08-16 —
+  superseded). The owner has been testing build-by-build on a real Android
+  device since; a long list of real, live-found bugs have been fixed
+  same-session as found, so none of them needed a standing backlog entry —
+  consistent with this file's own policy of only logging *deferred* items.
+  Highlights from this pass: mobile never actually signed debate
+  arguments/proposals/seconds/campaign-support (Hermes has no
+  `crypto.getRandomValues`, silently falling back to posting unsigned every
+  time — fixed via `expo-crypto`, needed a fresh dev-client build since
+  it's a native module); the Matches screen gained web-parity features it
+  never had (per-axis tappable dots, coverage bar, method citation, a
+  compare-two-candidates view) plus a genuinely mobile-only fix
+  (photo/party weren't rendering at all); the Accountability screen's
+  campaign-creation pathway list was shipping **131 unscoped nationwide
+  pathway rows** to every verified user regardless of residence — a
+  Montgomery County resident's reform campaign could silently bind to a
+  different county's legal mechanism depending on row order (now scoped
+  to the resident's own jurisdiction stack); the politician picker went
+  from one flat unlabeled list to grouped by office to grouped by
+  jurisdiction (owner asked for each step directly); campaigns gained a
+  real citation field (previously asked "cite the record" with nowhere to
+  put one); duplicate near-identical campaigns now get suggested instead
+  of silently piling up (`pg_trgm` similarity). No standing hold, nothing
+  deferred out of this pass — next real milestone is finishing the
+  testing pass and cutting an actual 1.1.4 release build.
+- ~~1.1.3 shipped~~ **DONE (2026-08-16)** — build 6 on both platforms,
+  folding in the 8 mobile-touching commits from 2026-08-14 that hadn't
+  shipped (Montgomery/PG/DC/Fairfax district narrowing, MD Supreme Court
+  circuit narrowing, term-start reliability, the "on your ballot in 2026"
+  election-year fix). iOS submitted via `eas submit` (App Store Connect /
+  TestFlight); Android's `.aab` was handed to the owner directly rather
+  than submitted via EAS (explicit instruction: "submit for ios only").
+  Both platforms went through Apple/Google review and are live.
 
 ## Closed this pass (for context, not action)
 
