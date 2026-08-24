@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { BackupNudge } from '@/components/BackupNudge';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
@@ -191,6 +192,7 @@ export default function VerifyPaymentScreen() {
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="small">{d.pay_success}</ThemedText>
+        <BackupNudge d={d} />
       </KeyboardAwareScreen>
     );
   }

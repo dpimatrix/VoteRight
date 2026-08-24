@@ -1,3 +1,4 @@
+import { BackupPrompt } from "@/components/BackupPrompt";
 import { PaymentCheckout } from "@/components/PaymentCheckout";
 import { SiteHeader } from "@/components/SiteHeader";
 import { verifiedUserId } from "@/lib/anon";
@@ -29,7 +30,13 @@ export default async function PaymentVerifyPage({
         ) : (
           await (async () => {
             const tier = await userTier(userId);
-            if (tier === "payment_verified") return <p className="pill kept">{d.pay_success}</p>;
+            if (tier === "payment_verified")
+              return (
+                <>
+                  <p className="pill kept">{d.pay_success}</p>
+                  <BackupPrompt lang={lang} d={d} />
+                </>
+              );
 
             const settings = await getPaymentSettings();
             const configured =

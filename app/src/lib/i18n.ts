@@ -245,6 +245,10 @@ const DICT = {
     // as prio_priv above, no account exists to match this to.
     pay_check_code_note: "Write this code on your check so it can be matched to you once received.",
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
+    backup_nudge_h: "Back up your key now",
+    backup_nudge_p: "This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.",
+    backup_nudge_btn: "Back up now",
+    backup_nudge_dismiss: "Not now",
     sub_h: "Support VoteRight",
     sub_p:
       "Optional. VoteRight's ballot, candidate records, priorities, matches, and debates are free for everyone regardless of this — a subscription funds the platform, it never changes what you can see, vote on, or argue.",
@@ -629,6 +633,10 @@ const DICT = {
     pay_check_code_h: "Tu código de referencia",
     pay_check_code_note: "Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.",
     pay_success: "✓ Pago recibido — estás verificado y ya puedes participar en los debates.",
+    backup_nudge_h: "Respalda tu clave ahora",
+    backup_nudge_p: "Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.",
+    backup_nudge_btn: "Respaldar ahora",
+    backup_nudge_dismiss: "Ahora no",
     sub_h: "Apoya a VoteRight",
     sub_p:
       "Opcional. La boleta, los registros de candidatos, prioridades, coincidencias y debates de VoteRight son gratis para todos sin importar esto — una suscripción financia la plataforma, nunca cambia lo que puedes ver, votar o argumentar.",

@@ -388,6 +388,10 @@ const DICT = {
     pay_check_code_h: 'Your reference code',
     pay_check_code_note: 'Write this code on your check so it can be matched to you once received.',
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
+    backup_nudge_h: 'Back up your key now',
+    backup_nudge_p: 'This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.',
+    backup_nudge_btn: 'Back up now',
+    backup_nudge_dismiss: 'Not now',
   },
   es: {
     // ---- nav (app-tabs.tsx) ----
@@ -739,6 +743,10 @@ const DICT = {
     pay_check_code_h: 'Tu código de referencia',
     pay_check_code_note: 'Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.',
     pay_success: '✓ Pago recibido — estás verificado y ya puedes participar en los debates.',
+    backup_nudge_h: 'Respalda tu clave ahora',
+    backup_nudge_p: 'Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.',
+    backup_nudge_btn: 'Respaldar ahora',
+    backup_nudge_dismiss: 'Ahora no',
   },
 } as const;
 

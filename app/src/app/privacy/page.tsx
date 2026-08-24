@@ -278,7 +278,9 @@ export default async function PrivacyPage({
         <Link className="btn secondary" href={`/subscribe?lang=${lang}`} style={{ marginTop: "0.5rem", display: "inline-block" }}>
           {d.sub_h}
         </Link>
-        <KeySettings d={d} />
+        <div id="key-settings">
+          <KeySettings d={d} />
+        </div>
       </div>
     </>
   );

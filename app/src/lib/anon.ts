@@ -82,13 +82,33 @@ export async function currentOrNewUserId(): Promise<string> {
   let anon = store.get(COOKIE)?.value ?? (await headerSessionId());
   if (!anon) {
     anon = randomUUID();
-    store.set(COOKIE, anon, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-    });
+    // Real crash found live 2026-08-24 (a cookie-less request straight to
+    // /verify/payment, no prior /verify visit to have minted one) --
+    // Next.js only allows cookies().set() from a Server Action or Route
+    // Handler, and throws from a plain page render instead of the
+    // silently-ignored no-op some earlier Next versions used to do. This
+    // function is called from both (route handlers where setting is fine,
+    // and pages like verify/payment/page.tsx and debates/[id]/page.tsx
+    // where it isn't) -- the mint-and-return-a-usable-id-for-THIS-render
+    // behavior stays correct either way; only the persistence attempt
+    // needs to tolerate a context that can't accept it. A cookie-less
+    // visitor who lands somewhere other than /verify first (an old
+    // bookmark, a shared link, a bot) still gets a working anonymous id
+    // for this one render; it just won't be persisted until their next
+    // request that IS a Route Handler (submitting a form, an API call),
+    // same as it would be today for anyone reaching this via /verify's
+    // own POST-based flow.
+    try {
+      store.set(COOKIE, anon, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365,
+        path: "/",
+      });
+    } catch {
+      // Not settable from this render context -- see comment above.
+    }
   }
   return ensureUser(anon);
 }
