@@ -20,6 +20,14 @@ export default function VerifyScreen() {
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set on a successful verify, holding the address just typed -- never
+  // sent anywhere beyond the one /api/verify call already made, never
+  // stored (the resolver only ever persists the resolved jurisdiction,
+  // see jurisdictions.ts's own "raw address is still never stored" note).
+  // Shown once here, this screen only, then gone -- the Ballot tab's
+  // persistent label only ever shows the jurisdiction + verified date,
+  // by design (owner's own call, 2026-08-24, over storing it durably).
+  const [justVerified, setJustVerified] = useState<string | null>(null);
 
   async function submit() {
     setBusy(true);
@@ -30,7 +38,7 @@ export default function VerifyScreen() {
         { address },
       );
       if (res.outcome === 'ok') {
-        router.back();
+        setJustVerified(address);
       } else if (res.outcome === 'outside') {
         setError(d.outside_error);
       } else if (res.outcome === 'resolver_unavailable') {
@@ -44,6 +52,22 @@ export default function VerifyScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (justVerified) {
+    return (
+      <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+        <ThemedText type="title" style={styles.title}>
+          {d.verify_success_h}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {justVerified}
+        </ThemedText>
+        <Pressable onPress={() => router.back()} style={[styles.submitBtn, { backgroundColor: colors.evidence }]}>
+          <ThemedText type="smallBold">{d.continue_btn}</ThemedText>
+        </Pressable>
+      </KeyboardAwareScreen>
+    );
   }
 
   return (

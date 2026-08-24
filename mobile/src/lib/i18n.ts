@@ -327,6 +327,8 @@ const DICT = {
     no_match_error: 'Could not match that address — check the street number, name, and state.',
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
+    verify_success_h: 'Verified',
+    continue_btn: 'Continue',
 
     // ---- verify-payment.tsx ----
     pay_h: 'Verify with a payment',
@@ -634,6 +636,8 @@ const DICT = {
     no_match_error: 'No se pudo encontrar esa dirección — revisa el número, el nombre de la calle y el estado.',
     generic_error: 'Algo salió mal. Intenta de nuevo.',
     verify_btn: 'Verificar',
+    verify_success_h: 'Verificado',
+    continue_btn: 'Continuar',
 
     // ---- verify-payment.tsx ----
     pay_h: 'Verifica con un pago',
