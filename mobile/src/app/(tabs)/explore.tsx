@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -120,22 +120,47 @@ export default function MatchesScreen() {
     loadRaces();
   }, [loadRaces]);
 
+  // Monotonic generation counter, not a per-effect `cancelled` closure --
+  // needs to guard a manual "Try again" retry too, not just the focus
+  // effect's own re-runs, so one shared counter both the effect and the
+  // button bump.
+  const loadGeneration = useRef(0);
+
+  const loadMatches = useCallback(() => {
+    if (!raceId) return;
+    const gen = ++loadGeneration.current;
+    setMatches(null);
+    setError(null);
+    setExpanded(null);
+    setSelected([]);
+    get<MatchesResponse>(`/api/matches?race=${raceId}`)
+      .then((res) => {
+        if (loadGeneration.current === gen) setMatches(res);
+      })
+      .catch((e) => {
+        // Real bug found live testing (2026-08-23): this used to set
+        // need_priorities_error ("set 3 priorities") for EVERY failure, not
+        // just the real 409 case -- a canceled fetch (switching race chips
+        // or tabs mid-request) or a genuine network error showed the same
+        // "go set your priorities" message even though that was never the
+        // actual problem. The generation check also means a stale response
+        // from a superseded request (raceId changed, screen lost focus, or
+        // a newer retry started) can no longer set error state for a
+        // request nobody's waiting on anymore.
+        if (loadGeneration.current !== gen) return;
+        if (e instanceof ApiError && e.status === 409) {
+          setError(d.need_priorities_error);
+          return;
+        }
+        console.error('Matches load failed:', e);
+        setError(d.matches_load_error);
+      });
+  }, [raceId, d.need_priorities_error, d.matches_load_error]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!raceId) return;
-      setMatches(null);
-      setError(null);
-      setExpanded(null);
-      setSelected([]);
-      get<MatchesResponse>(`/api/matches?race=${raceId}`)
-        .then(setMatches)
-        .catch((e) => {
-          if (!(e instanceof ApiError && e.status === 409)) {
-            console.error('Matches load failed:', e);
-          }
-          setError(d.need_priorities_error);
-        });
-    }, [raceId, d.need_priorities_error]),
+      loadMatches();
+    }, [loadMatches]),
   );
 
   return (
@@ -170,7 +195,18 @@ export default function MatchesScreen() {
           </View>
         )}
 
-        {error && <ThemedText type="small">{error}</ThemedText>}
+        {error && (
+          <View style={styles.rowWrap}>
+            <ThemedText type="small">{error}</ThemedText>
+            {error === d.matches_load_error && (
+              <Pressable onPress={loadMatches}>
+                <ThemedText type="small" style={{ color: colors.evidence }}>
+                  {d.try_again}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {raceId && !matches && !error && <ActivityIndicator style={styles.spinner} />}
 

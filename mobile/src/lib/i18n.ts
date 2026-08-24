@@ -87,6 +87,12 @@ const DICT = {
     matches_sub: "How each candidate on your ballot aligns with the priorities you set — shown as bands, not raw scores.",
     races_load_error: 'Could not load races. Pull down to try again.',
     need_priorities_error: 'Set at least 3 priorities on the Priorities tab to see matches.',
+    // Real bug found live testing (2026-08-23): every matches-load failure
+    // (a canceled fetch, a network error) used to show need_priorities_error
+    // even when priorities were already set -- this is for the genuine
+    // non-409 failure case specifically.
+    matches_load_error: 'Could not load matches.',
+    try_again: 'Try again',
     band_strong: 'Strong match',
     band_good: 'Good match',
     band_mixed: 'Mixed',
@@ -415,6 +421,8 @@ const DICT = {
     matches_sub: 'Cómo se alinea cada candidato de tu boleta con las prioridades que elegiste — mostrado en bandas, no en puntajes exactos.',
     races_load_error: 'No se pudieron cargar las contiendas. Desliza hacia abajo para intentar de nuevo.',
     need_priorities_error: 'Elige al menos 3 prioridades en la pestaña Prioridades para ver coincidencias.',
+    matches_load_error: 'No se pudieron cargar las coincidencias.',
+    try_again: 'Intentar de nuevo',
     band_strong: 'Fuerte coincidencia',
     band_good: 'Buena coincidencia',
     band_mixed: 'Mixto',
