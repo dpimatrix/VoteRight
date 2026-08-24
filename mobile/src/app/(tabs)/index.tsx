@@ -49,6 +49,7 @@ interface BallotResponse {
   residenceId: string | null;
   residenceName: string | null;
   residenceLevel: string | null;
+  residenceVerifiedAt: string | null;
   jurisdictions: { id: string; name: string }[];
   offices: StackedOffice[];
   hasUnnarrowedDistrictSeats: boolean;
@@ -133,7 +134,11 @@ export default function BallotScreen() {
             }
           >
             <ThemedText type="small" themeColor="textSecondary">
-              {d.verified_as} {data.residenceName} · <ThemedText type="linkPrimary">{d.change_address}</ThemedText>
+              {d.verified_as} {data.residenceName}
+              {data.residenceVerifiedAt
+                ? ` (${d.verify_since} ${new Date(data.residenceVerifiedAt).toLocaleDateString(lang === 'es' ? 'es' : 'en-US')})`
+                : ''}{' '}
+              · <ThemedText type="linkPrimary">{d.change_address}</ThemedText>
             </ThemedText>
           </Pressable>
         )}

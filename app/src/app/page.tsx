@@ -5,6 +5,7 @@ import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { logPendingSeatViews } from "@/lib/coverage";
+import { lastVerifiedAt } from "@/lib/debates";
 import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
@@ -196,6 +197,11 @@ export default async function BallotPage({
   // unknown nationwide (see ensureUser in queries.ts). Visitor mode below still
   // works without one; only "your ballot" needs a real, verified residence.
   const residenceId = residence?.ocd_id ?? null;
+  // Same lastVerifiedAt already used on /verify's own "currently verified"
+  // line -- surfaced here too so the persistent Ballot-page label answers
+  // "as of when" without making a resident click through to /verify to
+  // find out (owner asked for this directly, 2026-08-23).
+  const verifiedAt = userId && residence ? await lastVerifiedAt(userId) : null;
 
   // Visitor mode: a display-only lens. Participation rights always follow
   // users.residence_jurisdiction_id in the database, never this cookie.
@@ -265,7 +271,8 @@ export default async function BallotPage({
       <div className="pagepad">
         {residence && (
           <p className="nopos" style={{ marginTop: "0.4rem" }}>
-            {lang === "es" ? "Verificado como" : "Verified as"} <strong>{residence.name}</strong>{" "}
+            {lang === "es" ? "Verificado como" : "Verified as"} <strong>{residence.name}</strong>
+            {verifiedAt ? ` (${d.verify_since} ${verifiedAt.toLocaleDateString(lang === "es" ? "es" : "en-US")})` : ""}{" "}
             <Link href={`/verify?lang=${lang}&change=1`}>{lang === "es" ? "Cambiar dirección" : "Change address"}</Link>
           </p>
         )}

@@ -1,4 +1,5 @@
 import { currentUserId } from "@/lib/anon";
+import { lastVerifiedAt } from "@/lib/debates";
 import {
   ballotForJurisdiction,
   filterToOwnDistricts,
@@ -20,6 +21,12 @@ export async function GET(request: Request) {
   // No default jurisdiction — see ensureUser in queries.ts. A brand-new mobile
   // session has an unknown residence until /api/verify resolves a real address.
   const residenceId = residence?.ocd_id ?? null;
+  // Same lastVerifiedAt already used on web's /verify "currently verified"
+  // line -- mirrored here so the native Ballot tab's "Verified as X" label
+  // can show the same "as of when" (owner asked for this directly,
+  // 2026-08-23). ISO string over the wire, formatted client-side per the
+  // device's own locale, same as every other timestamp this API returns.
+  const residenceVerifiedAt = userId && residence ? await lastVerifiedAt(userId) : null;
 
   const visit = new URL(request.url).searchParams.get("visit");
   const browsable = await listBrowsableJurisdictions();
@@ -54,6 +61,7 @@ export async function GET(request: Request) {
     residenceId,
     residenceName: residence?.name ?? null,
     residenceLevel: residence?.level ?? null,
+    residenceVerifiedAt: residenceVerifiedAt?.toISOString() ?? null,
     jurisdictions,
     offices,
     hasUnnarrowedDistrictSeats: hasUnnarrowedDistrictSeats(offices),
