@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { currentAdmin } from "@/lib/adminAuth";
 import { adminAnomalyQueue } from "@/lib/anomalyDetection";
+import { pendingCoverageGaps } from "@/lib/coverage";
 import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
@@ -217,6 +218,23 @@ export default async function AdminHome() {
           <span className="chip band b0">manage</span>
         </Link>
       )}
+      {has("race_coverage") &&
+        (await (async () => {
+          const gaps = await pendingCoverageGaps();
+          const withViewers = gaps.filter((g) => g.viewerCount > 0).length;
+          return (
+            <Link className="seat" href="/admin/race-coverage">
+              <span className="seat-ic">RC</span>
+              <span className="sname">
+                Race coverage
+                <span className="smeta">elected offices with no races row this cycle — sourcing gaps, not code bugs</span>
+              </span>
+              <span className={`chip band ${withViewers > 0 ? "bm1" : gaps.length > 0 ? "b1" : "b0"}`}>
+                {gaps.length} gap{gaps.length === 1 ? "" : "s"}
+              </span>
+            </Link>
+          );
+        })())}
 
       {await (async () => {
         // Read-only operational health, not a mutation screen -- shown to

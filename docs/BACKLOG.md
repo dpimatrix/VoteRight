@@ -191,36 +191,35 @@ rather than letting this drift out of sync with reality.
 
 ## Race/candidate coverage tracking
 
-- **No trigger closes a "Pending" (no `races` row yet) seat automatically —
-  found live 2026-08-23** when a real gap (Montgomery County Clerk of the
-  Circuit Court — in scope, just never got a `races` row; see
-  `db/seed.clerk-circuit-court-2026.sql`) was only caught because someone
-  happened to notice it during manual testing, not because anything
-  surfaced it. Two genuinely different problems here, worth keeping
-  separate:
-  - **Detection is real, scoped, and buildable now**: a scheduled job (or
-    just a query feeding the existing `/admin` "Data freshness" panel,
-    same pattern already used for ingestion-source health) that finds
-    every `offices` row (`is_elected`) with no matching `races` row for
-    the current cycle, in any jurisdiction VoteRight already has residents
-    verified in — turns "someone happens to notice" into "staff sees a
-    number on a dashboard."
-  - **Prioritization signal**: log which specific Pending seats real
-    address-verified residents actually view, so ingestion effort goes
-    where real people are waiting on it, not wherever staff happens to
-    look first.
-  - **Sourcing itself is NOT automatable the same way** — unlike
+- ~~No trigger closes a "Pending" (no `races` row yet) seat
+  automatically~~ **DONE for detection + prioritization (2026-08-24,
+  migration 091)** — found live 2026-08-23 when a real gap (Montgomery
+  County Clerk of the Circuit Court — in scope, just never got a `races`
+  row; see `db/seed.clerk-circuit-court-2026.sql`) was only caught because
+  someone happened to notice it during manual testing. New `/admin/race-
+  coverage` screen (own RBAC key): `lib/coverage.ts`'s `pendingCoverageGaps()`
+  finds every elected office with no `races` row for the current cycle, in
+  any jurisdiction with at least one address_verified-or-better resident
+  (a recursive walk up `jurisdictions.parent_ocd_id`, same pattern
+  `ballotForJurisdiction` already uses) — ranked by `pending_seat_views`,
+  a new log of which specific Pending seats real residents' own ballots
+  actually showed them (one row per office/user/day, fired from
+  `app/page.tsx`'s Ballot render, mirroring `SeatRow`'s own tracked/
+  judicial/off-cycle branching so the signal matches what residents
+  actually see). Verified live: Clerk of the Circuit Court correctly does
+  NOT appear (already fixed); a real Ballot-page visit as a verified
+  Montgomery County resident logged 10 genuine gaps (state/federal offices
+  with no 2026 race seeded) and the admin query correctly ranked the
+  viewed ones first among 146 total gaps nationwide.
+  - **Sourcing itself is still NOT automatable the same way** — unlike
     officeholder rosters (OpenStates/Congress.gov give one consistent
     nationwide API), there's no equivalent for candidate-filing data.
     Every state (often every county) runs its own election system, many
-    not built for machine access — closing today's one gap took several
-    live fetches by hand against Maryland's own HTML election pages. A
-    cron job can tell you *what's* missing; it can't go find and verify
-    *who's running* — that's a human judgment call per jurisdiction until
+    not built for machine access. This screen tells you *what's* missing
+    and *where the demand is*; it can't go find and verify *who's
+    running* — that stays a human judgment call per jurisdiction until
     enough get built up that real reusable patterns emerge (e.g. one
     "Maryland SBE scraper" reused across every MD jurisdiction).
-  - Owner's call (2026-08-23): note it, don't build it yet — priority is
-    finishing the 1.1.4 mobile testing pass first.
 
 ## Admin-editable priority topics/axes
 

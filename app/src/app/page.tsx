@@ -4,6 +4,7 @@ import { Chev } from "@/components/Chev";
 import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
+import { logPendingSeatViews } from "@/lib/coverage";
 import { langFrom, t } from "@/lib/i18n";
 import {
   ballotForJurisdiction,
@@ -220,6 +221,31 @@ export default async function BallotPage({
             appellateCircuit: residence.appellate_circuit,
           }
         : null);
+
+  // Race/candidate coverage tracking, prioritization signal (docs/BACKLOG.md,
+  // 2026-08-23 entry) -- log which Pending seats this real, address-verified
+  // resident's OWN ballot actually shows them, never a visitor's browsed
+  // jurisdiction. Mirrors SeatRow's own tracked/judicial/offCycle branching
+  // below exactly (a seat only reaches the Pending "later" chip under the
+  // same three conditions) -- if that branching ever changes, this must
+  // change with it or the signal silently drifts from what residents
+  // actually see. Fire-and-forget: never blocks the page on a logging write.
+  if (!visited && residenceId && userId) {
+    const pendingOfficeIds = offices
+      .filter((o) => {
+        if (o.race_id !== null || o.level === "judicial") return false;
+        const nextYear = nextElectionYear(o.term_start_year, o.term_length_years);
+        const offCycle =
+          o.level !== "municipal" &&
+          o.term_length_years > 2 &&
+          o.term_start_precise &&
+          nextYear !== null &&
+          nextYear !== CURRENT_CYCLE_YEAR;
+        return !offCycle;
+      })
+      .map((o) => o.id);
+    void logPendingSeatViews(userId, pendingOfficeIds);
+  }
 
   // Jurisdictions in stack order (deepest first), from the rows themselves.
   const jurisdictions: { id: string; name: string }[] = [];

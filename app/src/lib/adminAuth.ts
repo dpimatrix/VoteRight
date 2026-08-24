@@ -37,6 +37,7 @@ export const SCREEN_KEYS = [
   "positions",
   "transparency",
   "admin_accounts",
+  "race_coverage",
 ] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 export const SCREEN_LABEL: Record<ScreenKey, string> = {
@@ -52,6 +53,7 @@ export const SCREEN_LABEL: Record<ScreenKey, string> = {
   positions: "Vote → position coding",
   transparency: "Outside money & endorsements",
   admin_accounts: "Admin accounts",
+  race_coverage: "Race coverage",
 };
 
 /* ── base32 (RFC 4648, padding optional) ── */

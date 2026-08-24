@@ -64,6 +64,17 @@ CREATE TABLE races (
     UNIQUE (election_cycle_id, office_id)
 );
 
+-- Race/candidate coverage tracking, prioritization signal (migration 091) --
+-- which Pending seats (an elected office with no races row this cycle)
+-- real address-verified residents actually view. One row per (office,
+-- user, day); ON CONFLICT DO NOTHING on repeat same-day visits.
+CREATE TABLE pending_seat_views (
+    office_id  UUID NOT NULL REFERENCES offices(id),
+    user_id    UUID NOT NULL REFERENCES users(id),
+    viewed_on  DATE NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (office_id, user_id, viewed_on)
+);
+
 -- incumbency is a join table, not a singular column on races — a multi-seat at-large
 -- contest (the pilot county's own Council) has several sitting incumbents at once
 CREATE TABLE race_incumbents (
