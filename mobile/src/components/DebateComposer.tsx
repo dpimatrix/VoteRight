@@ -1,13 +1,15 @@
-import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
+import { useEvent } from 'expo';
+import { AudioModule, RecordingPresets, useAudioPlayer, useAudioPlayerStatus, useAudioRecorder } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { canonicalArgumentPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
-import { errorCode, post, postFormData } from '@/services/api';
+import { errorCode, post, uploadMedia } from '@/services/api';
 
 import { ThemedText } from './themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -103,6 +105,21 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
     // stable for the component's lifetime (useAudioRecorder's own
     // contract); only want this to run once, on unmount.
   }, []);
+
+  // Preview playback (2026-08-24, owner feedback: no way to review a
+  // recording before posting it). Separate player instances from the
+  // recorder above -- expo-audio's recording and playback objects are
+  // different concerns, and video needs its own player entirely
+  // (expo-video, not expo-audio). Both hooks are called unconditionally
+  // (Rules of Hooks) with a null source when not applicable -- both
+  // packages document null as a safe, explicit "no source loaded" value,
+  // not something to work around.
+  const videoPreviewPlayer = useVideoPlayer(format === 'video' && media ? media.uri : null);
+  const { isPlaying: videoPreviewPlaying } = useEvent(videoPreviewPlayer, 'playingChange', {
+    isPlaying: videoPreviewPlayer.playing,
+  });
+  const audioPreviewPlayer = useAudioPlayer(format === 'audio' && media ? media.uri : null);
+  const audioPreviewStatus = useAudioPlayerStatus(audioPreviewPlayer);
 
   function selectFormat(v: Format) {
     // Discard, don't keep: stopRecording() (used by the Stop button) also
@@ -235,16 +252,17 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       }
       setMediaError(null);
       try {
-        const form = new FormData();
-        form.append('side', side);
-        form.append('format', format);
-        // RN's FormData accepts this {uri, name, type} shape for a file
-        // part -- not a real Blob/File the way web's DOM FormData needs,
-        // this is React Native's own established convention for a
-        // multipart file upload; the cast is for TS's DOM-shaped
-        // FormData.append typing, which doesn't know about it.
-        form.append('media', { uri: media.uri, name: media.name, type: media.mimeType } as unknown as Blob);
-        await postFormData(`/api/debates/${threadId}/argue`, form);
+        // Not fetch()/FormData -- see uploadMedia's own header comment for
+        // why (a real on-device crash, "Unsupported FormDataPart
+        // implementation", traced to metro.config.js's enablePackageExports
+        // side-swapping the global fetch to expo/fetch, which doesn't
+        // support RN's file-part shape at all).
+        await uploadMedia(
+          `/api/debates/${threadId}/argue`,
+          media.uri,
+          { side, format },
+          { fieldName: 'media', mimeType: media.mimeType },
+        );
         setPosted(true);
         clearMedia();
         onPosted();
@@ -382,9 +400,14 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
       {format === 'audio' && (
         <View style={styles.mediaBox}>
           {!media && !recording && (
+            // Neutral border, not colors.evidence -- that color is reserved
+            // for an actually-selected/active state elsewhere in this same
+            // composer (the side/format toggles above, and the recording-
+            // in-progress fill below). This is just an idle action button,
+            // not a member of a toggle group.
             <Pressable
               onPress={startRecording}
-              style={[styles.mediaBtn, { borderColor: colors.evidence }]}
+              style={[styles.mediaBtn, { borderColor: colors.textSecondary }]}
             >
               <ThemedText type="small">{d.record_btn}</ThemedText>
             </Pressable>
@@ -401,6 +424,13 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
           )}
           {media && !recording && (
             <View style={styles.sideRow}>
+              {/* Preview playback (2026-08-24, owner feedback) -- lets you
+                  actually hear what you recorded before posting it. */}
+              <Pressable
+                onPress={() => (audioPreviewStatus.playing ? audioPreviewPlayer.pause() : audioPreviewPlayer.play())}
+              >
+                <ThemedText type="linkPrimary">{audioPreviewStatus.playing ? d.pause_btn : d.play_btn}</ThemedText>
+              </Pressable>
               <ThemedText type="small">{tf(d.media_ready, { duration: Math.round(media.durationSeconds ?? 0) })}</ThemedText>
               <Pressable onPress={() => { clearMedia(); startRecording(); }}>
                 <ThemedText type="linkPrimary">{d.re_record_btn}</ThemedText>
@@ -414,20 +444,35 @@ export function DebateComposer({ threadId, onPosted }: { threadId: string; onPos
         <View style={styles.mediaBox}>
           {!media && (
             <View style={styles.sideRow}>
-              <Pressable onPress={recordVideo} style={[styles.mediaBtn, { borderColor: colors.evidence }]}>
+              {/* Neutral borders here too, same reasoning as audio's Record
+                  button above -- these are two independent one-tap actions
+                  (each launches its own native picker/camera and returns
+                  a result or a cancellation), not a persistent toggle
+                  pair, so neither should look "selected" while idle. */}
+              <Pressable onPress={recordVideo} style={[styles.mediaBtn, { borderColor: colors.textSecondary }]}>
                 <ThemedText type="small">{d.record_video_btn}</ThemedText>
               </Pressable>
-              <Pressable onPress={chooseVideo} style={[styles.mediaBtn, { borderColor: colors.evidence }]}>
+              <Pressable onPress={chooseVideo} style={[styles.mediaBtn, { borderColor: colors.textSecondary }]}>
                 <ThemedText type="small">{d.choose_video_btn}</ThemedText>
               </Pressable>
             </View>
           )}
           {media && (
-            <View style={styles.sideRow}>
-              <ThemedText type="small">{tf(d.media_ready, { duration: Math.round(media.durationSeconds ?? 0) })}</ThemedText>
-              <Pressable onPress={clearMedia}>
-                <ThemedText type="linkPrimary">{d.change_media_btn}</ThemedText>
-              </Pressable>
+            <View style={styles.mediaBox}>
+              {/* Preview playback (2026-08-24, owner feedback: no way to
+                  review a video before posting it). */}
+              <VideoView player={videoPreviewPlayer} style={styles.videoPreview} contentFit="contain" />
+              <View style={styles.sideRow}>
+                <Pressable
+                  onPress={() => (videoPreviewPlaying ? videoPreviewPlayer.pause() : videoPreviewPlayer.play())}
+                >
+                  <ThemedText type="linkPrimary">{videoPreviewPlaying ? d.pause_btn : d.play_btn}</ThemedText>
+                </Pressable>
+                <ThemedText type="small">{tf(d.media_ready, { duration: Math.round(media.durationSeconds ?? 0) })}</ThemedText>
+                <Pressable onPress={clearMedia}>
+                  <ThemedText type="linkPrimary">{d.change_media_btn}</ThemedText>
+                </Pressable>
+              </View>
             </View>
           )}
         </View>
@@ -495,6 +540,7 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 90, textAlignVertical: 'top' },
   mediaBox: { gap: Spacing.two },
   mediaBtn: { flex: 1, borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center' },
+  videoPreview: { width: '100%', height: 200, borderRadius: Spacing.two, backgroundColor: '#000' },
   claimBox: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, gap: Spacing.two },
   claimActions: { flexDirection: 'row', gap: Spacing.three, flexWrap: 'wrap' },
   submitBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },

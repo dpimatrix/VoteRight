@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { File, UploadType } from "expo-file-system";
 import { API_URL } from "../constants/Config";
 
 const SESSION_KEY = "voteright_session_id";
@@ -110,34 +111,59 @@ export const post = async <T = unknown>(path: string, body?: unknown): Promise<T
   }
 };
 
-// Audio/video debate arguments (2026-08-24) -- separate from post() rather
-// than a `body instanceof FormData` branch on it, for two real reasons: (1)
-// no "Content-Type: application/json" header here -- fetch needs to set its
-// own multipart boundary, which setting Content-Type manually would break;
-// (2) a media upload (up to 250MB, MAX_UPLOAD_BYTES in web's media.ts) needs
-// a much longer timeout than every other call this app makes -- 15s is
-// tuned for a plain JSON request/response, not a large file transfer plus
-// server-side ffmpeg transcoding. getHeaders() itself stays private to this
-// module either way -- this exposes only what a caller actually needs (the
-// session header applied), not the session state itself.
+// Audio/video debate arguments (2026-08-24) -- NOT built on fetch()/FormData
+// the way get()/post() are. Real bug found live on-device (2026-08-24,
+// screenshot from the owner): a plain `fetch(url, { body: formData })` with
+// an RN-style {uri, name, type} file part throws "Unsupported FormDataPart
+// implementation" on this project's exact setup. Root cause traced, not
+// guessed: metro.config.js's `unstable_enablePackageExports = true` (added
+// for @noble/curves/@noble/hashes's package.json "exports" maps, see that
+// file's own comment) has a documented side effect on Expo SDK 53+ --
+// it also redirects the global fetch/Request/Response/Headers to expo/fetch
+// instead of React Native's classic polyfill, and expo/fetch's own FormData
+// support is a known, currently-open gap (expo/expo#33134) that doesn't
+// accept RN's traditional file-part shape at all. Turning off
+// enablePackageExports isn't an option -- that would break the signing
+// library's own module resolution, a real, already-shipped feature.
 //
-// 300s, not just the server's own 120s ffmpeg wall-clock kill (§9.1) --
-// that 120s only covers the TRANSCODE step, which starts AFTER the full
-// upload already lands server-side. A tighter client timeout budgeted only
-// for the transcode would abort mid-upload on anything but a fast
-// connection (250MB in under a minute needs a sustained ~35+ Mbps
-// upload, not guaranteed on cellular), which would show a false failure
-// even though the server might go on to succeed anyway.
-export const postFormData = async <T = unknown>(path: string, form: FormData): Promise<T> => {
+// Fixed by not going through fetch/FormData for this one call at all:
+// expo-file-system's File.upload() does the multipart upload via its own
+// native upload task, entirely independent of whichever global fetch
+// implementation is currently active. UploadResult's `body` is a raw
+// string (this endpoint's own responses are always JSON, parsed by the
+// caller) and `status` isn't auto-checked against 2xx the way fetch's
+// `res.ok` is -- both handled explicitly below.
+export const uploadMedia = async <T = unknown>(
+  path: string,
+  fileUri: string,
+  fields: Record<string, string>,
+  opts: { fieldName: string; mimeType: string },
+): Promise<T> => {
   await sessionReady;
-  const { signal, clear } = withTimeout(300000);
+  const file = new File(fileUri);
+  const result = await file.upload(`${API_URL}${path}`, {
+    uploadType: UploadType.MULTIPART,
+    fieldName: opts.fieldName,
+    mimeType: opts.mimeType,
+    parameters: fields,
+    headers: getHeaders(),
+    // Same 300s reasoning as before this rewrite: not just the server's own
+    // 120s ffmpeg wall-clock cap (§9.1) -- that only covers the TRANSCODE
+    // step, which starts AFTER the full upload already lands server-side.
+    // A tighter timeout budgeted only for the transcode would abort
+    // mid-upload on anything but a fast connection (250MB in under a
+    // minute needs a sustained ~35+ Mbps upload, not guaranteed on
+    // cellular).
+    signal: AbortSignal.timeout(300000),
+  });
+  let body: unknown;
   try {
-    const res = await fetch(`${API_URL}${path}`, { method: "POST", headers: getHeaders(), body: form, signal });
-    if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));
-    return (await res.json()) as T;
-  } finally {
-    clear();
+    body = JSON.parse(result.body);
+  } catch {
+    body = undefined;
   }
+  if (result.status < 200 || result.status >= 300) throw new ApiError("POST", path, result.status, body);
+  return body as T;
 };
 
 /** Convenience for the common "route to the right screen" branch every

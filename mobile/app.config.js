@@ -20,6 +20,11 @@ export default ({ config }) => {
           photosPermission: "VoteRight needs photo library access to choose an existing video for a debate argument.",
         },
       ],
+      // In-composer preview playback (2026-08-24, owner feedback: no way to
+      // review a video before posting it). No config options needed for
+      // plain local-file playback -- only background playback/PiP would
+      // need any, neither of which applies to a short preview.
+      "expo-video",
     ],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {
