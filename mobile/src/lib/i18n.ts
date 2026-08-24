@@ -75,6 +75,7 @@ const DICT = {
     lang_es: 'Español',
     lang_es_desc: 'Usar siempre español',
     about_h: 'About',
+    sub_h: 'Support VoteRight',
     privacy_link: 'Privacy policy',
 
     // ---- (tabs)/priorities.tsx ----
@@ -433,6 +434,7 @@ const DICT = {
     lang_es: 'Español',
     lang_es_desc: 'Usar siempre español',
     about_h: 'Acerca de',
+    sub_h: 'Apoya a VoteRight',
     privacy_link: 'Política de privacidad',
 
     // ---- (tabs)/priorities.tsx ----

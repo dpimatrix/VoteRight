@@ -87,6 +87,27 @@ export default function SettingsScreen() {
           ))}
         </View>
 
+        {/* Membership/donations (2026-08-24, owner's explicit call: open
+            web's existing Stripe Billing checkout in-app rather than build
+            a native payment sheet -- avoids Apple's In-App Purchase
+            requirement for this category, which VoteRight likely can't
+            cleanly exempt from without confirmed nonprofit status,
+            ARCHITECTURE.md §13 item 2, still open). Real, deliberately
+            unsolved gap: this in-app browser sheet is a SEPARATE cookie
+            jar from the native app's own X-VoteRight-Session identity, so
+            a subscription bought here is tied to whatever new anonymous
+            web session gets minted, not this device's own app identity --
+            mobile has no way to show "you're a Patron" or manage the
+            subscription in-app as a result. Fine for the ask actually
+            made (get a working, compliant path to pay at all); real
+            identity unification would be its own separate piece of work. */}
+        <ThemedText type="smallBold">{d.sub_h}</ThemedText>
+        <View style={styles.group}>
+          <ExternalLink href={`${WEB_URL}/subscribe?lang=${lang}` as Href & string} style={[styles.row, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="small">{d.sub_h}</ThemedText>
+          </ExternalLink>
+        </View>
+
         {/* Web's /verify already links to /privacy right under the address
             form; mobile had no reference to the privacy policy anywhere at
             all until now (found 2026-08-24 auditing web/mobile parity) --
