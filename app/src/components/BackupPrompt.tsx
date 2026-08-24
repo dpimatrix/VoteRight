@@ -28,11 +28,24 @@ export function BackupPrompt({ lang, d }: { lang: "en" | "es"; d: D }) {
   const [dismissed, setDismissed] = useState(true); // default hidden until the localStorage check below resolves, avoiding a flash on page load
 
   useEffect(() => {
-    setDismissed(localStorage.getItem(DISMISSED_KEY) === "1");
+    // localStorage can throw in some privacy-mode/storage-restricted
+    // browsers -- caught rather than left to bubble into an effect-phase
+    // exception (mobile's BackupNudge already does the AsyncStorage
+    // equivalent of this; this was the one platform missing it).
+    try {
+      setDismissed(localStorage.getItem(DISMISSED_KEY) === "1");
+    } catch {
+      setDismissed(false);
+    }
   }, []);
 
   function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, "1");
+    try {
+      localStorage.setItem(DISMISSED_KEY, "1");
+    } catch {
+      // Best-effort -- worst case the nudge reappears next visit, not a
+      // functional problem.
+    }
     setDismissed(true);
   }
 

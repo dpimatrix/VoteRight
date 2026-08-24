@@ -157,11 +157,49 @@ export async function currentUserIdForSigning(): Promise<string> {
 /** Passphrase-encrypted backup/export — mirrors web's clientSigning.ts
     exactly in shape and work factor (same EncryptedBackup fields, same
     600,000 PBKDF2-SHA256 iterations, OWASP's 2023 minimum), ported to
-    @noble/ciphers' AES-GCM since RN has no Web Crypto. The private key
-    here is already a raw 32-byte scalar (ed25519.keygen()'s own format)
-    rather than web's PKCS8-wrapped CryptoKey export — genuinely simpler
-    to serialize, not a shortcut taken at security's expense. */
+    @noble/ciphers' AES-GCM since RN has no Web Crypto.
+
+    Real bug caught in review, not live yet: web encrypts
+    crypto.subtle.exportKey("pkcs8", ...) — a 48-byte PKCS8 DER structure,
+    not the bare 32-byte scalar ed25519.keygen() itself produces. A first
+    version of this file encrypted the raw scalar directly, which would
+    have decrypted fine (same passphrase, same cipher) but produced 32
+    wrong-shaped bytes wherever the OTHER platform tried to read it back —
+    ed25519.getPublicKey() on a PKCS8 blob, or Web Crypto's own
+    importKey("pkcs8", ...) on a bare scalar, are both silent-garbage or
+    hard-failure territory, not a clean error. Since recovering a mobile
+    backup on web (or a web backup on mobile) is the whole point of this
+    feature — ARCHITECTURE.md §10.3 explicitly frames it as "another
+    device... keeps working too" — same-platform-only would have quietly
+    broken half of what backup/restore is for. Fixed by wrapping/unwrapping
+    the exact same PKCS8 DER prefix Web Crypto emits for Ed25519 (RFC 8410
+    §10.3; independently confirmed against Node's own
+    crypto.generateKeyPairSync('ed25519').export({type:'pkcs8',
+    format:'der'}) rather than trusting one source) so both platforms
+    encrypt byte-identical plaintext. */
 const PBKDF2_ITERATIONS = 600_000;
+
+// RFC 8410's Ed25519 PKCS8 structure has no variable fields besides the
+// raw 32-byte key itself (no parameters, no optional fields) — this
+// 16-byte prefix is universal, not something to derive per-key.
+const PKCS8_ED25519_PREFIX = new Uint8Array([
+  0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+]);
+
+function toPkcs8(rawSecretKey: Uint8Array): Uint8Array {
+  const out = new Uint8Array(PKCS8_ED25519_PREFIX.length + rawSecretKey.length);
+  out.set(PKCS8_ED25519_PREFIX, 0);
+  out.set(rawSecretKey, PKCS8_ED25519_PREFIX.length);
+  return out;
+}
+
+function fromPkcs8(pkcs8: Uint8Array): Uint8Array {
+  const prefixLen = PKCS8_ED25519_PREFIX.length;
+  if (pkcs8.length !== prefixLen + 32 || !PKCS8_ED25519_PREFIX.every((b, i) => pkcs8[i] === b)) {
+    throw new Error('not a valid Ed25519 PKCS8 key');
+  }
+  return pkcs8.slice(prefixLen);
+}
 
 export interface EncryptedBackup {
   v: 1;
@@ -188,7 +226,11 @@ export async function exportEncryptedBackup(passphrase: string): Promise<Encrypt
   const salt = Crypto.getRandomValues(new Uint8Array(16));
   const iv = Crypto.getRandomValues(new Uint8Array(12));
   const backupKey = await deriveBackupKey(passphrase, salt);
-  const ciphertext = gcm(backupKey, iv).encrypt(secretKey);
+  // PKCS8-wrapped, not the bare scalar -- see this function's own header
+  // comment on why: byte-identical to what web's exportKey("pkcs8", ...)
+  // produces, so a backup made here decrypts to something web's importKey
+  // can actually load, and vice versa.
+  const ciphertext = gcm(backupKey, iv).encrypt(toPkcs8(secretKey));
   return {
     v: 1,
     kdf: 'PBKDF2-SHA256',
@@ -229,7 +271,13 @@ export async function importEncryptedBackup(
   const backupKey = await deriveBackupKey(passphrase, salt);
   let secretKey: Uint8Array;
   try {
-    secretKey = gcm(backupKey, iv).decrypt(ciphertext);
+    // Unwraps the PKCS8 prefix too -- see exportEncryptedBackup's own
+    // comment. fromPkcs8 throws on anything not shaped like the Ed25519
+    // PKCS8 structure it expects, which lands in the same catch as a
+    // failed decrypt: either way, this wasn't a valid VoteRight backup
+    // for the passphrase given, and that's the only distinction the user
+    // needs.
+    secretKey = fromPkcs8(gcm(backupKey, iv).decrypt(ciphertext));
   } catch {
     throw new Error('wrong passphrase, or the backup file is corrupted');
   }

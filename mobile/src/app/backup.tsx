@@ -63,9 +63,13 @@ export default function BackupScreen() {
       const file = new File(Paths.cache, `voteright-key-backup-${Date.now()}.json`);
       file.create();
       file.write(JSON.stringify(backup));
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: d.key_export_share_title });
-      }
+      // Only claim success if the file actually had somewhere to go --
+      // sharing being unavailable (rare on a real device, but real on some
+      // simulators/emulators) would otherwise leave the backup stranded
+      // in this app's own cache with no way for the user to retrieve it,
+      // while still seeing "Backup ready."
+      if (!(await Sharing.isAvailableAsync())) throw new Error('sharing unavailable on this device');
+      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: d.key_export_share_title });
       setMessage(d.key_export_ok);
       resetForm();
     } catch (e) {
@@ -136,11 +140,17 @@ export default function BackupScreen() {
       )}
 
       {mode === 'idle' && (
+        // Neutral border, not colors.evidence -- same fix as DebateComposer's
+        // video Record/Choose buttons earlier this pass: these are two
+        // independent one-tap actions (each opens its own sub-form), not a
+        // persistent toggle, so neither should look "selected" while idle.
+        // Missed here on first pass despite fixing the identical pattern
+        // elsewhere in the same session -- caught on review, not live.
         <View style={styles.row}>
-          <Pressable onPress={() => setMode('export')} style={[styles.btn, { borderColor: colors.evidence }]}>
+          <Pressable onPress={() => setMode('export')} style={[styles.btn, { borderColor: colors.textSecondary }]}>
             <ThemedText type="small">{d.key_export_btn}</ThemedText>
           </Pressable>
-          <Pressable onPress={() => setMode('import')} style={[styles.btn, { borderColor: colors.evidence }]}>
+          <Pressable onPress={() => setMode('import')} style={[styles.btn, { borderColor: colors.textSecondary }]}>
             <ThemedText type="small">{d.key_import_btn}</ThemedText>
           </Pressable>
         </View>
