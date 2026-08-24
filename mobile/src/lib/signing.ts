@@ -6,14 +6,26 @@
    IndexedDB. Both sides must produce byte-identical base64 encodings for a
    signature to verify — see the matching notes in signing.ts on the server.
 
-   Scope note: this only covers the core sign/register path needed for
-   write actions (arguments, proposals, seconds). Passphrase-encrypted
-   backup/export and revoke/rotate — present on web — are deferred to the
-   mobile Privacy/key-settings screen, a separate piece of work. */
+   Backup/export and identity recovery added 2026-08-24, closing a real
+   gap the owner ran into directly: reinstalling the app mints a brand
+   new anonymous identity with no link back to the old one, silently
+   orphaning verification, priorities, debate history, and payment_verified
+   status — exactly the problem web's own backup/restore (migration 088,
+   ARCHITECTURE.md §10.3) was built to solve, just never carried over here
+   (this file's own comment used to say so explicitly). Same design, ported
+   to what's actually available in Hermes rather than assumed from web:
+   AES-256-GCM + PBKDF2-SHA256 via @noble/ciphers/@noble/hashes (same
+   audited "noble" family already trusted here for signing itself) instead
+   of Web Crypto's crypto.subtle, which RN doesn't have. Revoke/rotate
+   (web's mitigation for a leaked backup file) is NOT built here — a real,
+   deliberately separate follow-up, not silently assumed done. */
 import { ed25519 } from '@noble/curves/ed25519.js';
+import { gcm } from '@noble/ciphers/aes.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
+import * as Crypto from 'expo-crypto';
 
-import { get, post } from '@/services/api';
+import { adoptSessionId, get, post } from '@/services/api';
 
 // Imported lazily (not at module scope) because expo-secure-store's native
 // module isn't necessarily compiled into every installed build yet — Expo
@@ -140,4 +152,103 @@ export async function currentUserIdForSigning(): Promise<string> {
   const res = await get<{ userId: string }>('/api/whoami');
   cachedUserId = res.userId;
   return cachedUserId;
+}
+
+/** Passphrase-encrypted backup/export — mirrors web's clientSigning.ts
+    exactly in shape and work factor (same EncryptedBackup fields, same
+    600,000 PBKDF2-SHA256 iterations, OWASP's 2023 minimum), ported to
+    @noble/ciphers' AES-GCM since RN has no Web Crypto. The private key
+    here is already a raw 32-byte scalar (ed25519.keygen()'s own format)
+    rather than web's PKCS8-wrapped CryptoKey export — genuinely simpler
+    to serialize, not a shortcut taken at security's expense. */
+const PBKDF2_ITERATIONS = 600_000;
+
+export interface EncryptedBackup {
+  v: 1;
+  kdf: 'PBKDF2-SHA256';
+  iterations: number;
+  saltB64: string;
+  ivB64: string;
+  ciphertextB64: string;
+}
+
+async function deriveBackupKey(passphrase: string, salt: Uint8Array): Promise<Uint8Array> {
+  // Async, not the plain sync pbkdf2 — 600k iterations in pure JS (no
+  // native-thread offload the way a browser's Web Crypto gets) would
+  // otherwise block Hermes's single JS thread for a real, user-visible
+  // stretch. asyncTick lets the scheduler breathe between chunks of work
+  // instead of freezing the UI for the whole derivation.
+  return pbkdf2Async(sha256, passphrase, salt, { c: PBKDF2_ITERATIONS, dkLen: 32, asyncTick: 10 });
+}
+
+export async function exportEncryptedBackup(passphrase: string): Promise<EncryptedBackup> {
+  const record = await loadRecord();
+  if (!record) throw new Error('no signing key to export');
+  const secretKey = base64ToBytes(record.secretKeyB64);
+  const salt = Crypto.getRandomValues(new Uint8Array(16));
+  const iv = Crypto.getRandomValues(new Uint8Array(12));
+  const backupKey = await deriveBackupKey(passphrase, salt);
+  const ciphertext = gcm(backupKey, iv).encrypt(secretKey);
+  return {
+    v: 1,
+    kdf: 'PBKDF2-SHA256',
+    iterations: PBKDF2_ITERATIONS,
+    saltB64: bytesToBase64(salt),
+    ivB64: bytesToBase64(iv),
+    ciphertextB64: bytesToBase64(ciphertext),
+  };
+}
+
+/** Restores a key from an encrypted backup — a wrong passphrase throws
+    (AES-GCM's own auth tag fails to verify) rather than silently
+    producing garbage, same as web.
+
+    Identity recovery: unlike ensureSigningKey()'s plain
+    POST /api/keys/register for a freshly generated key, a RESTORED key
+    might belong to a different, already-existing identity than this
+    session's current one — the whole point of a deliberate restore.
+    Goes through POST /api/keys/recover instead, mirroring web's own
+    importEncryptedBackup(); the difference is what happens with a real
+    recovery. Web re-points a cookie server-side (anon.ts's
+    adoptIdentity()) with nothing more for the client to do. Mobile has
+    no cookie jar — the recovered identity's own original session id
+    comes back in the response body instead (server-side: the same
+    adoptIdentity() call, its return value now actually used) and gets
+    persisted via services/api.ts's adoptSessionId(), overwriting this
+    installation's fresh one so every subsequent request carries the
+    recovered identity. cachedUserId is reset so the next
+    currentUserIdForSigning() call re-fetches instead of serving the
+    now-stale pre-recovery id. */
+export async function importEncryptedBackup(
+  backup: EncryptedBackup,
+  passphrase: string,
+): Promise<{ recovered: boolean }> {
+  const salt = base64ToBytes(backup.saltB64);
+  const iv = base64ToBytes(backup.ivB64);
+  const ciphertext = base64ToBytes(backup.ciphertextB64);
+  const backupKey = await deriveBackupKey(passphrase, salt);
+  let secretKey: Uint8Array;
+  try {
+    secretKey = gcm(backupKey, iv).decrypt(ciphertext);
+  } catch {
+    throw new Error('wrong passphrase, or the backup file is corrupted');
+  }
+  const publicKey = ed25519.getPublicKey(secretKey);
+  const publicKeyB64 = bytesToBase64(publicKey);
+  const fingerprint = fingerprintOf(publicKey);
+
+  const res = await post<{ recovered: boolean; anonId?: string }>('/api/keys/recover', { publicKey: publicKeyB64 });
+
+  if (res.recovered && res.anonId) {
+    adoptSessionId(res.anonId);
+    cachedUserId = null;
+  }
+
+  await saveRecord({
+    secretKeyB64: bytesToBase64(secretKey),
+    publicKeyB64,
+    fingerprint,
+    registered: true,
+  });
+  return { recovered: res.recovered };
 }

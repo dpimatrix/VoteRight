@@ -25,6 +25,12 @@ export default ({ config }) => {
       // plain local-file playback -- only background playback/PiP would
       // need any, neither of which applies to a short preview.
       "expo-video",
+      // Identity backup/recovery (2026-08-24, closing the reinstall-wipes-
+      // your-identity gap the owner ran into directly). expo-sharing hands
+      // the encrypted backup file to the OS share sheet so it can leave
+      // the device (Files/Drive/email/etc.) -- it can't just live in
+      // app storage, that's exactly what gets wiped on a reinstall too.
+      "expo-sharing",
     ],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {

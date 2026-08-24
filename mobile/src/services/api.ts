@@ -14,6 +14,15 @@ const persistSessionId = (sid: string) => {
   AsyncStorage.setItem(SESSION_KEY, sid).catch(() => {});
 };
 
+/** Identity recovery (2026-08-24) -- overwrites the current session id with
+ *  a recovered one, e.g. after signing.ts's importEncryptedBackup() finds
+ *  the restored key belongs to a different, already-existing identity than
+ *  this fresh install's own session (mirrors web's adoptIdentity() in
+ *  anon.ts, which re-points a cookie the same way). Exported rather than
+ *  reusing persistSessionId directly so callers can't casually overwrite
+ *  the session id for any other reason -- this name says what it's for. */
+export const adoptSessionId = persistSessionId;
+
 // Resolves once any stored session id has been loaded from AsyncStorage.
 let sessionReadyResolve!: () => void;
 export const sessionReady: Promise<void> = new Promise((resolve) => {
