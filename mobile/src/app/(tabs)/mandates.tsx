@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -48,26 +48,32 @@ export default function MandatesScreen() {
   const [mandates, setMandates] = useState<Mandate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        try {
-          if (!hasSession()) await ensureSession();
-          const res = await get<{ referenda: Referendum[]; mandates: Mandate[] }>('/api/mandates');
-          if (cancelled) return;
-          setReferenda(res.referenda);
-          setMandates(res.mandates);
-        } catch (e) {
-          console.error('Mandates load failed:', e);
-          if (!cancelled) setError(d.mandates_load_error);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [d.mandates_load_error]),
-  );
+  // Ref-based generation guard rather than a plain closure `cancelled`
+  // boolean: loadMandates is now also called directly by the "Try again"
+  // button below, not just once per focus, so a stale in-flight call needs
+  // to know it's been superseded even while the screen stays focused (a
+  // closure boolean only ever flips on blur/unmount) -- same fix already
+  // applied to the Matches screen for the same reason.
+  const loadGeneration = useRef(0);
+  const loadMandates = useCallback(() => {
+    const gen = ++loadGeneration.current;
+    setError(null);
+    (async () => {
+      try {
+        if (!hasSession()) await ensureSession();
+        const res = await get<{ referenda: Referendum[]; mandates: Mandate[] }>('/api/mandates');
+        if (loadGeneration.current !== gen) return;
+        setReferenda(res.referenda);
+        setMandates(res.mandates);
+      } catch (e) {
+        if (loadGeneration.current !== gen) return;
+        console.error('Mandates load failed:', e);
+        setError(d.mandates_load_error);
+      }
+    })();
+  }, [d.mandates_load_error]);
+
+  useFocusEffect(useCallback(() => { loadMandates(); }, [loadMandates]));
 
   const open = referenda?.filter((r) => r.status === 'open') ?? [];
   const scheduled = referenda?.filter((r) => r.status === 'scheduled') ?? [];
@@ -86,7 +92,16 @@ export default function MandatesScreen() {
         </ThemedText>
 
         {!referenda && !error && <ActivityIndicator style={styles.spinner} />}
-        {error && <ThemedText type="small">{error}</ThemedText>}
+        {error && (
+          <View style={styles.rowWrap}>
+            <ThemedText type="small">{error}</ThemedText>
+            <Pressable onPress={loadMandates}>
+              <ThemedText type="small" style={{ color: colors.evidence }}>
+                {d.try_again}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
 
         {open.length > 0 && (
           <View style={styles.group}>
@@ -203,6 +218,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
   group: { gap: Spacing.two },
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.one },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, flexWrap: 'wrap' },

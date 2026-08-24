@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,29 +33,33 @@ export default function DebatesScreen() {
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        try {
-          if (!hasSession()) await ensureSession();
-          const [res, who] = await Promise.all([
-            get<{ proposals: Proposal[] }>('/api/debates'),
-            get<{ tier: string }>('/api/whoami'),
-          ]);
-          if (cancelled) return;
-          setProposals(res.proposals);
-          setTier(who.tier);
-        } catch (e) {
-          console.error('Debates load failed:', e);
-          if (!cancelled) setError(d.debates_load_error);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [d.debates_load_error]),
-  );
+  // Ref-based generation guard, not a plain closure `cancelled` boolean --
+  // loadDebates is also called directly by the "Try again" button below,
+  // so a stale in-flight call needs to know it's been superseded even
+  // while the screen stays focused (same fix already applied to Matches).
+  const loadGeneration = useRef(0);
+  const loadDebates = useCallback(() => {
+    const gen = ++loadGeneration.current;
+    setError(null);
+    (async () => {
+      try {
+        if (!hasSession()) await ensureSession();
+        const [res, who] = await Promise.all([
+          get<{ proposals: Proposal[] }>('/api/debates'),
+          get<{ tier: string }>('/api/whoami'),
+        ]);
+        if (loadGeneration.current !== gen) return;
+        setProposals(res.proposals);
+        setTier(who.tier);
+      } catch (e) {
+        if (loadGeneration.current !== gen) return;
+        console.error('Debates load failed:', e);
+        setError(d.debates_load_error);
+      }
+    })();
+  }, [d.debates_load_error]);
+
+  useFocusEffect(useCallback(() => { loadDebates(); }, [loadDebates]));
 
   const groups = proposals && [
     { key: 'debating', label: d.status_debating, items: proposals.filter((p) => p.status === 'debating') },
@@ -93,7 +97,16 @@ export default function DebatesScreen() {
         )}
 
         {!proposals && !error && <ActivityIndicator style={styles.spinner} />}
-        {error && <ThemedText type="small">{error}</ThemedText>}
+        {error && (
+          <View style={styles.rowWrap}>
+            <ThemedText type="small">{error}</ThemedText>
+            <Pressable onPress={loadDebates}>
+              <ThemedText type="small" style={{ color: colors.evidence }}>
+                {d.try_again}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
 
         {groups?.map(
           (g) =>
@@ -151,6 +164,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
   verifyBtn: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
   group: { gap: Spacing.two },
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.one },

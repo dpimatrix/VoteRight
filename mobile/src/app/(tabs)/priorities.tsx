@@ -45,39 +45,43 @@ export default function PrioritiesScreen() {
   const count = Object.keys(sel).length;
   const seededRef = useRef(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        try {
-          if (!hasSession()) await ensureSession();
-          const res = await get<{ topics: Topic[] }>('/api/topics');
-          if (cancelled) return;
-          setTopics(res.topics);
-          if (!seededRef.current) {
-            seededRef.current = true;
-            const saved = await get<{ priorities: SavedPriority[] }>('/api/priorities');
-            if (!cancelled && saved.priorities.length > 0) {
-              setSel(
-                Object.fromEntries(
-                  saved.priorities.map((p) => [
-                    p.axisId,
-                    { direction: p.direction, weight: p.weight, statement: p.statement },
-                  ]),
-                ),
-              );
-            }
+  // Ref-based generation guard, not a plain closure `cancelled` boolean --
+  // loadTopics is also called directly by the "Try again" button below, so
+  // a stale in-flight call needs to know it's been superseded even while
+  // the screen stays focused (same fix already applied to Matches).
+  const loadGeneration = useRef(0);
+  const loadTopics = useCallback(() => {
+    const gen = ++loadGeneration.current;
+    setError(null);
+    (async () => {
+      try {
+        if (!hasSession()) await ensureSession();
+        const res = await get<{ topics: Topic[] }>('/api/topics');
+        if (loadGeneration.current !== gen) return;
+        setTopics(res.topics);
+        if (!seededRef.current) {
+          seededRef.current = true;
+          const saved = await get<{ priorities: SavedPriority[] }>('/api/priorities');
+          if (loadGeneration.current === gen && saved.priorities.length > 0) {
+            setSel(
+              Object.fromEntries(
+                saved.priorities.map((p) => [
+                  p.axisId,
+                  { direction: p.direction, weight: p.weight, statement: p.statement },
+                ]),
+              ),
+            );
           }
-        } catch (e) {
-          console.error('Topics load failed:', e);
-          if (!cancelled) setError(d.topics_load_error);
         }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [d.topics_load_error]),
-  );
+      } catch (e) {
+        if (loadGeneration.current !== gen) return;
+        console.error('Topics load failed:', e);
+        setError(d.topics_load_error);
+      }
+    })();
+  }, [d.topics_load_error]);
+
+  useFocusEffect(useCallback(() => { loadTopics(); }, [loadTopics]));
 
   function pick(axisId: string, direction: 1 | -1, poleText: string) {
     setSel((s) => {
@@ -121,7 +125,18 @@ export default function PrioritiesScreen() {
         </ThemedText>
 
         {!topics && !error && <ActivityIndicator style={styles.spinner} />}
-        {error && <ThemedText type="small">{error}</ThemedText>}
+        {error && (
+          <View style={styles.rowWrap}>
+            <ThemedText type="small">{error}</ThemedText>
+            {error === d.topics_load_error && (
+              <Pressable onPress={loadTopics}>
+                <ThemedText type="small" style={{ color: colors.evidence }}>
+                  {d.try_again}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {topics?.map((tp) => {
           const s = sel[tp.axis_id];
@@ -205,6 +220,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   question: { marginTop: -Spacing.one },
   poles: { flexDirection: 'row', gap: Spacing.two },
