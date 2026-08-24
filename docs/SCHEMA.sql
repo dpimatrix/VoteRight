@@ -556,6 +556,14 @@ CREATE TABLE accountability_campaign_supports (
     PRIMARY KEY (campaign_id, user_id)
 );
 
+-- Optional citation for a campaign's description (migration 090) --
+-- mirrors argument_citations exactly, same shared citations ledger.
+CREATE TABLE campaign_citations (
+    campaign_id     UUID NOT NULL REFERENCES accountability_campaigns(id),
+    citation_id     UUID NOT NULL REFERENCES citations(id),
+    PRIMARY KEY (campaign_id, citation_id)
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- DIRECT DEMOCRACY LAYER
 -- ══════════════════════════════════════════════════════════════

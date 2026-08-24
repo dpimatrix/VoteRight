@@ -30,6 +30,7 @@ interface CampaignDetail {
   politician_name: string | null;
   politician_id: string | null;
   supported: boolean;
+  citations: { publisher: string | null; title: string | null }[];
 }
 
 export default function CampaignScreen() {
@@ -141,6 +142,17 @@ export default function CampaignScreen() {
         </View>
 
         <ThemedText type="small">{c.description}</ThemedText>
+        {c.citations.length > 0 && (
+          <View style={styles.pickerRow}>
+            {c.citations.map((cite, i) => (
+              <View key={i} style={[styles.chip, { borderColor: colors.evidence }]}>
+                <ThemedText type="small" style={{ color: colors.evidence }}>
+                  ▣ {cite.publisher} · {cite.title}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
           <View style={styles.rowBetween}>
@@ -204,4 +216,5 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, flexWrap: 'wrap' },
   chip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.half, paddingHorizontal: Spacing.two },
   actionBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
+  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });

@@ -46,6 +46,13 @@ export default async function CampaignPage({
         </div>
 
         <p style={{ fontSize: "0.92rem" }}>{c.description}</p>
+        {(c.citations as { publisher: string | null; title: string | null }[]).length > 0 && (
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginBottom: "0.4rem" }}>
+            {(c.citations as { publisher: string | null; title: string | null }[]).map((cite, i) => (
+              <span key={i} className="chip cite">▣ {cite.publisher} · {cite.title}</span>
+            ))}
+          </div>
+        )}
 
         <div className="card">
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>

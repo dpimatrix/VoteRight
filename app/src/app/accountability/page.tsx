@@ -72,6 +72,13 @@ export default async function AccountabilityPage({
                   d={d}
                 />
                 <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
+                <input
+                  type="url"
+                  name="citation_url"
+                  className="statement"
+                  style={{ minHeight: 0 }}
+                  placeholder={d.acct_cite_ph}
+                />
                 <button className="btn" type="submit">{d.acct_submit_politician}</button>
               </form>
             </div>
@@ -89,6 +96,13 @@ export default async function AccountabilityPage({
                     d={d}
                   />
                   <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
+                  <input
+                    type="url"
+                    name="citation_url"
+                    className="statement"
+                    style={{ minHeight: 0 }}
+                    placeholder={d.acct_cite_ph}
+                  />
                   <button className="btn" type="submit">{d.acct_submit_reform}</button>
                 </form>
               </div>

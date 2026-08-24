@@ -93,7 +93,12 @@ export async function campaignDetail(id: string, userId: string | null) {
             ap.description AS pathway_description,
             pol.full_name AS politician_name, pol.id AS politician_id,
             EXISTS (SELECT 1 FROM accountability_campaign_supports s
-                     WHERE s.campaign_id = c.id AND s.user_id = $2) AS supported
+                     WHERE s.campaign_id = c.id AND s.user_id = $2) AS supported,
+            -- Same shape DebateComposer's argument citations already render
+            -- in (publisher + title, see debates.ts/debates/[id]/page.tsx).
+            COALESCE((SELECT json_agg(json_build_object('publisher', ci.publisher, 'title', ci.title))
+               FROM campaign_citations cc JOIN citations ci ON ci.id = cc.citation_id
+              WHERE cc.campaign_id = c.id), '[]') AS citations
        FROM accountability_campaigns c
        JOIN accountability_pathways ap ON ap.id = c.pathway_id
        LEFT JOIN politicians pol ON pol.id = c.politician_id
@@ -196,6 +201,11 @@ export async function createCampaign(opts: {
   politicianId?: string;
   reformTitle?: string;
   description: string;
+  // Optional (2026-08-23, mirrors DebateComposer's citationUrl exactly --
+  // same shared citations ledger via a new campaign_citations join table,
+  // see migration 090). The campaign description has always asked "cite
+  // the record" with nowhere structured to put one until now.
+  citationUrl?: string;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   const pw = await db().query(
     `SELECT mechanism_type, legal_citation, is_binding FROM accountability_pathways WHERE id = $1`,
@@ -231,7 +241,23 @@ export async function createCampaign(opts: {
       p.mechanism_type === "charter_amendment_petition" ? "not_started" : "not_applicable",
     ],
   );
-  return { ok: true, id: rows[0].id as string };
+  const campaignId = rows[0].id as string;
+  // Same citation-insert shape as postArgument() in debates.ts -- archive_url
+  // and publisher are derived, never hand-entered (this app never trusts a
+  // self-reported publisher name).
+  if (opts.citationUrl) {
+    const cit = await db().query(
+      `INSERT INTO citations (url, archive_url, title, publisher, published_at)
+       VALUES ($1, 'https://web.archive.org/web/0/' || $1, $1, split_part(regexp_replace($1, 'https?://', ''), '/', 1), CURRENT_DATE)
+       RETURNING id`,
+      [opts.citationUrl],
+    );
+    await db().query(`INSERT INTO campaign_citations (campaign_id, citation_id) VALUES ($1, $2)`, [
+      campaignId,
+      cit.rows[0].id,
+    ]);
+  }
+  return { ok: true, id: campaignId };
 }
 
 /* ── creation-form data ── */

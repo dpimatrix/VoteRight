@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       politicianId?: string;
       reformTitle?: string;
       description?: string;
+      citationUrl?: string;
     };
     const res = await createCampaign({
       userId,
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
       politicianId: b.politicianId || undefined,
       reformTitle: b.reformTitle || undefined,
       description: String(b.description ?? ""),
+      citationUrl: b.citationUrl || undefined,
     });
     return Response.json(res);
   }
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
     politicianId: String(form.get("politician_id") ?? "") || undefined,
     reformTitle: String(form.get("reform_title") ?? "") || undefined,
     description: String(form.get("description") ?? ""),
+    citationUrl: String(form.get("citation_url") ?? "") || undefined,
   });
   const dest = res.ok ? `/accountability/${res.id}?lang=${lang}` : `/accountability?lang=${lang}`;
   return redirectTo(dest, request);

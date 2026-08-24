@@ -67,8 +67,10 @@ export default function AccountabilityScreen() {
   const [pathwayId, setPathwayId] = useState<string | null>(null);
   const [politicianId, setPoliticianId] = useState<string | null>(null);
   const [politicianDescription, setPoliticianDescription] = useState('');
+  const [politicianCitation, setPoliticianCitation] = useState('');
   const [reformTitle, setReformTitle] = useState('');
   const [reformDescription, setReformDescription] = useState('');
+  const [reformCitation, setReformCitation] = useState('');
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(
@@ -162,6 +164,7 @@ export default function AccountabilityScreen() {
         pathwayId,
         politicianId,
         description: politicianDescription,
+        citationUrl: politicianCitation || undefined,
       });
       if (res.ok && res.id) router.push({ pathname: '/accountability/[id]', params: { id: res.id } });
     } catch (e) {
@@ -180,6 +183,7 @@ export default function AccountabilityScreen() {
         pathwayId: petitionPathway.id,
         reformTitle,
         description: reformDescription,
+        citationUrl: reformCitation || undefined,
       });
       if (res.ok && res.id) router.push({ pathname: '/accountability/[id]', params: { id: res.id } });
     } catch (e) {
@@ -292,6 +296,15 @@ export default function AccountabilityScreen() {
                 numberOfLines={3}
                 style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
               />
+              <TextInput
+                value={politicianCitation}
+                onChangeText={setPoliticianCitation}
+                placeholder={d.source_url_placeholder}
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+                keyboardType="url"
+                style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+              />
               {similarPolitician.length > 0 && (
                 <View style={[styles.similarBox, { borderColor: colors.textSecondary }]}>
                   <ThemedText type="small" themeColor="textSecondary">{d.similar_h}</ThemedText>
@@ -356,6 +369,15 @@ export default function AccountabilityScreen() {
                   placeholderTextColor={colors.textSecondary}
                   multiline
                   numberOfLines={3}
+                  style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+                />
+                <TextInput
+                  value={reformCitation}
+                  onChangeText={setReformCitation}
+                  placeholder={d.source_url_placeholder}
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                  keyboardType="url"
                   style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
                 />
                 <Pressable
