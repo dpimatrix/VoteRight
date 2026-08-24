@@ -45,8 +45,11 @@ export async function votesForCoding(politicianId: string, limit = 40) {
 
 export async function axesForCoding() {
   const { rows } = await db().query(
+    // published-only (migration 092) -- staff shouldn't be coding a
+    // candidate's position against an axis that hasn't cleared review yet.
     `SELECT a.id, t.name AS topic, a.question, a.negative_pole, a.positive_pole
-       FROM topic_axes a JOIN topics t ON t.id = a.topic_id ORDER BY t.name`,
+       FROM topic_axes a JOIN topics t ON t.id = a.topic_id
+      WHERE a.status = 'published' ORDER BY t.name`,
   );
   return rows as { id: string; topic: string; question: string; negative_pole: string; positive_pole: string }[];
 }

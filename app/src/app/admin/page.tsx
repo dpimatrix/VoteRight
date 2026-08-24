@@ -2,6 +2,7 @@ import Link from "next/link";
 import { currentAdmin } from "@/lib/adminAuth";
 import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 import { pendingCoverageGaps } from "@/lib/coverage";
+import { listAxesForAdmin } from "@/lib/priorityAxes";
 import { moderationQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
@@ -232,6 +233,21 @@ export default async function AdminHome() {
               <span className={`chip band ${withViewers > 0 ? "bm1" : gaps.length > 0 ? "b1" : "b0"}`}>
                 {gaps.length} gap{gaps.length === 1 ? "" : "s"}
               </span>
+            </Link>
+          );
+        })())}
+      {has("priority_axes") &&
+        (await (async () => {
+          const axes = await listAxesForAdmin();
+          const needsAttention = axes.filter((a) => a.status === "in_review" || a.status === "draft").length;
+          return (
+            <Link className="seat" href="/admin/priority-axes">
+              <span className="seat-ic">PA</span>
+              <span className="sname">
+                Priority topics &amp; axes
+                <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish</span>
+              </span>
+              <span className={`chip band ${needsAttention > 0 ? "b1" : "b0"}`}>{needsAttention} pending</span>
             </Link>
           );
         })())}

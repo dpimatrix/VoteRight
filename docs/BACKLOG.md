@@ -223,36 +223,37 @@ rather than letting this drift out of sync with reality.
 
 ## Admin-editable priority topics/axes
 
-- **`topics`/`topic_axes` (the actual priority questions residents answer,
-  e.g. "Should the county meet its zero-emissions targets on schedule?")
-  are currently only insertable via `db/seed.prod.sql` — confirmed live
-  2026-08-23, zero admin route or page touches them at all. Owner wants a
-  frontend way for humans to set these, "with certain guardrails."
-  Deliberately NOT a simple free-text CRUD form — this is the single most
-  consequential data in the platform (it's the instrument every candidate
-  and every voter gets measured against), and the guardrails matter more
-  than the feature:
-  - **Editing a published axis's wording should be disallowed outright.**
-    `position_codings` are tied to a specific `axis_id` — silently
-    changing what an axis actually asks after candidates have already
-    been coded against the original wording makes existing confirmed
-    codings misrepresent what was really asked. Changing wording should
-    create a new, separately-versioned axis and retire the old one, not
-    mutate it in place.
-  - **Structured fields, not raw text** — force parallel two-pole framing
-    (matches the existing balanced pattern, e.g. "Delay or relax targets"
-    vs. "Keep or accelerate targets," neither side loaded) rather than a
-    blank textarea that makes it easy for leading/unbalanced phrasing to
-    slip through unnoticed.
-  - **Draft → second-person review → publish**, not instant-publish —
-    mirrors the "human-confirmed" discipline `position_codings` already
-    requires, and the draft-pending-counsel-review pattern the privacy
-    notice already uses, rather than inventing a third pattern.
-  - **Its own narrowly-scoped admin screen/permission** in the existing
-    per-screen RBAC (migration 086), not bundled into a broader-access
-    screen, given how much leverage this specific data has.
-  - Owner's call (2026-08-23): note it, don't build it yet — priority is
-    finishing the 1.1.4 mobile testing pass first.
+- ~~`topics`/`topic_axes` only insertable via `db/seed.prod.sql`, zero admin
+  route~~ **DONE (2026-08-24, migration 092)** — new `/admin/priority-axes`
+  screen, its own RBAC key, all four guardrails built as actual enforcement,
+  not just UI convention:
+  - **Published-axis wording is locked at the database layer** — a
+    `BEFORE UPDATE` trigger rejects any change to `question`/`negative_pole`/
+    `positive_pole`/`topic_id`/`key` once `status = 'published'`. Verified
+    live: a direct `UPDATE` against a published axis was rejected with the
+    trigger's own error, not just refused by the admin UI. A rewording is a
+    new `createDraftAxis()` call + `retireAxis(oldId, newId)`.
+  - **Structured two-pole fields** — `lib/priorityAxes.ts`'s
+    `createDraftAxis()` takes `negativePole`/`positivePole` as separate
+    required parameters, matching the schema's own existing symmetric
+    shape; the admin form renders them as two distinct labeled inputs, not
+    one free-text block.
+  - **Draft → in_review → published → retired**, enforced both in the API
+    (`approveAndPublish()` rejects `reviewedBy === createdBy` before
+    touching the database) and in the database itself (`CHECK
+    (reviewed_by_admin IS NULL OR reviewed_by_admin <> created_by_admin)`).
+    Verified live end-to-end: drafted a test axis as the dev admin,
+    submitted for review, confirmed the UI correctly hid the publish
+    button ("you drafted this one, you can't publish it"), then bypassed
+    the UI with a direct `fetch()` POST to `approve_and_publish` — the
+    server rejected it too; the axis stayed `in_review`, unpublished.
+  - **Own RBAC screen** (`priority_axes`) in the existing per-screen system
+    (migration 086) — no code touches the SCREEN_KEYS list without an
+    explicit grant.
+  - `topicsWithAxes()` (the Priorities-setting screen), `axesForCoding()`
+    (staff position-coding queue), and `savePriorities()` all filtered to
+    `status = 'published'` — a resident or staff coder can never be offered
+    a draft/in_review axis before it's actually cleared review.
 
 ## Mobile
 

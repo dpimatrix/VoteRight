@@ -206,8 +206,44 @@ CREATE TABLE topic_axes (
     question        TEXT NOT NULL,                       -- the axis phrased as a neutral question
     negative_pole   TEXT NOT NULL,                       -- what -2 means, in words
     positive_pole   TEXT NOT NULL,                       -- what +2 means, in words
-    UNIQUE (topic_id, key)
+    -- Admin-editable-with-guardrails state machine (migration 092):
+    -- draft -> in_review -> published -> retired. Existing/seeded rows are
+    -- 'published' with no admin attribution (never drafted through the
+    -- workflow). See the lock-published trigger below -- wording can never
+    -- change once published, only a new axis + retiring the old one.
+    status              TEXT NOT NULL DEFAULT 'published'
+        CHECK (status IN ('draft', 'in_review', 'published', 'retired')),
+    created_by_admin    TEXT,                             -- username, not a hard FK (dev-mode sentinel admin has no admin_accounts row)
+    reviewed_by_admin   TEXT,
+    published_at        TIMESTAMPTZ,
+    retired_at           TIMESTAMPTZ,
+    superseded_by_axis_id UUID REFERENCES topic_axes(id),
+    UNIQUE (topic_id, key),
+    CONSTRAINT topic_axes_reviewer_not_author
+        CHECK (reviewed_by_admin IS NULL OR reviewed_by_admin <> created_by_admin)
 );
+
+-- Once published, an axis's wording is locked -- a rewording must be a new,
+-- separately-versioned axis, never a silent mutation of one candidates have
+-- already been coded against.
+CREATE FUNCTION topic_axes_lock_published() RETURNS trigger AS $$
+BEGIN
+  IF OLD.status = 'published' AND (
+       NEW.question      IS DISTINCT FROM OLD.question OR
+       NEW.negative_pole IS DISTINCT FROM OLD.negative_pole OR
+       NEW.positive_pole IS DISTINCT FROM OLD.positive_pole OR
+       NEW.topic_id       IS DISTINCT FROM OLD.topic_id OR
+       NEW.key            IS DISTINCT FROM OLD.key
+     ) THEN
+    RAISE EXCEPTION 'topic_axes: cannot edit the wording of a published axis (id %) -- draft a new axis and retire this one instead', OLD.id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER topic_axes_lock_published_trigger
+    BEFORE UPDATE ON topic_axes
+    FOR EACH ROW EXECUTE FUNCTION topic_axes_lock_published();
 
 CREATE TABLE position_codings (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

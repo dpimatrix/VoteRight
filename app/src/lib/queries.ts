@@ -113,8 +113,12 @@ export async function isSampleData(): Promise<boolean> {
 /* ── topics + axes ── */
 export async function topicsWithAxes() {
   const { rows } = await db().query(
+    // published-only (migration 092) -- a resident must never be offered a
+    // draft/in_review axis to set a priority against, or code a position
+    // to, before it's actually cleared second-person review.
     `SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole
        FROM topics t JOIN topic_axes a ON a.topic_id = t.id
+      WHERE a.status = 'published'
       ORDER BY t.name`,
   );
   return rows as {
@@ -159,7 +163,7 @@ export async function savePriorities(userId: string, items: PriorityInput[]) {
       await client.query(
         `INSERT INTO voter_priorities (user_id, topic_id, statement, importance_weight, stance)
          SELECT $1, a.topic_id, $2, $3, jsonb_build_object('axis_id', a.id, 'direction', $4::int)
-           FROM topic_axes a WHERE a.id = $5`,
+           FROM topic_axes a WHERE a.id = $5 AND a.status = 'published'`,
         [userId, it.statement, it.weight, it.direction, it.axisId],
       );
     }
