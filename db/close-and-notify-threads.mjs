@@ -33,9 +33,11 @@
 //
 // One-time setup on the VPS, as the voteright user (mirrors roster-
 // refresh.sh's own runbook):
-//   1. Confirm RESEND_API_KEY (and optionally RESEND_FROM_EMAIL) are set
-//      in app/.env.production -- this script sources it directly since
-//      it's a separate process from the running Next.js app.
+//   1. Confirm DATABASE_URL and RESEND_API_KEY (and optionally
+//      RESEND_FROM_EMAIL) are all set in app/.env.production -- this
+//      script sources them directly since it's a separate process from
+//      the running Next.js app and a systemd --user service does not
+//      inherit an interactive shell's exported env vars.
 //   2. mkdir -p ~/.config/systemd/user && cp db/close-and-notify-threads.service db/close-and-notify-threads.timer ~/.config/systemd/user/
 //   3. export XDG_RUNTIME_DIR=/run/user/$(id -u)
 //   4. systemctl --user daemon-reload
@@ -53,24 +55,32 @@ const require = createRequire(new URL("../app/package.json", import.meta.url));
 const { Client } = require("pg");
 
 const args = process.argv.slice(2);
-const url = args.find((a) => a.startsWith("--url="))?.slice(6) ?? process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright";
 
 // Same env-file fallback chain roster-refresh.sh's read_env_var already
 // established for standalone scripts (Next loads app/.env.production
-// itself; this separate process doesn't get that for free) -- RESEND_API_KEY
-// specifically, since email notifications need it and this script has no
-// other way to pick it up.
-if (!process.env.RESEND_API_KEY) {
+// itself; this separate process doesn't get that for free) -- needed for
+// BOTH DATABASE_URL and RESEND_API_KEY, since a systemd --user service
+// does not inherit an interactive shell's exported env vars either. Without
+// this, DATABASE_URL falls through to the hardcoded local-dev default
+// below even in production, which is the wrong database entirely, not
+// just a missing feature.
+if (!process.env.DATABASE_URL || !process.env.RESEND_API_KEY) {
   const { readFileSync, existsSync } = await import("node:fs");
   for (const f of ["app/.env.production", "app/.env.local"]) {
     if (!existsSync(f)) continue;
-    const m = readFileSync(f, "utf8").match(/^RESEND_API_KEY=(.*)$/m);
-    if (m) {
-      process.env.RESEND_API_KEY = m[1].replace(/^["']|["']$/g, "");
-      break;
+    const contents = readFileSync(f, "utf8");
+    if (!process.env.DATABASE_URL) {
+      const m = contents.match(/^DATABASE_URL=(.*)$/m);
+      if (m) process.env.DATABASE_URL = m[1].replace(/^["']|["']$/g, "");
+    }
+    if (!process.env.RESEND_API_KEY) {
+      const m = contents.match(/^RESEND_API_KEY=(.*)$/m);
+      if (m) process.env.RESEND_API_KEY = m[1].replace(/^["']|["']$/g, "");
     }
   }
 }
+
+const url = args.find((a) => a.startsWith("--url="))?.slice(6) ?? process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright";
 
 const client = new Client({ connectionString: url });
 await client.connect();
