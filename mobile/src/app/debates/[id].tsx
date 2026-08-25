@@ -1,18 +1,28 @@
+import { useEvent } from 'expo';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DebateComposer } from '@/components/DebateComposer';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { API_URL } from '@/constants/Config';
+import { Colors, Spacing, type ThemeColor } from '@/constants/theme';
 import { canonicalSecondPayload } from '@/lib/canonical';
 import { currentUserIdForSigning, ensureSigningKey, signPayload } from '@/lib/signing';
 import { ensureSession, errorCode, get, hasSession, post } from '@/services/api';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
-import { t, tf } from '@/lib/i18n';
+import { t, tf, type Dict } from '@/lib/i18n';
+
+// arguments.video_url/audio_url are stored root-relative (mirrors
+// politicians.photo_url -- see pol-avatar.tsx's own resolvePhotoUrl for the
+// same reasoning): free on web via a same-origin <video src>/<audio src>,
+// but React Native's players need an absolute URI.
+const resolveMediaUrl = (url: string) => (/^https?:\/\//.test(url) ? url : `${API_URL}${url}`);
 
 interface Citation {
   publisher: string;
@@ -22,7 +32,11 @@ interface Citation {
 interface Arg {
   id: string;
   side: string;
-  body_text: string;
+  body_text: string | null;
+  format: string;
+  audio_url: string | null;
+  video_url: string | null;
+  transcript_text: string | null;
   moderation_status: string;
   date: string;
   agree_count: number;
@@ -39,6 +53,10 @@ interface Ctq {
   votes: number;
   eligible: boolean;
   voted: boolean;
+  floorsMet: boolean;
+  minActive: number;
+  minOpenHours: number;
+  hoursOpen: number;
 }
 
 interface DebateDetail {
@@ -54,9 +72,11 @@ interface DebateDetail {
   thread_id: string | null;
   closes: string | null;
   thread_status: string | null;
+  closed_reason: string | null;
+  reported: boolean;
   ctq_pct: number | null;
-  args: Arg[];
   ctq: Ctq | null;
+  args: Arg[];
 }
 
 export default function DebateScreen() {
@@ -71,6 +91,8 @@ export default function DebateScreen() {
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -137,6 +159,10 @@ export default function DebateScreen() {
     }
   }
 
+  // "Call the question" (migration 094, restored with real floors -- see
+  // debates.ts's ctqVote() header comment). detail.ctq.floorsMet gates
+  // whether this whole section renders at all, so this function never gets
+  // called before both floors are met.
   async function ctqVote() {
     if (!detail?.thread_id) return;
     setBusy(true);
@@ -145,6 +171,27 @@ export default function DebateScreen() {
       await load();
     } catch (e) {
       console.error('Call-the-question vote failed:', e);
+      routeToVerification(errorCode(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Member abuse reports (2026-08-24, migration 093) -- the SECOND early-
+  // closure path, alongside calling the question above: a human
+  // moderator's own judgment, for cases (spam, harassment) that aren't
+  // about debate being "settled" and so wouldn't be solved by any
+  // participant-vote mechanism no matter how it's floored.
+  async function submitReport() {
+    if (!detail?.thread_id || !reportReason.trim()) return;
+    setBusy(true);
+    try {
+      await post(`/api/debates/${detail.thread_id}/report`, { reason: reportReason.trim() });
+      setReportReason('');
+      setReportOpen(false);
+      await load();
+    } catch (e) {
+      console.error('Report failed:', e);
       routeToVerification(errorCode(e));
     } finally {
       setBusy(false);
@@ -222,9 +269,9 @@ export default function DebateScreen() {
           </View>
         )}
 
-        {detail.thread_id && (
+        {detail.thread_id && detail.ctq && (
           <>
-            {detail.thread_status === 'open' && detail.ctq && (
+            {detail.thread_status === 'open' && detail.ctq.floorsMet && (
               <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
                 <ThemedText type="smallBold">{d.call_the_question}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -248,66 +295,33 @@ export default function DebateScreen() {
                 )}
               </View>
             )}
+            {detail.thread_status === 'open' && !detail.ctq.floorsMet && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {tf(d.ctq_floors_note, {
+                  active: detail.ctq.active,
+                  minActive: detail.ctq.minActive,
+                  hours: detail.ctq.hoursOpen,
+                  minHours: detail.ctq.minOpenHours,
+                })}
+              </ThemedText>
+            )}
             {detail.thread_status !== 'open' && (
               <ThemedText type="small" themeColor="textSecondary">
                 {d.thread_closed}
+                {detail.closed_reason ? ` — ${detail.closed_reason}` : ''}
               </ThemedText>
             )}
 
             {detail.args.map((a) => (
-              <View
+              <ArgumentCard
                 key={a.id}
-                style={[
-                  styles.card,
-                  { backgroundColor: colors.backgroundElement },
-                  a.moderation_status === 'pending' && styles.pendingCard,
-                ]}
-              >
-                <View style={styles.rowBetween}>
-                  <View style={[styles.chip, { borderColor: colors.evidence }]}>
-                    <ThemedText type="small" style={{ color: colors.evidence }}>
-                      {SIDE_LABEL[a.side] ?? a.side}
-                    </ThemedText>
-                  </View>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {a.display_name} · {a.date}
-                  </ThemedText>
-                </View>
-                <ThemedText type="small">{a.body_text}</ThemedText>
-                {a.citations.map((c, i) => (
-                  <ThemedText key={i} type="small" themeColor="textSecondary">
-                    ▣ {c.publisher} · {c.title}
-                  </ThemedText>
-                ))}
-                {a.moderation_status === 'pending' ? (
-                  <ThemedText type="small">{d.pending_moderation}</ThemedText>
-                ) : detail.thread_status === 'open' && paymentVerified ? (
-                  <View style={styles.voteRow}>
-                    {(['agree', 'disagree', 'pass'] as const).map((r) => (
-                      <Pressable
-                        key={r}
-                        onPress={() => agree(a.id, r)}
-                        style={[
-                          styles.chip,
-                          { borderColor: a.my_vote === r ? colors.evidence : colors.textSecondary },
-                        ]}
-                      >
-                        <ThemedText type="small">
-                          {r === 'agree'
-                            ? tf(d.agree_count, { n: a.agree_count })
-                            : r === 'disagree'
-                              ? tf(d.disagree_count, { n: a.disagree_count })
-                              : d.pass}
-                        </ThemedText>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {tf(d.agree_disagree_readonly, { agree: a.agree_count, disagree: a.disagree_count })}
-                  </ThemedText>
-                )}
-              </View>
+                a={a}
+                d={d}
+                colors={colors}
+                sideLabel={SIDE_LABEL[a.side] ?? a.side}
+                voteEnabled={detail.thread_status === 'open' && paymentVerified}
+                onVote={agree}
+              />
             ))}
 
             {detail.thread_status === 'open' &&
@@ -318,9 +332,152 @@ export default function DebateScreen() {
                   <ThemedText type="smallBold">{tier === 'unverified' ? d.verify_to_argue : d.pay_to_argue}</ThemedText>
                 </Pressable>
               ))}
+
+            {detail.thread_status === 'open' && paymentVerified && (
+              <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+                <ThemedText type="smallBold">{d.report_h}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {d.report_note}
+                </ThemedText>
+                {detail.reported ? (
+                  <ThemedText type="small">{d.report_done}</ThemedText>
+                ) : reportOpen ? (
+                  <>
+                    <TextInput
+                      value={reportReason}
+                      onChangeText={setReportReason}
+                      placeholder={d.report_ph}
+                      placeholderTextColor={colors.textSecondary}
+                      multiline
+                      numberOfLines={2}
+                      style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
+                    />
+                    <Pressable
+                      disabled={busy || !reportReason.trim()}
+                      onPress={submitReport}
+                      style={[styles.actionBtn, { backgroundColor: colors.backgroundSelected }]}
+                    >
+                      <ThemedText type="smallBold">{d.report_btn}</ThemedText>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable onPress={() => setReportOpen(true)}>
+                    <ThemedText type="linkPrimary">{d.report_open_btn}</ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </>
         )}
     </KeyboardAwareScreen>
+  );
+}
+
+// Split out from the args.map() above rather than inlined: expo-video's
+// useVideoPlayer/expo-audio's useAudioPlayer are hooks, and a list can hold
+// any number of arguments -- calling a hook a variable number of times
+// inside .map() breaks the Rules of Hooks. One component instance per
+// argument card keeps each pair of hook calls fixed per-instance regardless
+// of how many arguments the thread has. Mirrors DebateComposer's own
+// "call both hooks unconditionally with a null source when not applicable"
+// pattern -- both packages document null as a safe no-op source, not
+// something to branch around.
+function ArgumentCard({
+  a,
+  d,
+  colors,
+  sideLabel,
+  voteEnabled,
+  onVote,
+}: {
+  a: Arg;
+  d: Dict;
+  colors: Record<ThemeColor, string>;
+  sideLabel: string;
+  voteEnabled: boolean;
+  onVote: (argumentId: string, response: 'agree' | 'disagree' | 'pass') => void;
+}) {
+  const videoUrl = a.format === 'video' && a.video_url ? resolveMediaUrl(a.video_url) : null;
+  const audioUrl = a.format === 'audio' && a.audio_url ? resolveMediaUrl(a.audio_url) : null;
+  const videoPlayer = useVideoPlayer(videoUrl);
+  const { isPlaying: videoPlaying } = useEvent(videoPlayer, 'playingChange', { isPlaying: videoPlayer.playing });
+  const audioPlayer = useAudioPlayer(audioUrl);
+  const audioStatus = useAudioPlayerStatus(audioPlayer);
+
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.backgroundElement },
+        a.moderation_status === 'pending' && styles.pendingCard,
+      ]}
+    >
+      <View style={styles.rowBetween}>
+        <View style={[styles.chip, { borderColor: colors.evidence }]}>
+          <ThemedText type="small" style={{ color: colors.evidence }}>
+            {sideLabel}
+          </ThemedText>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          {a.display_name} · {a.date}
+        </ThemedText>
+      </View>
+
+      {a.format === 'text' && <ThemedText type="small">{a.body_text}</ThemedText>}
+
+      {videoUrl && <VideoView player={videoPlayer} style={styles.videoPreview} contentFit="contain" />}
+      {(videoUrl || audioUrl) && (
+        <View style={styles.sideRow}>
+          <Pressable
+            onPress={() => {
+              if (videoUrl) {
+                if (videoPlaying) videoPlayer.pause();
+                else videoPlayer.play();
+              } else if (audioStatus.playing) audioPlayer.pause();
+              else audioPlayer.play();
+            }}
+          >
+            <ThemedText type="linkPrimary">
+              {(videoUrl ? videoPlaying : audioStatus.playing) ? d.pause_btn : d.play_btn}
+            </ThemedText>
+          </Pressable>
+          <ThemedText type="small" themeColor="textSecondary">
+            {a.transcript_text || d.transcript_soon}
+          </ThemedText>
+        </View>
+      )}
+
+      {a.citations.map((c, i) => (
+        <ThemedText key={i} type="small" themeColor="textSecondary">
+          ▣ {c.publisher} · {c.title}
+        </ThemedText>
+      ))}
+      {a.moderation_status === 'pending' ? (
+        <ThemedText type="small">{d.pending_moderation}</ThemedText>
+      ) : voteEnabled ? (
+        <View style={styles.voteRow}>
+          {(['agree', 'disagree', 'pass'] as const).map((r) => (
+            <Pressable
+              key={r}
+              onPress={() => onVote(a.id, r)}
+              style={[styles.chip, { borderColor: a.my_vote === r ? colors.evidence : colors.textSecondary }]}
+            >
+              <ThemedText type="small">
+                {r === 'agree'
+                  ? tf(d.agree_count, { n: a.agree_count })
+                  : r === 'disagree'
+                    ? tf(d.disagree_count, { n: a.disagree_count })
+                    : d.pass}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <ThemedText type="small" themeColor="textSecondary">
+          {tf(d.agree_disagree_readonly, { agree: a.agree_count, disagree: a.disagree_count })}
+        </ThemedText>
+      )}
+    </View>
   );
 }
 
@@ -333,6 +490,9 @@ const styles = StyleSheet.create({
   pendingCard: { borderWidth: 1, borderStyle: 'dashed', borderColor: '#888' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   chip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.half, paddingHorizontal: Spacing.two },
+  input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, fontSize: 15 },
   actionBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
   voteRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  sideRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center', flexWrap: 'wrap' },
+  videoPreview: { width: '100%', height: 200, borderRadius: Spacing.two, backgroundColor: '#000' },
 });

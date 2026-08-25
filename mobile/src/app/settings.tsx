@@ -109,6 +109,19 @@ export default function SettingsScreen() {
           </ExternalLink>
         </View>
 
+        {/* Notifications (2026-08-24) -- in-app inbox + optional email +
+            mobile push (registered on boot, see _layout.tsx). Placed here
+            like Membership/Backup above rather than a persistent header
+            icon (web's SiteHeader has one; mobile has no equivalent shared
+            header across tab screens to put one in without touching every
+            tab). */}
+        <ThemedText type="smallBold">{d.notif_h}</ThemedText>
+        <View style={styles.group}>
+          <Pressable onPress={() => router.push('/notifications' as Href)} style={[styles.row, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="small">{d.notif_h}</ThemedText>
+          </Pressable>
+        </View>
+
         {/* Identity backup/recovery (2026-08-24) -- closes a real gap the
             owner ran into directly: reinstalling wipes the app's own
             anonymous session id, silently orphaning verification,

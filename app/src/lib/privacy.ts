@@ -102,7 +102,10 @@ export async function executeDeletion(userId: string, requestId: string) {
     // Private signals (§10.2): remove the per-user rows; the denormalized
     // per-argument tallies persist without identity.
     await client.query(`DELETE FROM argument_agreement_votes WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM call_the_question_votes WHERE user_id = $1`, [userId]);
+    // thread_reports (2026-08-24, migration 093, replacing call_the_question_votes
+    // here) -- same private-signal treatment: the report itself is a private
+    // act between the reporter and a moderator, not a public civic act.
+    await client.query(`DELETE FROM thread_reports WHERE user_id = $1`, [userId]);
     await client.query(`UPDATE referendum_ballot_tokens SET user_id = NULL WHERE user_id = $1`, [userId]);
     await client.query(
       `UPDATE privacy_requests SET status = 'completed', resolved_at = now(),

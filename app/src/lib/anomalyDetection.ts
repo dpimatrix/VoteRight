@@ -20,7 +20,18 @@
 
 import { lookup as geoipLookup } from "geoip-lite";
 
-export type AnomalyAction = "address_verification" | "second" | "call_the_question" | "referendum_ballot";
+// "call_the_question" was briefly retired 2026-08-24 (migration 093) along
+// with the vote-based early-closure mechanism it watched over, then
+// restored the same day (migration 094, with real participant/time floors
+// this time -- see debates.ts's ctqVote() header comment). "thread_report"
+// is a SEPARATE watched action added alongside it, not a replacement:
+// migration 093 also introduced admin force-close (triggered by member
+// reports), which is its own distinct manipulation surface -- coordinated
+// mass-reporting to get a thread shut down is a different attack shape
+// than stacking CTQ votes, even though both are "cheap to brigade, smaller
+// N" in the same way ARCHITECTURE.md §9 already flags for calling the
+// question.
+export type AnomalyAction = "address_verification" | "second" | "call_the_question" | "thread_report" | "referendum_ballot";
 
 interface QueryableClient {
   query(text: string, params?: unknown[]): Promise<{ rows: any[] }>;
@@ -33,7 +44,8 @@ const VELOCITY_WINDOW_MINUTES = 30;
 const VELOCITY_THRESHOLD: Record<AnomalyAction, number> = {
   address_verification: 3, // the root action -- a Sybil attacker mints identities here first
   second: 4,
-  call_the_question: 3, // ARCHITECTURE.md §9 itself notes this is the cheaper of the two to brigade (smaller N) -- lower threshold than second
+  call_the_question: 3, // cheaper to brigade than second (smaller N) -- lower threshold
+  thread_report: 3, // same reasoning -- a report button is just as cheap to brigade as a vote button
   referendum_ballot: 3,
 };
 

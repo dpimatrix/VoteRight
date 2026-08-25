@@ -321,7 +321,7 @@ BEGIN
    ('00000000-0000-4000-8000-000000000d04', c3);
 END $$;
 
--- agreement votes (private signals) from seed users — enough to make CTQ eligibility real
+-- agreement votes (private signals) from seed users
 INSERT INTO argument_agreement_votes (argument_id, user_id, response) VALUES
  ('00000000-0000-4000-8000-000000000d01', '00000000-0000-4000-8000-000000000a05', 'agree'),
  ('00000000-0000-4000-8000-000000000d02', '00000000-0000-4000-8000-000000000a05', 'agree'),
@@ -329,10 +329,11 @@ INSERT INTO argument_agreement_votes (argument_id, user_id, response) VALUES
  ('00000000-0000-4000-8000-000000000d01', '00000000-0000-4000-8000-000000000a04', 'disagree'),
  ('00000000-0000-4000-8000-000000000d03', '00000000-0000-4000-8000-000000000a04', 'pass');
 
--- two of the five active participants have called the question
-INSERT INTO call_the_question_votes (thread_id, user_id) VALUES
- ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a01'),
- ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a04');
+-- one seed user has reported the thread (2026-08-24, migration 093 --
+-- replaces the removed call_the_question_votes seed row) -- exercises the
+-- admin moderation page's "Reported debate threads" queue against real data.
+INSERT INTO thread_reports (thread_id, user_id, reason) VALUES
+ ('00000000-0000-4000-8000-000000000c01', '00000000-0000-4000-8000-000000000a01', 'This thread has devolved into personal attacks, not argument.');
 
 -- one resolved claim flag for history (the pending argument's tax claim, author marked as opinion)
 INSERT INTO argument_claim_flags (argument_id, claim_text, detection_method, algorithm_version, author_response) VALUES

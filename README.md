@@ -28,7 +28,7 @@ never scored.
 
 - Phase 1 (profiles, priorities, matching, outside-money & endorsement disclosure): **built** — `app/`
 - Phase 2 (promise records, integrity dispute workflow with right of reply, admin console): **built** — `app/` (`/admin`)
-- Phase 3 (issue debates: proposals → seconding → text debate with claim prompts, CTQ, verification gate, moderation): **built** — `app/` (`/debates`)
+- Phase 3 (issue debates: proposals → seconding → text/audio/video debate with claim prompts, member reports, verification gate, moderation): **built** — `app/` (`/debates`)
 - Phases 4–5 (referenda/mandates, AI debate agents) + commentary, clustering, media formats: designed & prototyped, not yet built
 - Counsel review: packaged, not yet engaged (`docs/COUNSEL-REVIEW.md`)
 

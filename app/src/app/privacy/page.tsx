@@ -43,8 +43,12 @@ function EnglishNotice({ lang }: { lang: string }) {
         self-attested residence <em>jurisdiction</em>.
       </P>
       <P>
-        We deliberately do not collect: your name (unless you set one), email address, phone
-        number, or precise location. <strong>Your street address is never stored</strong> — at
+        We deliberately do not collect: your name (unless you set one), phone number, or
+        precise location. <strong>Email is the one exception, and it's entirely optional</strong> —
+        if you choose to add one under Notifications, it's used only to email you when a
+        debate you're part of closes or can be called to a close; it's never used for
+        identity, verification, marketing, or anything else, and you can remove it at any
+        time. <strong>Your street address is never stored</strong> — at
         verification it is format-checked, resolved to a jurisdiction (e.g., “Montgomery
         County” or “City of Rockville”), and discarded; only the jurisdiction identifier is
         kept. It is never matched against any voter file. There are no third-party trackers,
@@ -163,8 +167,12 @@ function SpanishNotice({ lang }: { lang: string }) {
         sección 4; y tu <em>jurisdicción</em> de residencia autodeclarada.
       </P>
       <P>
-        Deliberadamente no recopilamos: tu nombre (salvo que lo configures), correo
-        electrónico, teléfono ni ubicación precisa. <strong>Tu dirección nunca se
+        Deliberadamente no recopilamos: tu nombre (salvo que lo configures), teléfono ni
+        ubicación precisa. <strong>El correo electrónico es la única excepción, y es
+        totalmente opcional</strong> — si eliges añadir uno en Notificaciones, se usa solo
+        para avisarte por correo cuando un debate en el que participas cierre o se pueda
+        pedir la votación; nunca se usa para identidad, verificación, marketing ni ninguna
+        otra cosa, y puedes eliminarlo cuando quieras. <strong>Tu dirección nunca se
         almacena</strong> — al verificar, se comprueba su formato, se resuelve a una
         jurisdicción (p. ej., “Condado de Montgomery” o “Ciudad de Rockville”) y se
         descarta; solo se conserva el identificador de la jurisdicción. Nunca se compara con

@@ -4,7 +4,6 @@ import { db } from "./db";
    formats are volume-triggered later features (ARCHITECTURE.md §12 Phase 3 note). */
 
 const SECOND_THRESHOLD = 3; // pilot-scale; production scales to jurisdiction size
-const CTQ_PCT = 66.7; // matches forum_threads.close_early_threshold_pct default
 export const CLAIMS_ALGO = "claims-heuristic-v0.1";
 // Disk-exhaustion guard (ARCHITECTURE.md §9.1), not spam prevention -- that's
 // the separate per-thread-per-side argument limit ARCHITECTURE.md already
@@ -101,7 +100,7 @@ export async function verifyAddress(
     if (requestContext) {
       const { flagIfAnomalous } = await import("./anomalyDetection");
       // The root action a Sybil attacker performs first -- minting many
-      // "verified" identities before ever touching seconds/CTQ/ballots.
+      // "verified" identities before ever touching seconds/ballots.
       await flagIfAnomalous(client, {
         action: "address_verification",
         userId,
@@ -281,8 +280,12 @@ export async function debateDetail(proposalId: string, userId: string | null) {
             (p.created_by_user_id = $2) AS is_author,
             (SELECT count(*)::int FROM seconds s WHERE s.proposal_id = p.id) AS seconds,
             EXISTS (SELECT 1 FROM seconds s WHERE s.proposal_id = p.id AND s.user_id = $2) AS has_seconded,
-            ft.id AS thread_id, ft.closes_at::date::text AS closes, ft.closed_early, ft.status AS thread_status,
-            ft.close_early_threshold_pct::float AS ctq_pct, ft.call_the_question_min_agreement_votes AS ctq_min
+            ft.id AS thread_id, ft.opened_at, ft.closes_at::date::text AS closes, ft.closed_early, ft.status AS thread_status,
+            ft.closed_reason, ft.close_early_threshold_pct::float AS ctq_pct,
+            ft.call_the_question_min_agreement_votes AS ctq_min_agreement_votes,
+            ft.call_the_question_min_active AS ctq_min_active,
+            ft.call_the_question_min_open_hours AS ctq_min_open_hours,
+            EXISTS (SELECT 1 FROM thread_reports tr WHERE tr.thread_id = ft.id AND tr.user_id = $2) AS reported
        FROM issue_proposals p
        JOIN topics t ON t.id = p.topic_id
        LEFT JOIN forum_threads ft ON ft.proposal_id = p.id
@@ -314,6 +317,12 @@ export async function debateDetail(proposalId: string, userId: string | null) {
       [row.thread_id, userId],
     );
     args = a.rows;
+
+    // "Call the question" (migration 094, restoring migration 093's removal
+    // with real floors) -- floorsMet gates whether the mechanism is even
+    // OFFERED at all, independent of whether THIS user specifically is
+    // eligible to cast a vote. See ctqVote()'s own header comment for the
+    // full reasoning on both floors.
     const c = await db().query(
       `WITH active AS (
          SELECT user_id FROM arguments WHERE thread_id = $1 AND moderation_status = 'approved'
@@ -327,9 +336,17 @@ export async function debateDetail(proposalId: string, userId: string | null) {
               (SELECT count(*)::int FROM call_the_question_votes WHERE thread_id = $1) AS votes,
               EXISTS (SELECT 1 FROM active WHERE user_id = $2) AS eligible,
               EXISTS (SELECT 1 FROM call_the_question_votes WHERE thread_id = $1 AND user_id = $2) AS voted`,
-      [row.thread_id, userId, row.ctq_min],
+      [row.thread_id, userId, row.ctq_min_agreement_votes],
     );
-    ctq = c.rows[0];
+    const hoursOpen = (Date.now() - new Date(row.opened_at).getTime()) / 3600_000;
+    const floorsMet = c.rows[0].active >= row.ctq_min_active && hoursOpen >= row.ctq_min_open_hours;
+    ctq = {
+      ...c.rows[0],
+      floorsMet,
+      minActive: row.ctq_min_active,
+      minOpenHours: row.ctq_min_open_hours,
+      hoursOpen: Math.floor(hoursOpen),
+    };
   }
   return { ...row, args, ctq };
 }
@@ -551,34 +568,74 @@ export async function agreeVote(
   }
 }
 
-/* ── calling the question (§7.6) ── */
+/** Everyone who counts as an "active participant" in a thread -- posted an
+    approved argument, or cast enough distinct agreement votes to clear the
+    per-thread call_the_question_min_agreement_votes floor. Shared by
+    ctqVote()'s eligibility/tally logic, debateDetail()'s ctq computation,
+    and the notification fan-out below, so the definition of "active" can
+    never drift between the three. */
+async function activeParticipantIds(threadId: string): Promise<string[]> {
+  const { rows } = await db().query(
+    `WITH active AS (
+       SELECT user_id FROM arguments WHERE thread_id = $1 AND moderation_status = 'approved'
+       UNION
+       SELECT v.user_id FROM argument_agreement_votes v JOIN arguments a ON a.id = v.argument_id
+        WHERE a.thread_id = $1
+        GROUP BY v.user_id
+       HAVING count(*) >= (SELECT call_the_question_min_agreement_votes FROM forum_threads WHERE id = $1)
+     )
+     SELECT user_id FROM active`,
+    [threadId],
+  );
+  return rows.map((r) => r.user_id as string);
+}
+
+/* ── calling the question (§7.6), restored with floors (2026-08-24,
+   migration 094, reversing part of migration 093) ── Migration 093's
+   finding stands: a supermajority vote with NO floor on group size let one
+   person single-handedly close their own thread, cutting the fixed 14-day
+   window short before latecomers had a real chance to weigh in. But the
+   underlying capability -- a genuinely, broadly settled debate advancing
+   before the full window -- is legitimate, not just a manipulation vector.
+   Two floors, both required before the vote is even OFFERED (not just
+   before it can succeed), close the actual gap instead of removing the
+   feature outright: call_the_question_min_active (a real supermajority
+   needs a real group) and call_the_question_min_open_hours (even a fast,
+   legitimate supermajority can't close a thread before someone who checks
+   the app every few days has had a real window). See ARCHITECTURE.md §12
+   for the full writeup. */
 export async function ctqVote(threadId: string, userId: string, requestContext?: { ip: string | null; contextHash: string | null }) {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
     // Same gap class as agreeVote above: the debate page only renders the
-    // "call the question" button while thread_status === "open", but
-    // nothing here re-checked that server-side before this -- a direct POST
-    // could add CTQ votes to an already-closed thread.
-    const thread = await client.query(`SELECT status FROM forum_threads WHERE id = $1`, [threadId]);
+    // "call the question" button while thread_status === "open" AND both
+    // floors are met, but nothing here re-checked either server-side
+    // before this -- a direct POST could add CTQ votes to an already-
+    // closed thread, or to one that hasn't cleared the floors yet.
+    const thread = await client.query(
+      `SELECT status, opened_at, call_the_question_min_active AS min_active,
+              call_the_question_min_open_hours AS min_hours,
+              call_the_question_min_agreement_votes AS min_agreement_votes,
+              close_early_threshold_pct AS pct
+         FROM forum_threads WHERE id = $1 FOR UPDATE`,
+      [threadId],
+    );
     if (thread.rows[0]?.status !== "open") {
       await client.query("ROLLBACK");
       return { ok: false as const };
     }
-    const elig = await client.query(
-      `SELECT EXISTS (
-         SELECT 1 FROM arguments WHERE thread_id = $1 AND user_id = $2 AND moderation_status = 'approved'
-         UNION ALL
-         SELECT 1 FROM (
-           SELECT 1 FROM argument_agreement_votes v JOIN arguments a ON a.id = v.argument_id
-            WHERE a.thread_id = $1 AND v.user_id = $2
-            GROUP BY v.user_id
-           HAVING count(*) >= (SELECT call_the_question_min_agreement_votes FROM forum_threads WHERE id = $1)
-         ) q
-       ) AS ok`,
-      [threadId, userId],
-    );
-    if (!elig.rows[0].ok) {
+    const t = thread.rows[0];
+    const hoursOpen = (Date.now() - new Date(t.opened_at).getTime()) / 3600_000;
+
+    const activeIds = await activeParticipantIds(threadId);
+    if (activeIds.length < t.min_active || hoursOpen < t.min_hours) {
+      // Floors not met -- the mechanism isn't offered yet, regardless of
+      // this specific user's own eligibility.
+      await client.query("ROLLBACK");
+      return { ok: false as const };
+    }
+    if (!activeIds.includes(userId)) {
       await client.query("ROLLBACK");
       return { ok: false as const };
     }
@@ -595,34 +652,25 @@ export async function ctqVote(threadId: string, userId: string, requestContext?:
         contextHash: requestContext.contextHash,
       });
     }
-    const s = await client.query(
-      `WITH active AS (
-         SELECT user_id FROM arguments WHERE thread_id = $1 AND moderation_status = 'approved'
-         UNION
-         SELECT v.user_id FROM argument_agreement_votes v JOIN arguments a ON a.id = v.argument_id
-          WHERE a.thread_id = $1
-          GROUP BY v.user_id
-         HAVING count(*) >= (SELECT call_the_question_min_agreement_votes FROM forum_threads WHERE id = $1)
-       )
-       SELECT (SELECT count(*)::float FROM call_the_question_votes WHERE thread_id = $1) AS votes,
-              (SELECT count(*)::float FROM active) AS active`,
-      [threadId],
-    );
-    const { votes, active } = s.rows[0];
+    const voteCount = await client.query(`SELECT count(*)::float AS n FROM call_the_question_votes WHERE thread_id = $1`, [threadId]);
+    const votes = voteCount.rows[0].n as number;
     let closed = false;
-    if (active > 0 && (votes / active) * 100 >= CTQ_PCT) {
-      await client.query(
-        `UPDATE forum_threads SET status = 'closed', closed_early = TRUE, closed_early_at = now() WHERE id = $1`,
+    let proposalId: string | null = null;
+    if (activeIds.length > 0 && (votes / activeIds.length) * 100 >= t.pct) {
+      const prop = await client.query(
+        `UPDATE forum_threads SET status = 'closed', closed_early = TRUE, closed_early_at = now() WHERE id = $1
+         RETURNING proposal_id`,
         [threadId],
       );
-      await client.query(
-        `UPDATE issue_proposals SET status = 'referendum'
-          WHERE id = (SELECT proposal_id FROM forum_threads WHERE id = $1)`,
-        [threadId],
-      );
+      proposalId = prop.rows[0].proposal_id as string;
+      await client.query(`UPDATE issue_proposals SET status = 'referendum' WHERE id = $1`, [proposalId]);
       closed = true;
     }
     await client.query("COMMIT");
+    if (closed && proposalId) {
+      const { notifyUsers } = await import("./notifications");
+      await notifyUsers(activeIds, "thread_closed", { proposalId, threadId });
+    }
     return { ok: true as const, closed };
   } catch (e) {
     await client.query("ROLLBACK");
@@ -630,6 +678,124 @@ export async function ctqVote(threadId: string, userId: string, requestContext?:
   } finally {
     client.release();
   }
+}
+
+/* ── thread reports + admin force-close (2026-08-24, migration 093) ──
+   The SECOND early-closure path, alongside calling-the-question above:
+   a human moderator's own judgment, triggered by a member report, for
+   cases (spam, harassment) that aren't about debate being "settled" at
+   all and so wouldn't be solved by any participant-vote mechanism no
+   matter how it's floored. */
+
+/** A member flagging a thread (not a single argument -- that's moderate()'s
+    job) as abusive, e.g. it's devolved into spam/harassment across many
+    posts. One open report per (thread, user); a repeat report from the same
+    person is treated as a no-op, not an error -- it doesn't add signal, and
+    a caller shouldn't need to special-case it in the UI. */
+export async function reportThread(
+  threadId: string,
+  userId: string,
+  reason: string,
+  requestContext?: { ip: string | null; contextHash: string | null },
+): Promise<{ ok: true } | { ok: false; reason: "invalid" }> {
+  if (!reason.trim()) return { ok: false, reason: "invalid" };
+  await db().query(
+    `INSERT INTO thread_reports (thread_id, user_id, reason) VALUES ($1, $2, $3)
+     ON CONFLICT (thread_id, user_id) DO NOTHING`,
+    [threadId, userId, reason.trim().slice(0, 1000)],
+  );
+  if (requestContext) {
+    const { flagIfAnomalous } = await import("./anomalyDetection");
+    await flagIfAnomalous(db(), {
+      action: "thread_report",
+      userId,
+      ip: requestContext.ip,
+      contextHash: requestContext.contextHash,
+    });
+  }
+  return { ok: true };
+}
+
+/** Admin queue (mirrors moderationQueue()'s shape/intent): open threads with
+    at least one outstanding report, most-reported first. Closed threads are
+    excluded -- once a thread's already closed (naturally or force-closed),
+    there's nothing left for an admin to act on. */
+export async function reportedThreadsQueue() {
+  const { rows } = await db().query(
+    `SELECT ft.id AS thread_id, ft.opened_at::date::text AS opened, ft.closes_at::date::text AS closes,
+            p.id AS proposal_id, p.title AS proposal,
+            count(tr.*)::int AS report_count,
+            array_agg(tr.reason ORDER BY tr.created_at DESC) AS reasons,
+            max(tr.created_at) AS last_reported_at
+       FROM thread_reports tr
+       JOIN forum_threads ft ON ft.id = tr.thread_id
+       JOIN issue_proposals p ON p.id = ft.proposal_id
+      WHERE ft.status = 'open'
+      GROUP BY ft.id, p.id, p.title
+      ORDER BY count(tr.*) DESC, max(tr.created_at) DESC`,
+  );
+  return rows as {
+    thread_id: string; opened: string; closes: string;
+    proposal_id: string; proposal: string;
+    report_count: number; reasons: string[]; last_reported_at: string;
+  }[];
+}
+
+/** Ends a debate thread before its natural closes_at date on an admin's own
+    judgment (reachable from the reported-threads queue, but not restricted
+    to only reported threads -- a real moderation case doesn't always start
+    with a member report). Same downstream effect the old vote-based
+    ctqVote() had (advance the proposal to 'referendum'), reached by a
+    person's decision instead of a headcount. reason is required -- an
+    unexplained early close has no audit trail. */
+export async function forceCloseThread(
+  threadId: string,
+  adminUsername: string,
+  reason: string,
+): Promise<{ ok: true } | { ok: false }> {
+  const client = await db().connect();
+  let proposalId: string | null = null;
+  try {
+    await client.query("BEGIN");
+    const t = await client.query(`SELECT status, proposal_id FROM forum_threads WHERE id = $1 FOR UPDATE`, [threadId]);
+    if (!t.rows[0] || t.rows[0].status !== "open") {
+      await client.query("ROLLBACK");
+      return { ok: false };
+    }
+    proposalId = t.rows[0].proposal_id as string;
+    await client.query(
+      `UPDATE forum_threads
+          SET status = 'closed', closed_early = TRUE, closed_early_at = now(),
+              closed_by_admin = $2, closed_reason = $3
+        WHERE id = $1`,
+      [threadId, adminUsername, reason.trim().slice(0, 1000)],
+    );
+    await client.query(`UPDATE issue_proposals SET status = 'referendum' WHERE id = $1`, [proposalId]);
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+  // Notified after COMMIT, outside the transaction -- a best-effort push/
+  // email failure (notifications.ts never throws) must never roll back a
+  // real moderation action that already succeeded. Active participants AND
+  // the thread's reporters -- a reporter isn't necessarily an active
+  // participant themselves (they may have only read the thread, never
+  // argued or voted in it), but they specifically asked for this outcome
+  // and should hear it happened.
+  const [activeIds, reporterRows] = await Promise.all([
+    activeParticipantIds(threadId),
+    db().query(`SELECT user_id FROM thread_reports WHERE thread_id = $1`, [threadId]),
+  ]);
+  const { notifyUsers } = await import("./notifications");
+  await notifyUsers(
+    [...activeIds, ...reporterRows.rows.map((r) => r.user_id as string)],
+    "thread_closed",
+    { proposalId: proposalId!, threadId, detail: reason },
+  );
+  return { ok: true };
 }
 
 /* ── moderation (admin) ── */

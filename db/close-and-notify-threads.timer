@@ -1,0 +1,19 @@
+[Unit]
+Description=Run VoteRight debate thread lifecycle sweep every 15 minutes
+
+[Timer]
+# Every 15 minutes -- unlike roster-refresh's monthly cadence (roster
+# changes are slow-moving), both jobs this script does are time-sensitive:
+# a thread whose closes_at just passed should close close to that moment,
+# not up to a month later, and a CTQ-eligibility notification loses most of
+# its point if it arrives long after the thread actually crossed the
+# floors. 15 minutes is a real bound on that lag without running so often
+# it's pointless overhead against a table with, at pilot scale, at most a
+# handful of open threads to scan each pass.
+OnCalendar=*:0/15
+# If the VPS happens to be down/rebooting exactly at a scheduled tick, run
+# the missed cycle as soon as it's back up instead of silently skipping it.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

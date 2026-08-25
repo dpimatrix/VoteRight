@@ -4,7 +4,7 @@ import { DebateComposer } from "@/components/DebateComposer";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { debateDetail, userTier } from "@/lib/debates";
-import { langFrom, t } from "@/lib/i18n";
+import { langFrom, t, tf } from "@/lib/i18n";
 import { referendumForProposal } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
@@ -97,13 +97,18 @@ export default async function DebatePage({
                 ) : (
                   <span>{d.deb_await_ref}</span>
                 )}
+                {detail.closed_reason && (
+                  <p className="nopos" style={{ margin: "0.35rem 0 0" }}>
+                    {d.deb_thread_closed} — {detail.closed_reason}
+                  </p>
+                )}
               </div>
             );
           })())}
 
         {detail.thread_id && detail.ctq && (
           <>
-            {detail.thread_status === "open" && (
+            {detail.thread_status === "open" && detail.ctq.floorsMet && (
               <div className="card">
                 <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.ctq_h}</div>
                 <div className="cover">
@@ -126,8 +131,16 @@ export default async function DebatePage({
                 )}
               </div>
             )}
+            {detail.thread_status === "open" && !detail.ctq.floorsMet && (
+              <p className="nopos">
+                {tf(d.ctq_floors_note, { active: detail.ctq.active, minActive: detail.ctq.minActive, hours: detail.ctq.hoursOpen, minHours: detail.ctq.minOpenHours })}
+              </p>
+            )}
             {detail.thread_status !== "open" && detail.status !== "referendum" && (
-              <p className="nopos">{d.deb_thread_closed}</p>
+              <p className="nopos">
+                {d.deb_thread_closed}
+                {detail.closed_reason ? ` — ${detail.closed_reason}` : ""}
+              </p>
             )}
 
             {(detail.args as Arg[]).map((a) => (
@@ -228,6 +241,23 @@ export default async function DebatePage({
               ) : (
                 <Link className="btn secondary" href={verifyHref}>{tier === "unverified" ? d.verify_need : d.pay_need}</Link>
               ))}
+
+            {detail.thread_status === "open" && verified && (
+              <div className="card">
+                <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.report_h}</div>
+                <p className="nopos" style={{ margin: "0.35rem 0" }}>{d.report_note}</p>
+                {detail.reported ? (
+                  <div className="privnote" style={{ marginBottom: 0 }}><span className="dot" /><span>{d.report_done}</span></div>
+                ) : (
+                  <form method="post" action={`/api/debates/${detail.thread_id}/report`}>
+                    <input type="hidden" name="lang" value={lang} />
+                    <input type="hidden" name="back" value={back} />
+                    <textarea name="reason" placeholder={d.report_ph} required rows={2} style={{ width: "100%", marginBottom: "0.5rem" }} />
+                    <button className="btn secondary" type="submit">{d.report_btn}</button>
+                  </form>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
