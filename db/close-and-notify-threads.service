@@ -1,0 +1,10 @@
+[Unit]
+Description=VoteRight debate thread lifecycle sweep (natural expiry + CTQ eligibility)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/repo
+ExecStart=/usr/bin/env node %h/repo/db/close-and-notify-threads.mjs
+# No StandardOutput/StandardError override -- systemd --user services
+# default to the journal, which captures this automatically with zero
+# extra config. View with: journalctl --user -u close-and-notify-threads.service

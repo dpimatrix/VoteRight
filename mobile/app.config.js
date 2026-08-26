@@ -31,6 +31,12 @@ export default ({ config }) => {
       // the device (Files/Drive/email/etc.) -- it can't just live in
       // app storage, that's exactly what gets wiped on a reinstall too.
       "expo-sharing",
+      // Debate notifications (2026-08-24) -- Expo's own free push service,
+      // no third-party vendor. No custom icon/sound config: the platform
+      // defaults are fine for a first pass, and a mis-sized/missing custom
+      // icon silently fails on Android in a way that's hard to debug
+      // remotely, not worth the risk for this.
+      "expo-notifications",
     ],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {

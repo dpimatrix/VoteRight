@@ -684,29 +684,116 @@ CREATE TABLE forum_threads (
     opened_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     closes_at       TIMESTAMPTZ NOT NULL,
     status          TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
-    -- ROBERT'S RULES OVERLAY, PART 2: CALLING THE QUESTION —
-    -- a supermajority of a thread's active participants can force debate to
-    -- close early rather than wait out closes_at, once it's clearly stalled.
-    -- Threshold is a real column, not a hardcoded constant, so it's disclosed
-    -- and auditable the same way algorithm_version is elsewhere.
-    close_early_threshold_pct NUMERIC(4,1) NOT NULL DEFAULT 66.7,   -- RONR default: 2/3
+    -- Early closure has TWO independent paths (migration 093 built the
+    -- first, migration 094 restored the second with real floors -- see
+    -- ARCHITECTURE.md §12): an admin's own force-close judgment
+    -- (closed_by_admin/closed_reason, triggered by thread_reports below),
+    -- and a participant supermajority vote (call_the_question_votes,
+    -- gated by the two floors further down) -- the original vote-based
+    -- mechanism, minus the flaw that let 1 person exercise it alone.
+    -- closed_early/closed_early_at are "did this close before its natural
+    -- closes_at date" regardless of which path did it.
     closed_early    BOOLEAN NOT NULL DEFAULT FALSE,
     closed_early_at TIMESTAMPTZ,
-    -- eligibility floor for "active participant" in the denominator/electorate of the above:
-    -- a single one-click agreement vote is too cheap a bar to let someone help force early
-    -- closure, so an agreement-vote-only participant needs this many DISTINCT agreement
-    -- votes in the thread; posting at least one argument always qualifies on its own.
-    call_the_question_min_agreement_votes INTEGER NOT NULL DEFAULT 3
+    closed_by_admin TEXT,
+    closed_reason   TEXT,
+    -- ROBERT'S RULES OVERLAY, PART 2: CALLING THE QUESTION, restored with
+    -- floors (migration 094) -- see call_the_question_votes below.
+    close_early_threshold_pct NUMERIC(4,1) NOT NULL DEFAULT 66.7,   -- RONR default: 2/3
+    -- a single one-click agreement vote is too cheap a bar to count as an
+    -- "active participant" on its own; this many DISTINCT votes are needed
+    -- instead (posting at least one argument always qualifies on its own)
+    call_the_question_min_agreement_votes INTEGER NOT NULL DEFAULT 3,
+    -- NEW (migration 094): total active participants required before the
+    -- vote is even offered -- the actual gap the original design had (a
+    -- lone participant's own vote was 100% of a 1-person "supermajority").
+    call_the_question_min_active INTEGER NOT NULL DEFAULT 3,
+    -- NEW (migration 094): hours since opened_at required before the vote
+    -- is even offered -- guarantees latecomers a real minimum window
+    -- regardless of how fast a genuine supermajority forms.
+    call_the_question_min_open_hours INTEGER NOT NULL DEFAULT 72,
+    -- set once by close-and-notify-threads.mjs the first time both floors
+    -- above are met, so it can notify participants on that transition
+    -- exactly once rather than every run
+    ctq_eligible_notified_at TIMESTAMPTZ
 );
 
--- one vote per active participant (anyone who has posted an argument or cast an
--- agreement vote in the thread) toward closing debate early
+-- one vote per active participant (posted an argument or cast an agreement
+-- vote in this thread) toward closing debate early -- see the two floor
+-- columns on forum_threads above for why this doesn't have migration 093's
+-- original flaw
 CREATE TABLE call_the_question_votes (
     thread_id       UUID NOT NULL REFERENCES forum_threads(id),
     user_id         UUID NOT NULL REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (thread_id, user_id)
 );
+CREATE INDEX idx_call_the_question_votes_thread ON call_the_question_votes(thread_id);
+
+-- Member abuse reports on a debate thread (2026-08-24, migration 093) -- the
+-- trigger for an admin's force-close decision. Thread-level, not per-
+-- argument: addresses a thread devolving into spam/harassment across many
+-- posts, not any single flagged argument (already covered by re-running
+-- moderate() on an individual argument). One open report per (thread, user)
+-- so one person can't inflate the count by repeat-clicking.
+CREATE TABLE thread_reports (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id   UUID NOT NULL REFERENCES forum_threads(id),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    reason      TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (thread_id, user_id)
+);
+CREATE INDEX idx_thread_reports_thread ON thread_reports (thread_id, created_at);
+
+-- Notifications (2026-08-24, migration 094) -- in-app + mobile push + email,
+-- triggered by debate-thread lifecycle events (closed, newly call-the-
+-- question-eligible) but a generic enough shape to cover future event types
+-- without another migration. type + joined ids, NOT a pre-rendered message:
+-- this app is bilingual throughout (i18n.ts on both platforms), and a
+-- message rendered once at creation time in whichever language happened to
+-- be active server-side would defeat that -- the client renders the actual
+-- text from `type` + the joined thread/proposal title, in the reader's own
+-- current language preference, same as every other piece of UI copy here.
+CREATE TABLE notifications (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible')),
+    proposal_id UUID REFERENCES issue_proposals(id),
+    thread_id   UUID REFERENCES forum_threads(id),
+    detail      TEXT,                      -- e.g. an admin's closed_reason, when relevant
+    read_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_notifications_user ON notifications (user_id, created_at DESC);
+CREATE INDEX idx_notifications_user_unread ON notifications (user_id) WHERE read_at IS NULL;
+
+-- Mobile push tokens (2026-08-24) -- Expo's push service: free, already
+-- part of the Expo toolchain this app is built on, no new vendor decision.
+-- One row per (user, device); UNIQUE on token (not (user_id, token)) so
+-- re-registering the same physical device under a different current
+-- user_id (e.g. after an identity recovery) moves the token rather than
+-- leaving two identities both receiving pushes meant for one device.
+CREATE TABLE push_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    token       TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_push_tokens_user ON push_tokens (user_id);
+
+-- Opt-in notification email (2026-08-24, owner's vendor choice: Resend) --
+-- deliberately separate from verification/identity: users.email_hash above
+-- is a hashed, format-checked signal for a tier that was never actually
+-- wired to any code path (migration 085's own comment); this is a real,
+-- dialable address the user hands over voluntarily, stored raw because a
+-- hash can't be sent to. notification_email_verified_at stays NULL until
+-- the confirmation link is clicked (notifications.ts's sign/verify
+-- NotificationEmailToken) -- prevents both a typo silently going nowhere
+-- forever and one person signing a stranger's real address up for
+-- notifications about their own activity.
+ALTER TABLE users ADD COLUMN notification_email TEXT;
+ALTER TABLE users ADD COLUMN notification_email_verified_at TIMESTAMPTZ;
 
 -- format is a real discriminator: exactly one media field must be populated per format,
 -- enforced below rather than left to application code, since a debate argument with no
@@ -787,8 +874,8 @@ CREATE TABLE argument_agreement_votes (
 -- political-opinion ledger, held only while the thread needs them (open debate window +
 -- opinion-cluster recomputation + audit window), then DELETED. What survives them: the
 -- denormalized per-argument tallies below, and the final opinion_clusters snapshots —
--- neither contains a user identity. call_the_question_votes rows are likewise deleted
--- once a thread closes; only the recorded outcome on forum_threads persists.
+-- neither contains a user identity. thread_reports rows get the same private-signal
+-- treatment on a privacy deletion request (privacy.ts's executeDeletion()).
 ALTER TABLE arguments ADD COLUMN agree_count    INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE arguments ADD COLUMN disagree_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE arguments ADD COLUMN pass_count     INTEGER NOT NULL DEFAULT 0;
@@ -943,7 +1030,7 @@ CREATE TABLE voter_mandates (
     -- a real gate, not just a disclaimer: overlay_status cannot be 'published' unless
     -- meets_publish_threshold is true, enforced by the CHECK below.
     turnout_pct_of_registered NUMERIC(6,3),                -- turnout_count / jurisdictions.registered_voter_count, computed at publish time
-    publish_threshold_pct NUMERIC(5,2) NOT NULL DEFAULT 1.0,  -- minimum turnout %, tunable per jurisdiction size like close_early_threshold_pct
+    publish_threshold_pct NUMERIC(5,2) NOT NULL DEFAULT 1.0,  -- minimum turnout %, tunable per jurisdiction size (a real column, not a hardcoded constant, same disclosed/auditable instinct as second_threshold)
     meets_publish_threshold BOOLEAN NOT NULL DEFAULT FALSE,
     overlay_status  TEXT NOT NULL DEFAULT 'below_threshold_unpublished'
                       CHECK (overlay_status IN ('below_threshold_unpublished','published','acknowledged_by_office','addressed','ignored')),
@@ -1210,7 +1297,6 @@ CREATE INDEX idx_argument_agreement_votes_argument ON argument_agreement_votes(a
 CREATE INDEX idx_opinion_clusters_thread ON opinion_clusters(thread_id);
 CREATE INDEX idx_proposal_amendments_proposal ON proposal_amendments(proposal_id);
 CREATE INDEX idx_amendment_seconds_amendment ON amendment_seconds(amendment_id);
-CREATE INDEX idx_call_the_question_votes_thread ON call_the_question_votes(thread_id);
 CREATE INDEX idx_independent_expenditures_politician ON independent_expenditures(benefits_politician_id) WHERE benefits_politician_id IS NOT NULL;
 CREATE INDEX idx_independent_expenditures_race ON independent_expenditures(race_id);
 CREATE INDEX idx_campaign_communications_jurisdiction ON campaign_communications(jurisdiction_id);

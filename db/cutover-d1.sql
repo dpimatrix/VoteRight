@@ -23,7 +23,7 @@ TRUNCATE
   accountability_pathways, accountability_campaigns,
   accountability_campaign_supports, issue_proposals, seconds,
   proposal_amendments, amendment_seconds, forum_threads,
-  call_the_question_votes, arguments, argument_citations, argument_ratings,
+  thread_reports, arguments, argument_citations, argument_ratings,
   argument_clusters, argument_agreement_votes, opinion_clusters,
   argument_claim_flags, ai_debate_runs, referenda, referendum_ballot_tokens,
   referendum_ballots, voter_mandates, mandate_commitments,

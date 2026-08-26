@@ -139,6 +139,27 @@ rather than letting this drift out of sync with reality.
   pre-existing gap (predates the 2026-08-15 anomaly-detection work) covering
   plain content-spam volume, not the coordinated-manipulation shape §9
   targets. Still not built.
+- ~~Call-the-question has no minimum-active-participants floor~~ **DONE
+  (2026-08-24, migrations 093 + 094)** — found live-testing a single-
+  participant debate thread: with `active = 1`, one vote is 100% of a
+  66.7% supermajority, so a thread's sole active participant could close
+  debate unilaterally, cutting the fixed `closes_at` window short before
+  latecomers had a real chance to weigh in. First removed outright (093:
+  RONR's "previous question" solves a synchronous-meeting problem that
+  doesn't transfer to an async platform), then restored the same day (094)
+  once the owner drew a sharper distinction: the mechanism being
+  exploitable by a tiny group isn't the same as the underlying capability
+  being illegitimate. Restored with two real floors gating whether the
+  vote is even offered at all — `call_the_question_min_active` (3) and
+  `call_the_question_min_open_hours` (72) — alongside (not instead of) the
+  admin force-close/member-report path 093 also built. Notifications
+  (in-app + mobile push via Expo + opt-in email via Resend, the owner's
+  vendor choice) ship alongside both: a thread closing, or newly crossing
+  both CTQ floors. Also fixed in the process: nothing previously closed a
+  thread when its natural `closes_at` date simply passed — new
+  `db/close-and-notify-threads.mjs` (systemd timer, every 15 min) does
+  that plus the CTQ-eligibility check. See ARCHITECTURE.md §12 ("Calling
+  the question") for the full writeup.
 
 ## Dependency hygiene
 

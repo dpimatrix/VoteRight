@@ -8,6 +8,7 @@ const ACTION_LABEL: Record<string, string> = {
   address_verification: "Address verification",
   second: "Seconding a proposal",
   call_the_question: "Calling the question",
+  thread_report: "Reporting a debate thread",
   referendum_ballot: "Referendum ballot issuance",
 };
 const REASON_LABEL: Record<string, string> = {
