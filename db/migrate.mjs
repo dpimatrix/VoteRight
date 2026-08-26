@@ -8,14 +8,17 @@
 //                                           running them (fresh DBs built from the
 //                                           full SCHEMA.sql already contain them)
 //
-// Connection: --url=… > DATABASE_URL > local dev default.
+// Connection: --url=… > DATABASE_URL (env var, or read directly from
+// app/.env.production / app/.env.local if not already set -- this script
+// runs standalone, outside Next's own .env.production loading) > local dev
+// default.
 // Files: db/migrations/NNN_description.sql (append-only, numbered), or --dir=….
 //
 // Runbook (the PR #4 lesson, systematized): migrations run against Neon BEFORE
 // the code that needs them deploys. Every schema change lands in BOTH a
 // migration file and docs/SCHEMA.sql.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +30,31 @@ const args = process.argv.slice(2);
 const cmd = args.find((a) => !a.startsWith("--")) ?? "status";
 const opt = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const dir = opt("dir") ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "migrations");
-const url = opt("url") ?? process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright";
+
+// Real production failure (2026-08-26): despite this file's own doc comment
+// above claiming "DATABASE_URL sourced from app/.env.production first",
+// nothing here ever actually read that file -- this script runs standalone
+// (not through Next's tooling, which loads .env.production for the app
+// itself), so it silently fell through to the local-dev default even in
+// production. Same env-file fallback close-and-notify-threads.mjs already
+// uses for the identical reason (a systemd --user service/manual script
+// invocation doesn't inherit an interactive shell's exported vars either).
+if (!process.env.DATABASE_URL) {
+  for (const f of ["app/.env.production", "app/.env.local"]) {
+    if (!existsSync(f)) continue;
+    const m = readFileSync(f, "utf8").match(/^DATABASE_URL=(.*)$/m);
+    if (m) {
+      process.env.DATABASE_URL = m[1].replace(/^["']|["']$/g, "");
+      break;
+    }
+  }
+}
+// || not ?? on the final fallback -- an accidentally-exported-but-empty
+// DATABASE_URL (hit live during this same incident, from a shell mistake)
+// should fall through to the default too, not get used as a literally-empty
+// connection string that fails with a confusing SASL error instead of a
+// clear "connection refused" against the obvious local default.
+const url = opt("url") || process.env.DATABASE_URL || "postgres://postgres:vr@localhost:5433/voteright";
 
 const files = readdirSync(dir)
   .filter((f) => /^\d{3}_[\w-]+\.sql$/.test(f))
