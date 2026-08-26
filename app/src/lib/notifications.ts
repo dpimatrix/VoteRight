@@ -215,9 +215,16 @@ export function verifyNotificationEmailToken(token: string): { userId: string; e
   } catch {
     return null;
   }
+  // Split from both ends rather than a flat 4-way split: userId is a UUID
+  // and sig is a hex digest, neither of which can contain ".", but the
+  // email in between almost always does (e.g. "test@example.com") -- a
+  // naive split(".").length !== 4 check rejected every real address.
   const parts = decoded.split(".");
-  if (parts.length !== 4) return null;
-  const [userId, email, expStr, sig] = parts;
+  if (parts.length < 4) return null;
+  const userId = parts[0];
+  const sig = parts[parts.length - 1];
+  const expStr = parts[parts.length - 2];
+  const email = parts.slice(1, parts.length - 2).join(".");
   if (!userId || !email || !/^\d+$/.test(expStr) || Number(expStr) < Date.now()) return null;
   let expected: string;
   try {
@@ -239,11 +246,21 @@ export async function setNotificationEmail(userId: string, email: string): Promi
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, reason: "invalid" };
   const client = resend();
   if (!client) return { ok: false, reason: "unconfigured" }; // local dev without RESEND_API_KEY -- fail visibly rather than silently "succeeding" at nothing
+  // Sign the token BEFORE writing anything -- emailTokenSecret() throws if
+  // neither ADMIN_SESSION_SECRET nor NOTIFICATION_EMAIL_SECRET is set, and
+  // that must fail closed without having already cleared the user's
+  // verified_at in the DB.
+  let token: string;
+  try {
+    token = signNotificationEmailToken(userId, email, Date.now() + EMAIL_TOKEN_TTL_MS);
+  } catch (e) {
+    console.error(`notification email token signing failed for ${userId}: ${(e as Error).message}`);
+    return { ok: false, reason: "unconfigured" };
+  }
   await db().query(
     `UPDATE users SET notification_email = $2, notification_email_verified_at = NULL WHERE id = $1`,
     [userId, email],
   );
-  const token = signNotificationEmailToken(userId, email, Date.now() + EMAIL_TOKEN_TTL_MS);
   const verifyUrl = `${process.env.SITE_URL ?? "https://voteright.dpimatrix.com"}/api/notifications/verify-email?token=${token}`;
   try {
     await client.emails.send({

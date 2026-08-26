@@ -11,11 +11,14 @@ export default async function ModerationPage() {
     <>
       <div className="pagetitle">Reported debate threads</div>
       <p className="sub">
-        Member reports of thread-level abuse (2026-08-24) — replacing the old
-        participant-vote &quot;call the question&quot; early closure, which let a
-        thread&apos;s own tiny/sole active participant unilaterally cut short the
-        window every other debate gets. A thread now only closes before its natural
-        date on your own judgment, below.
+        Member reports of thread-level abuse (2026-08-24) — your own judgment
+        call, below, for cases (spam, harassment) that aren&apos;t about debate
+        being &quot;settled&quot; at all. This is separate from, not a replacement
+        for, participant-vote &quot;call the question&quot;: that mechanism is back
+        (2026-08-24) with two real floors — a minimum number of active
+        participants and a minimum time open — so a thread can also close early
+        on its own participants&apos; supermajority without any report or action
+        from you here.
       </p>
       {reported.length === 0 && <p className="nopos">No open thread has an outstanding report.</p>}
       {reported.map((r) => (

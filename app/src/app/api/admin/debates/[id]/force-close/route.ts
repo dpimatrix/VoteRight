@@ -12,6 +12,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!(await hasAdminAccess("moderation"))) return new Response("forbidden", { status: 403 });
   const { id: threadId } = await params;
   const admin = await currentAdmin();
+  // Same re-check every sibling admin route makes (priority-axes et al.):
+  // hasAdminAccess() above and this second, independent currentAdmin() call
+  // can race against the account being disabled/session revoked in between
+  // -- fail with the same graceful 403 those routes give, not a raw 500
+  // from a non-null assertion on a now-null admin.
+  if (!admin) return new Response("forbidden", { status: 403 });
   const form = await request.formData();
   const reason = String(form.get("reason") ?? "").trim();
   // No error UI on this simple redirect-back form to surface a rejection to
@@ -19,6 +25,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // -- but an unexplained early close has no audit trail, so this one case
   // is worth a hard stop rather than a silent no-op.
   if (!reason) return new Response("reason required", { status: 400 });
-  await forceCloseThread(threadId, admin!.username, reason);
+  await forceCloseThread(threadId, admin.username, reason);
   return redirectTo("/admin/moderation", request);
 }

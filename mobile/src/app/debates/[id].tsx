@@ -2,7 +2,7 @@ import { useEvent } from 'expo';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -373,30 +373,44 @@ export default function DebateScreen() {
   );
 }
 
-// Split out from the args.map() above rather than inlined: expo-video's
-// useVideoPlayer/expo-audio's useAudioPlayer are hooks, and a list can hold
-// any number of arguments -- calling a hook a variable number of times
-// inside .map() breaks the Rules of Hooks. One component instance per
-// argument card keeps each pair of hook calls fixed per-instance regardless
-// of how many arguments the thread has. Mirrors DebateComposer's own
-// "call both hooks unconditionally with a null source when not applicable"
-// pattern -- both packages document null as a safe no-op source, not
-// something to branch around.
-function ArgumentCard({
-  a,
-  d,
-  colors,
-  sideLabel,
-  voteEnabled,
-  onVote,
-}: {
+type ArgumentCardProps = {
   a: Arg;
   d: Dict;
   colors: Record<ThemeColor, string>;
   sideLabel: string;
   voteEnabled: boolean;
   onVote: (argumentId: string, response: 'agree' | 'disagree' | 'pass') => void;
-}) {
+};
+
+// Dispatches by a.format, which is fixed per argument and never changes
+// across this row's own re-renders -- an ordinary conditional render of two
+// different component types, not a hook called a variable number of times
+// (that would break the Rules of Hooks; this doesn't, since React tracks
+// hooks per mounted component instance, and each instance here always
+// renders as the same one of the two below for its whole lifetime). Replaces
+// the earlier single-component version that called expo-video's
+// useVideoPlayer/expo-audio's useAudioPlayer unconditionally on every card
+// including plain-text ones, purely to keep hook-call count fixed.
+function ArgumentCard(props: ArgumentCardProps) {
+  return props.a.format === 'text' ? <TextArgumentCard {...props} /> : <MediaArgumentCard {...props} />;
+}
+
+function TextArgumentCard({ a, d, colors, sideLabel, voteEnabled, onVote }: ArgumentCardProps) {
+  return (
+    <ArgumentCardShell a={a} colors={colors} sideLabel={sideLabel}>
+      <ThemedText type="small">{a.body_text}</ThemedText>
+      <ArgumentCardFooter a={a} d={d} colors={colors} voteEnabled={voteEnabled} onVote={onVote} />
+    </ArgumentCardShell>
+  );
+}
+
+// The only variant that touches expo-video/expo-audio's hooks -- text-only
+// arguments (the common case) no longer allocate a video+audio player pair
+// for a media type they'll never use. Also the fallback for any format
+// other than 'text'/'video'/'audio', same as the original single-component
+// version: videoUrl/audioUrl both resolve to null there too, so it renders
+// identically (header + citations + footer only).
+function MediaArgumentCard({ a, d, colors, sideLabel, voteEnabled, onVote }: ArgumentCardProps) {
   const videoUrl = a.format === 'video' && a.video_url ? resolveMediaUrl(a.video_url) : null;
   const audioUrl = a.format === 'audio' && a.audio_url ? resolveMediaUrl(a.audio_url) : null;
   const videoPlayer = useVideoPlayer(videoUrl);
@@ -405,26 +419,7 @@ function ArgumentCard({
   const audioStatus = useAudioPlayerStatus(audioPlayer);
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.backgroundElement },
-        a.moderation_status === 'pending' && styles.pendingCard,
-      ]}
-    >
-      <View style={styles.rowBetween}>
-        <View style={[styles.chip, { borderColor: colors.evidence }]}>
-          <ThemedText type="small" style={{ color: colors.evidence }}>
-            {sideLabel}
-          </ThemedText>
-        </View>
-        <ThemedText type="small" themeColor="textSecondary">
-          {a.display_name} · {a.date}
-        </ThemedText>
-      </View>
-
-      {a.format === 'text' && <ThemedText type="small">{a.body_text}</ThemedText>}
-
+    <ArgumentCardShell a={a} colors={colors} sideLabel={sideLabel}>
       {videoUrl && <VideoView player={videoPlayer} style={styles.videoPreview} contentFit="contain" />}
       {(videoUrl || audioUrl) && (
         <View style={styles.sideRow}>
@@ -446,38 +441,94 @@ function ArgumentCard({
           </ThemedText>
         </View>
       )}
+      <ArgumentCardFooter a={a} d={d} colors={colors} voteEnabled={voteEnabled} onVote={onVote} />
+    </ArgumentCardShell>
+  );
+}
+
+// Chrome shared by both variants above -- header row + citations, wrapping
+// whatever format-specific body each variant passes as children.
+function ArgumentCardShell({
+  a,
+  colors,
+  sideLabel,
+  children,
+}: {
+  a: Arg;
+  colors: Record<ThemeColor, string>;
+  sideLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.backgroundElement },
+        a.moderation_status === 'pending' && styles.pendingCard,
+      ]}
+    >
+      <View style={styles.rowBetween}>
+        <View style={[styles.chip, { borderColor: colors.evidence }]}>
+          <ThemedText type="small" style={{ color: colors.evidence }}>
+            {sideLabel}
+          </ThemedText>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          {a.display_name} · {a.date}
+        </ThemedText>
+      </View>
+
+      {children}
 
       {a.citations.map((c, i) => (
         <ThemedText key={i} type="small" themeColor="textSecondary">
           ▣ {c.publisher} · {c.title}
         </ThemedText>
       ))}
-      {a.moderation_status === 'pending' ? (
-        <ThemedText type="small">{d.pending_moderation}</ThemedText>
-      ) : voteEnabled ? (
-        <View style={styles.voteRow}>
-          {(['agree', 'disagree', 'pass'] as const).map((r) => (
-            <Pressable
-              key={r}
-              onPress={() => onVote(a.id, r)}
-              style={[styles.chip, { borderColor: a.my_vote === r ? colors.evidence : colors.textSecondary }]}
-            >
-              <ThemedText type="small">
-                {r === 'agree'
-                  ? tf(d.agree_count, { n: a.agree_count })
-                  : r === 'disagree'
-                    ? tf(d.disagree_count, { n: a.disagree_count })
-                    : d.pass}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-      ) : (
-        <ThemedText type="small" themeColor="textSecondary">
-          {tf(d.agree_disagree_readonly, { agree: a.agree_count, disagree: a.disagree_count })}
-        </ThemedText>
-      )}
     </View>
+  );
+}
+
+// Moderation/vote footer shared by both variants above.
+function ArgumentCardFooter({
+  a,
+  d,
+  colors,
+  voteEnabled,
+  onVote,
+}: {
+  a: Arg;
+  d: Dict;
+  colors: Record<ThemeColor, string>;
+  voteEnabled: boolean;
+  onVote: (argumentId: string, response: 'agree' | 'disagree' | 'pass') => void;
+}) {
+  if (a.moderation_status === 'pending') return <ThemedText type="small">{d.pending_moderation}</ThemedText>;
+  if (voteEnabled) {
+    return (
+      <View style={styles.voteRow}>
+        {(['agree', 'disagree', 'pass'] as const).map((r) => (
+          <Pressable
+            key={r}
+            onPress={() => onVote(a.id, r)}
+            style={[styles.chip, { borderColor: a.my_vote === r ? colors.evidence : colors.textSecondary }]}
+          >
+            <ThemedText type="small">
+              {r === 'agree'
+                ? tf(d.agree_count, { n: a.agree_count })
+                : r === 'disagree'
+                  ? tf(d.disagree_count, { n: a.disagree_count })
+                  : d.pass}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
+  return (
+    <ThemedText type="small" themeColor="textSecondary">
+      {tf(d.agree_disagree_readonly, { agree: a.agree_count, disagree: a.disagree_count })}
+    </ThemedText>
   );
 }
 

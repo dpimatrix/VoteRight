@@ -94,6 +94,8 @@ export async function executeDeletion(userId: string, requestId: string) {
           SET auth_id = 'deleted:' || id,
               display_name = NULL,
               email_hash = NULL,
+              notification_email = NULL,
+              notification_email_verified_at = NULL,
               deleted_at = now()
         WHERE id = $1 AND deleted_at IS NULL`,
       [userId],
@@ -106,6 +108,19 @@ export async function executeDeletion(userId: string, requestId: string) {
     // here) -- same private-signal treatment: the report itself is a private
     // act between the reporter and a moderator, not a public civic act.
     await client.query(`DELETE FROM thread_reports WHERE user_id = $1`, [userId]);
+    // call_the_question_votes (2026-08-24, migration 094, re-added alongside
+    // 093's report path rather than instead of it) -- same private-signal
+    // treatment as thread_reports above; missed here when 094 recreated the
+    // table after 093 removed the identical DELETE for it.
+    await client.query(`DELETE FROM call_the_question_votes WHERE user_id = $1`, [userId]);
+    // Notifications (2026-08-24, migration 094): push_tokens and the
+    // notifications inbox are both per-user private signals the same as
+    // everything above -- a device token that still receives pushes, or a
+    // notification history still tied to this identity, would survive a
+    // deletion request otherwise. notification_email is cleared on the
+    // users row itself, above.
+    await client.query(`DELETE FROM push_tokens WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
     await client.query(`UPDATE referendum_ballot_tokens SET user_id = NULL WHERE user_id = $1`, [userId]);
     await client.query(
       `UPDATE privacy_requests SET status = 'completed', resolved_at = now(),

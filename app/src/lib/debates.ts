@@ -697,8 +697,16 @@ export async function reportThread(
   userId: string,
   reason: string,
   requestContext?: { ip: string | null; contextHash: string | null },
-): Promise<{ ok: true } | { ok: false; reason: "invalid" }> {
+): Promise<{ ok: true } | { ok: false; reason: "invalid" | "closed" }> {
   if (!reason.trim()) return { ok: false, reason: "invalid" };
+  // Same gap class as ctqVote/agreeVote above: the UI only renders the
+  // report form while thread_status === "open", but nothing here re-checked
+  // server-side -- a direct POST could report an already-closed thread, and
+  // the row would then be silently invisible to reportedThreadsQueue()'s own
+  // `WHERE ft.status = 'open'` filter: it looks like it succeeded to the
+  // reporter but never reaches a moderator.
+  const thread = await db().query(`SELECT status FROM forum_threads WHERE id = $1`, [threadId]);
+  if (thread.rows[0]?.status !== "open") return { ok: false, reason: "closed" };
   await db().query(
     `INSERT INTO thread_reports (thread_id, user_id, reason) VALUES ($1, $2, $3)
      ON CONFLICT (thread_id, user_id) DO NOTHING`,
