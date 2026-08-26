@@ -1,5 +1,18 @@
 import type { NextConfig } from "next";
 
+// Real production build failure (2026-08-26): the bare __dirname global this
+// file used to reference below doesn't exist in whatever module scope Next
+// 16's config loader actually runs this in (confirmed live -- a
+// ReferenceError thrown from inside the compiled config itself, "__dirname
+// is not defined in ES module scope"). Deliberately NOT replaced with an
+// import.meta.url-based equivalent -- adding node:url/node:path imports here
+// was tried and confirmed live to change how the compiler emits this file
+// (shifts to CJS-style output referencing `exports`, which fails the exact
+// same way under the same loader). process.cwd() needs no new import and is
+// equivalent here regardless: docs/DEPLOY.md documents (and enforces, via
+// the ENOENT failure mode it describes) that Next is always invoked with
+// this directory (app/) as the working directory, in dev and production
+// alike -- that's also fundamentally how its CLI finds this very file.
 const nextConfig: NextConfig = {
   // Next 16 blocks dev-server assets for non-localhost origins (403 on /_next/*),
   // which leaves LAN devices with server-rendered HTML and zero interactivity.
@@ -26,7 +39,7 @@ const nextConfig: NextConfig = {
   // mis-inference. Hardcoding the real root removes the inference step
   // (and this whole race) entirely, per Turbopack's own docs for
   // non-standard structures.
-  turbopack: { root: __dirname },
+  turbopack: { root: process.cwd() },
   // geoip-lite (anomalyDetection.ts) bundles its own binary data file and
   // locates it via a __dirname-relative path -- Turbopack's build-time
   // bundling/tracing rewrites that path incorrectly (confirmed live
