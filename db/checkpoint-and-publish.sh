@@ -32,8 +32,29 @@ export PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"
 # Next.js app does (Next loads app/.env.production itself; this script is a
 # separate process) - pull it from the same file so this hits the real
 # production database, not the local-dev default.
+#
+# read_env_var, not the plain grep -m1 | cut this used to be: found live
+# 2026-08-15 running db/ingest/roster-refresh.sh for the first time against
+# this SAME app/.env.production -- a variable in it was defined TWICE (an
+# old value, then the real current one below it), and grep -m1 (first
+# match) silently grabbed the stale one; another variable's value there is
+# quote-wrapped, and a plain cut sent the literal quote characters through
+# as part of the value. Both are completely normal things to end up with in
+# a real, hand-edited .env file over time -- this script inherited the
+# same fragile extraction roster-refresh.sh already moved off of for the
+# identical reason, just never got the same fix applied here.
+read_env_var() {
+  local var_name="$1" file="$2" raw
+  raw="$(grep "^${var_name}=" "$file" 2>/dev/null | tail -1 | cut -d= -f2-)"
+  if [[ "$raw" == \"*\" && "$raw" == *\" ]]; then
+    raw="${raw:1:-1}"
+  elif [[ "$raw" == \'*\' && "$raw" == *\' ]]; then
+    raw="${raw:1:-1}"
+  fi
+  echo "$raw"
+}
 if [ -f app/.env.production ]; then
-  export DATABASE_URL="$(grep -m1 '^DATABASE_URL=' app/.env.production | cut -d= -f2-)"
+  export DATABASE_URL="$(read_env_var DATABASE_URL app/.env.production)"
 fi
 
 log_and_exit() {
