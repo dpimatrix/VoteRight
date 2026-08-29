@@ -409,8 +409,39 @@ export async function adminFlagEvent(flagId: string, note: string) {
   );
 }
 
-/** Resolve: status + published move together, satisfying CHECK (NOT published OR status <> 'open'). */
-export async function adminResolveFlag(flagId: string, outcome: "upheld" | "dismissed", note: string) {
+const REPLY_WINDOW_DAYS = 14;
+
+/** Resolve: status + published move together, satisfying CHECK (NOT
+    published OR status <> 'open').
+
+    Found live 2026-08-29: nothing here (or anywhere) ever enforced the
+    "right of reply before resolution" the disputes page's own copy
+    promises. 'upheld' PUBLISHES a negative finding about a real, named
+    candidate -- the admin UI hid the Uphold/Dismiss buttons based on
+    whether the reply request had merely been SENT, not whether the
+    campaign actually got the 14 days that request itself promises them,
+    or ever replied. That's a client-side convenience, not a guarantee --
+    a direct POST to this action bypassed it entirely. Dismissing isn't
+    gated the same way: it doesn't publish anything damaging about anyone,
+    so there's no real integrity risk in dismissing an obviously frivolous
+    flag quickly. */
+export async function adminResolveFlag(
+  flagId: string,
+  outcome: "upheld" | "dismissed",
+  note: string,
+): Promise<{ ok: true } | { ok: false; reason: "reply_window_open" }> {
+  if (outcome === "upheld") {
+    const { rows } = await db().query(
+      `SELECT
+         bool_or(note LIKE 'REPLY%') AS has_reply,
+         min(recorded_at) FILTER (WHERE note LIKE 'Right of reply sent%') AS reply_sent_at
+       FROM integrity_flag_status_events WHERE integrity_flag_id = $1`,
+      [flagId],
+    );
+    const r = rows[0];
+    const windowElapsed = r?.reply_sent_at && Date.now() - new Date(r.reply_sent_at).getTime() >= REPLY_WINDOW_DAYS * 86_400_000;
+    if (!r?.has_reply && !windowElapsed) return { ok: false, reason: "reply_window_open" };
+  }
   const client = await db().connect();
   try {
     await client.query("BEGIN");
@@ -429,6 +460,7 @@ export async function adminResolveFlag(flagId: string, outcome: "upheld" | "dism
   } finally {
     client.release();
   }
+  return { ok: true };
 }
 
 export async function adminCodingQueue() {

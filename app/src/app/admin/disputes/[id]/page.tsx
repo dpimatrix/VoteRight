@@ -8,19 +8,32 @@ export const dynamic = "force-dynamic";
 
 export default async function DisputeDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ replyWindowOpen?: string }>;
 }) {
   if (!(await hasAdminAccess("disputes"))) return <AdminAccessDenied screen="disputes" />;
   const { id } = await params;
+  const sp = await searchParams;
   const flag = await adminFlagDetail(id);
   if (!flag) notFound();
 
   const act = `/api/admin/flags/${id}`;
   const hasReply = flag.events.some((e: { note: string | null }) => e.note?.includes("REPLY"));
-  const replySent = flag.events.some((e: { note: string | null }) =>
+  const replySentEvent = flag.events.find((e: { note: string | null; date: string }) =>
     e.note?.startsWith("Right of reply sent"),
   );
+  const replySent = !!replySentEvent;
+  // Found live 2026-08-29: this used to unlock Uphold/Dismiss the instant
+  // replySent went true (the request was merely SENT), not after the 14
+  // days that request itself promises the campaign actually elapsed, or a
+  // reply came in. adminResolveFlag() now enforces the real gate server-
+  // side regardless of what this page shows -- this just keeps the button
+  // itself from appearing misleadingly early.
+  const replyWindowElapsed =
+    !!replySentEvent && Date.now() - new Date(replySentEvent.date).getTime() >= 14 * 86_400_000;
+  const canResolve = hasReply || replyWindowElapsed;
 
   return (
     <>
@@ -72,19 +85,31 @@ export default async function DisputeDetail({
             )}
 
             <div className="grouph">Resolve</div>
-            {!hasReply && !replySent ? (
-              <p className="nopos">Resolution unlocks after the right-of-reply step.</p>
-            ) : (
-              <div className="admform">
+            {sp.replyWindowOpen === "1" && (
+              <p className="nopos">
+                Can&apos;t uphold yet — the candidate hasn&apos;t replied, and 14 days haven&apos;t passed since the
+                right-of-reply request was sent.
+              </p>
+            )}
+            {/* Dismiss carries no publication risk (nothing damaging goes public), so it's
+                never gated on the reply window -- only Uphold, which does, is. */}
+            <div className="admform">
+              <form method="post" action={act} style={{ flex: 1, display: "flex" }}>
+                <input type="hidden" name="action" value="dismiss" />
+                <button type="submit" style={{ width: "100%" }}>Dismiss</button>
+              </form>
+              {canResolve && (
                 <form method="post" action={act} style={{ flex: 1, display: "flex" }}>
                   <input type="hidden" name="action" value="uphold" />
                   <button type="submit" style={{ width: "100%" }}>Uphold &amp; publish</button>
                 </form>
-                <form method="post" action={act} style={{ flex: 1, display: "flex" }}>
-                  <input type="hidden" name="action" value="dismiss" />
-                  <button type="submit" style={{ width: "100%" }}>Dismiss</button>
-                </form>
-              </div>
+              )}
+            </div>
+            {!canResolve && (
+              <button className="gatebtn" disabled>
+                Uphold &amp; publish — blocked
+                <small>Unlocks once the candidate replies, or 14 days pass since the right-of-reply request was sent</small>
+              </button>
             )}
             <button className="gatebtn" disabled>
               Publish flag — blocked
