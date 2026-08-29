@@ -10,7 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const note = String(form.get("note") ?? "") || undefined;
 
   if (action === "in_progress" || action === "completed" || action === "denied") {
-    await adminResolveRequest(id, action, note);
+    const result = await adminResolveRequest(id, action, note);
+    if (!result.ok) return redirectTo("/admin/privacy?deletionNotExecuted=1", request);
   } else if (action === "execute_deletion") {
     await executeDeletion(String(form.get("subject_user_id") ?? ""), id);
   } else {

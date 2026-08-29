@@ -4,12 +4,24 @@ import { adminPrivacyQueue } from "@/lib/privacy";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPrivacyPage() {
+export default async function AdminPrivacyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deletionNotExecuted?: string }>;
+}) {
   if (!(await hasAdminAccess("privacy"))) return <AdminAccessDenied screen="privacy" />;
+  const sp = await searchParams;
   const queue = await adminPrivacyQueue();
   return (
     <>
       <div className="pagetitle">Privacy request queue (MODPA)</div>
+      {sp.deletionNotExecuted === "1" && (
+        <p className="nopos">
+          That request can&apos;t be marked Complete yet — it&apos;s a deletion request and the §10 pseudonymization
+          hasn&apos;t actually been executed. Use &quot;Execute deletion&quot; below instead; it marks the request
+          complete as part of actually performing the deletion.
+        </p>
+      )}
       <p className="sub">
         Statutory clock: 45 days per request (one 45-day extension allowed — if used, tell
         the requester and note it here), appeals 60 days. Deletion executes the §10
@@ -41,7 +53,12 @@ export default async function AdminPrivacyPage() {
                 <input name="note" placeholder="Resolution note (shown to the requester)" />
                 <div className="admform" style={{ marginTop: 0 }}>
                   <button type="submit" name="action" value="in_progress" style={{ flex: 1 }}>In progress</button>
-                  <button type="submit" name="action" value="completed" style={{ flex: 1 }}>Complete</button>
+                  {/* Hidden (not just server-rejected) for an unexecuted deletion request -- the
+                      "Execute deletion" button below is the only way to actually complete one,
+                      since it performs the §10 pseudonymization as part of marking it complete. */}
+                  {!(q.request_type === "deletion" && !q.already_deleted) && (
+                    <button type="submit" name="action" value="completed" style={{ flex: 1 }}>Complete</button>
+                  )}
                   <button type="submit" name="action" value="denied" style={{ flex: 1 }}>Deny (appealable)</button>
                 </div>
               </form>
