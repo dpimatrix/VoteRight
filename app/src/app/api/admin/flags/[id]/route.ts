@@ -27,7 +27,8 @@ export async function POST(
   } else if (action === "reply") {
     await adminFlagEvent(id, `REPLY (right of reply): ${String(form.get("note") ?? "")}`);
   } else if (action === "uphold") {
-    await adminResolveFlag(id, "upheld", "Resolved: UPHELD — published with evidence and any reply attached.");
+    const result = await adminResolveFlag(id, "upheld", "Resolved: UPHELD — published with evidence and any reply attached.");
+    if (!result.ok) return redirectTo(`/admin/disputes/${id}?replyWindowOpen=1`, request);
   } else if (action === "dismiss") {
     await adminResolveFlag(id, "dismissed", "Resolved: DISMISSED — evidence and reply retained in the append-only record.");
   } else {
