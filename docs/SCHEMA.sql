@@ -1210,7 +1210,11 @@ CREATE TABLE payment_verifications (
     currency                TEXT NOT NULL DEFAULT 'usd',
     gateway_transaction_id  TEXT,
     status                  TEXT NOT NULL DEFAULT 'pending'
-                              CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
+                              -- 'processing' (migration 095): an atomically-claimed
+                              -- in-flight Authorize.Net charge, between the claim and
+                              -- the external gateway call returning -- see that
+                              -- migration's own comment for the idempotency gap it closes.
+                              CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'refunded')),
     check_reference_code    TEXT,
     reconciled_by           TEXT,
     reconciled_at           TIMESTAMPTZ,
