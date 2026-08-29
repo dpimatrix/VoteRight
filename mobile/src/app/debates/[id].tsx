@@ -90,6 +90,11 @@ export default function DebateScreen() {
   const [detail, setDetail] = useState<DebateDetail | null>(null);
   const [tier, setTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error` above -- that one replaces the ENTIRE page (only
+  // used for the initial load failing), too heavy-handed for "one action
+  // among several on this page failed." Cleared at the start of every
+  // action below so a stale message from a previous attempt doesn't linger.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -126,14 +131,23 @@ export default function DebateScreen() {
   // doc comment. An address-verified-but-unpaid user goes to /verify-payment,
   // not back through address verification they've already done; a fully
   // unverified user still goes to /verify.
+  // Found live 2026-08-29: any code other than 'pay'/'verify' (e.g. the
+  // report endpoint's 'closed'/'invalid') was silently dropped here --
+  // every call site below just cleared its busy state with zero feedback,
+  // as if nothing had been submitted at all. Falls back to a generic
+  // inline error for anything unrecognized, rather than special-casing
+  // every current and future error code this shared helper's four call
+  // sites can return.
   function routeToVerification(code: string | null) {
     if (code === 'pay') router.push('/verify-payment');
     else if (code === 'verify') router.push('/verify');
+    else setActionError(d.generic_error);
   }
 
   async function second() {
     if (!detail) return;
     setBusy(true);
+    setActionError(null);
     try {
       let signature: { signature: string; publicKeyFingerprint: string } | undefined;
       try {
@@ -166,6 +180,7 @@ export default function DebateScreen() {
   async function ctqVote() {
     if (!detail?.thread_id) return;
     setBusy(true);
+    setActionError(null);
     try {
       await post(`/api/debates/${detail.thread_id}/ctq`, {});
       await load();
@@ -185,6 +200,7 @@ export default function DebateScreen() {
   async function submitReport() {
     if (!detail?.thread_id || !reportReason.trim()) return;
     setBusy(true);
+    setActionError(null);
     try {
       await post(`/api/debates/${detail.thread_id}/report`, { reason: reportReason.trim() });
       setReportReason('');
@@ -199,6 +215,7 @@ export default function DebateScreen() {
   }
 
   async function agree(argumentId: string, response: 'agree' | 'disagree' | 'pass') {
+    setActionError(null);
     try {
       await post(`/api/arguments/${argumentId}/agree`, { response });
       await load();
@@ -236,6 +253,8 @@ export default function DebateScreen() {
           {detail.topic}
         </ThemedText>
         <ThemedText type="small">{detail.body}</ThemedText>
+
+        {actionError && <ThemedText type="small">{actionError}</ThemedText>}
 
         {detail.status === 'seconding' && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>

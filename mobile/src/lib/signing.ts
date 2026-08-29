@@ -26,6 +26,7 @@ import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
 import * as Crypto from 'expo-crypto';
 
 import { adoptSessionId, get, post } from '@/services/api';
+import { reassociatePushToken } from '@/lib/pushNotifications';
 
 // Imported lazily (not at module scope) because expo-secure-store's native
 // module isn't necessarily compiled into every installed build yet — Expo
@@ -290,6 +291,14 @@ export async function importEncryptedBackup(
   if (res.recovered && res.anonId) {
     adoptSessionId(res.anonId);
     cachedUserId = null;
+    // Found live 2026-08-29: this device's push token (registered at boot,
+    // under whatever fresh identity a new install started with) otherwise
+    // stays pointed at that pre-recovery identity in push_tokens until the
+    // app happens to fully relaunch -- silently breaking push delivery for
+    // the identity actually in use for the rest of this session. Best-
+    // effort, same posture as registration itself -- a failure here must
+    // never block recovery from completing.
+    void reassociatePushToken();
   }
 
   await saveRecord({

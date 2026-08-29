@@ -9,7 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ThemePreferenceProvider } from '@/hooks/theme-preference';
 import { LanguagePreferenceProvider, useLanguagePreference } from '@/hooks/language-preference';
 import { t } from '@/lib/i18n';
-import { registerForPushNotifications } from '@/lib/pushNotifications';
+import { registerForPushNotifications, subscribeToPushTokenRotation } from '@/lib/pushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,9 +20,15 @@ function RootLayoutNav() {
 
   // Once per app boot, best-effort (see pushNotifications.ts's own header
   // comment for why every failure path there is a silent return, never a
-  // thrown error that could affect startup).
+  // thrown error that could affect startup). The rotation subscription
+  // (2026-08-29) reacts to Expo's own documented token-rotation behavior --
+  // without it, a long-running app instance would keep this device's
+  // server-side record pointed at a stale token indefinitely. Cleanup on
+  // unmount for correctness even though the root layout never actually
+  // unmounts in practice.
   useEffect(() => {
     void registerForPushNotifications();
+    return subscribeToPushTokenRotation();
   }, []);
 
   return (
