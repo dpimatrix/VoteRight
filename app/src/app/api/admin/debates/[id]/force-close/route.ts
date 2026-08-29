@@ -25,6 +25,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // -- but an unexplained early close has no audit trail, so this one case
   // is worth a hard stop rather than a silent no-op.
   if (!reason) return new Response("reason required", { status: 400 });
-  await forceCloseThread(threadId, admin.username, reason);
-  return redirectTo("/admin/moderation", request);
+  const result = await forceCloseThread(threadId, admin.username, reason);
+  // Found live 2026-08-29: forceCloseThread()'s {ok: false} (thread already
+  // closed by the time this submitted -- CTQ succeeded, or another admin's
+  // own force-close, in the gap between page load and this POST) was
+  // silently discarded here. The admin got redirected back to the same
+  // queue as if their action had taken effect either way, with zero
+  // indication the reason they typed was never actually recorded anywhere.
+  return redirectTo(`/admin/moderation${result.ok ? "" : "?forceCloseFailed=1"}`, request);
 }

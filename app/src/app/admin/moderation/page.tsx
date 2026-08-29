@@ -4,12 +4,24 @@ import { moderationQueue, reportedThreadsQueue } from "@/lib/debates";
 
 export const dynamic = "force-dynamic";
 
-export default async function ModerationPage() {
+export default async function ModerationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ forceCloseFailed?: string }>;
+}) {
   if (!(await hasAdminAccess("moderation"))) return <AdminAccessDenied screen="moderation" />;
+  const sp = await searchParams;
   const [queue, reported] = await Promise.all([moderationQueue(), reportedThreadsQueue()]);
   return (
     <>
       <div className="pagetitle">Reported debate threads</div>
+      {sp.forceCloseFailed === "1" && (
+        <p className="nopos">
+          That thread was already closed by the time this request was processed (a participant vote succeeded, or
+          another admin force-closed it first) — the reason you entered was not recorded anywhere. No action needed;
+          it&apos;s already off this queue.
+        </p>
+      )}
       <p className="sub">
         Member reports of thread-level abuse (2026-08-24) — your own judgment
         call, below, for cases (spam, harassment) that aren&apos;t about debate
