@@ -70,7 +70,31 @@ export async function adminPrivacyQueue() {
   }[];
 }
 
-export async function adminResolveRequest(id: string, status: "in_progress" | "completed" | "denied", note?: string) {
+/** Found live 2026-08-29: the admin UI has two independent forms on the
+    same request card -- this generic in_progress/completed/denied form,
+    and a separate "Execute deletion" button that calls executeDeletion()
+    below. Nothing previously stopped an admin from clicking plain
+    "Complete" on a deletion request without ever clicking "Execute
+    deletion" -- marking the statutory clock satisfied while the actual
+    §10 pseudonymization never ran. Denying doesn't have this problem (a
+    denial legitimately doesn't require deletion to have happened), only
+    completing one without having executed it does. */
+export async function adminResolveRequest(
+  id: string,
+  status: "in_progress" | "completed" | "denied",
+  note?: string,
+): Promise<{ ok: true } | { ok: false; reason: "deletion_not_executed" }> {
+  if (status === "completed") {
+    const { rows } = await db().query(
+      `SELECT pr.request_type, u.deleted_at
+         FROM privacy_requests pr JOIN users u ON u.id = pr.user_id
+        WHERE pr.id = $1`,
+      [id],
+    );
+    if (rows[0]?.request_type === "deletion" && !rows[0].deleted_at) {
+      return { ok: false, reason: "deletion_not_executed" };
+    }
+  }
   await db().query(
     `UPDATE privacy_requests
         SET status = $2,
@@ -79,6 +103,7 @@ export async function adminResolveRequest(id: string, status: "in_progress" | "c
       WHERE id = $1`,
     [id, status, note || null],
   );
+  return { ok: true };
 }
 
 /** ARCHITECTURE.md §10 deletion: pseudonymize the person, remove private
