@@ -28,6 +28,15 @@ export default async function NotificationsPage({
         <div className="card">
           <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.notif_email_h}</div>
           <p className="nopos" style={{ margin: "0.35rem 0" }}>{d.notif_email_note}</p>
+          {/* One-time banner from the confirmation-link redirect itself
+              (?emailVerified=1|0) -- separate from the ambient status below,
+              which reflects THIS session's own identity. verify-email/route.ts
+              deliberately verifies by the token's own embedded userId, not
+              the current session, so clicking the link from a different
+              browser/device than the one that requested it still verifies
+              correctly but wouldn't otherwise show any feedback here at all. */}
+          {sp.emailVerified === "1" && <p className="pill kept" style={{ display: "inline-block", margin: "0 0 0.5rem" }}>{d.notif_email_just_verified}</p>}
+          {sp.emailVerified === "0" && <p className="nopos" style={{ margin: "0 0 0.5rem" }}>{d.notif_email_verify_failed}</p>}
           {emailStatus.email && emailStatus.verified ? (
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
               <span className="pill kept">{tf(d.notif_email_verified, { email: emailStatus.email })}</span>
