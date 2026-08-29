@@ -5,6 +5,7 @@ import {
   chargeOpaqueData,
   parseAuthorizeNetWebhook,
   verifyAuthorizeNetSignature,
+  type AuthorizeNetChargeResult,
   type AuthorizeNetCreds,
 } from "./paymentGateways/authorizenet";
 
@@ -220,7 +221,23 @@ export async function startCardPayment(
     tier promotion happens directly off this response for 'succeeded', not
     deferred to a webhook. (eCheck/ACH-shaped transactions still settle
     over days and come back 'pending' -- those DO rely on the webhook
-    handler below for final confirmation, same as Stripe ACH.) */
+    handler below for final confirmation, same as Stripe ACH.)
+
+    Two real gaps found live 2026-08-29 (code review), both closed here:
+    (1) No check that Authorize.Net is STILL the active gateway right now
+        -- an admin switching active_gateway away (compromised key, fraud
+        pattern) previously only affected NEW /start calls; a recordId
+        minted while it was active could still complete a real charge
+        through it afterward.
+    (2) No idempotency guard at all -- a double-click, a client timeout
+        that retries with a freshly-tokenized dataDescriptor/dataValue for
+        the SAME recordId, would trigger a second real charge on the
+        customer's card. Closed with an atomic 'pending' -> 'processing'
+        claim (migration 095) BEFORE ever calling out to Authorize.Net --
+        only one caller can ever win that transition for a given row
+        (ordinary Postgres row locking), so a concurrent or retried call
+        sees the row already claimed and refuses outright rather than
+        charging again. */
 export async function chargeAuthorizeNetToken(
   recordId: string,
   userId: string,
@@ -229,15 +246,74 @@ export async function chargeAuthorizeNetToken(
 ): Promise<{ status: "succeeded" | "pending" | "failed"; message: string }> {
   const settings = await getPaymentSettings();
   if (!settings.authorizenet) throw new PaymentNotConfigured("Authorize.Net keys missing");
-  const record = await db().query(`SELECT amount_cents FROM payment_verifications WHERE id = $1 AND user_id = $2`, [recordId, userId]);
-  if (!record.rows[0]) throw new Error("payment record not found");
-  const result = await chargeOpaqueData(settings.authorizenet, {
-    amountCents: record.rows[0].amount_cents,
-    dataDescriptor,
-    dataValue,
-    userId,
-  });
-  await promoteFromGatewayResult(recordId, result.transactionId, result.status);
+  if (settings.activeGateway !== "authorizenet") throw new PaymentNotConfigured("Authorize.Net is no longer the active gateway");
+
+  const claim = await db().query(
+    `UPDATE payment_verifications SET status = 'processing'
+      WHERE id = $1 AND user_id = $2 AND status = 'pending'
+      RETURNING amount_cents`,
+    [recordId, userId],
+  );
+  if (!claim.rows[0]) {
+    // Either it never existed/belonged to this user, or -- the case that
+    // actually matters here -- it's already been claimed or resolved by an
+    // earlier attempt. Deliberately not "payment record not found" for the
+    // second case: this is the expected, correct outcome of the
+    // idempotency guard doing its job, not an error.
+    const existing = await db().query(`SELECT status FROM payment_verifications WHERE id = $1 AND user_id = $2`, [recordId, userId]);
+    if (!existing.rows[0]) throw new Error("payment record not found");
+    const s = existing.rows[0].status as string;
+    return { status: s === "succeeded" || s === "failed" ? s : "pending", message: "this payment record has already been processed" };
+  }
+
+  let result: AuthorizeNetChargeResult;
+  try {
+    result = await chargeOpaqueData(settings.authorizenet, {
+      amountCents: claim.rows[0].amount_cents,
+      dataDescriptor,
+      dataValue,
+      userId,
+    });
+  } catch (e) {
+    // The external call itself failed (network error, Authorize.Net
+    // outage) -- no charge to record, but the claim above must not leave
+    // this record stuck in 'processing' forever with no way to ever
+    // retry. A fresh attempt goes through /start again for a new record,
+    // same as any other failed attempt.
+    await promoteFromGatewayResult(recordId, null, "failed").catch((e2) =>
+      console.error(`Failed to mark record ${recordId} as failed after a charge-call error: ${(e2 as Error).message}`),
+    );
+    throw e;
+  }
+
+  // Known limitation, stated plainly rather than silently shipped: if the
+  // charge itself succeeded but every retry of the DB write below still
+  // fails, the customer's card IS charged for real while this record stays
+  // stuck at 'processing' rather than 'succeeded' -- there is no automated
+  // reconciliation for that narrow window (unlike mailed checks, which
+  // already have an admin queue for exactly this kind of manual fixup).
+  // The console.error below is the only trail; deliberately still telling
+  // the caller "succeeded" in that case (see below) rather than "failed",
+  // since the money genuinely was taken and a "failed" response would
+  // invite a real double-charge from a well-intentioned retry.
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await promoteFromGatewayResult(recordId, result.transactionId, result.status);
+      lastError = undefined;
+      break;
+    } catch (e) {
+      lastError = e;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 200 * attempt));
+    }
+  }
+  if (lastError) {
+    console.error(
+      `PAYMENT TAKEN BUT NOT RECORDED -- record ${recordId} (user ${userId}, gateway txn ${result.transactionId}, ` +
+        `outcome ${result.status}) charged successfully at Authorize.Net but promoteFromGatewayResult failed 3x: ` +
+        `${(lastError as Error).message}. Manual admin reconciliation needed.`,
+    );
+  }
   return { status: result.status, message: result.message };
 }
 
@@ -245,10 +321,18 @@ async function promoteFromGatewayResult(recordId: string, gatewayTransactionId: 
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // Real bug found live 2026-08-29: no guard against downgrading an
+    // already-terminal row -- a retried/duplicated call landing here for a
+    // record that had already reached 'succeeded' (or a redelivered
+    // webhook reporting 'failed' for what actually succeeded) would
+    // silently overwrite it, corrupting the audit trail even though the
+    // user's actual verification_tier is untouched either way (the tier
+    // grant below is itself already idempotent). Only a still-'pending' or
+    // still-'processing' row can ever be promoted from here now.
     const { rows } = await client.query(
       `UPDATE payment_verifications SET status = $2, gateway_transaction_id = COALESCE($3, gateway_transaction_id),
          verified_at = CASE WHEN $2 = 'succeeded' THEN now() ELSE verified_at END
-       WHERE id = $1 RETURNING user_id`,
+       WHERE id = $1 AND status IN ('pending', 'processing') RETURNING user_id`,
       [recordId, status, gatewayTransactionId],
     );
     if (status === "succeeded" && rows[0]) {
