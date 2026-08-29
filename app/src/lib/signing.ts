@@ -6,6 +6,7 @@ export {
   canonicalProposalPayload,
   canonicalSecondPayload,
   canonicalAccountabilitySupportPayload,
+  canonicalKeyProofPayload,
 } from "./canonical";
 
 /* Non-repudiation ledger for participant civic speech (ARCHITECTURE.md Section 10).
@@ -100,15 +101,42 @@ export async function keyCurrentlyValid(
     recover the old identity, and a second recovery with the same backup
     file still finds the right owner instead of minting an unrelated new
     identity (recovery itself logs 'recovered', which stays in the
-    allowlist). */
-export async function ownerOfValidKey(publicKeyFingerprint: string): Promise<string | null> {
-  const { rows } = await db().query(
+    allowlist).
+
+    Takes a PoolClient, not db() directly (changed 2026-08-29) -- same
+    reasoning as keyCurrentlyValid's own doc comment: must run inside the
+    same transaction as the caller's eventual write, behind
+    lockKeyFingerprint() below, to avoid a TOCTOU gap. Real bug found live:
+    /api/keys/recover used to call this via a bare db() query, completely
+    outside any transaction -- a revoke could commit its 'revoked' row
+    between this read and recover's later write, and recover would still
+    proceed to insert a 'recovered' row (recovered is non-retiring) on top
+    of it, silently undoing the revoke and handing the revoker's identity
+    to whoever raced it. */
+export async function ownerOfValidKey(client: PoolClient, publicKeyFingerprint: string): Promise<string | null> {
+  const { rows } = await client.query(
     `SELECT user_id, event FROM user_key_events
       WHERE public_key_fingerprint = $1
       ORDER BY created_at DESC LIMIT 1`,
     [publicKeyFingerprint],
   );
   return rows[0] && NON_RETIRING_EVENTS.has(rows[0].event) ? (rows[0].user_id as string) : null;
+}
+
+/** Serializes every read-then-write sequence touching this exact key
+    fingerprint's event history across /register, /recover, /revoke, and
+    /rotate -- an ordinary transaction alone (which revoke/rotate already
+    used) only protects against races within the SAME connection/request;
+    it does nothing against a DIFFERENT concurrent request reading the
+    pre-commit state via its own separate query, which is exactly how the
+    recover-vs-revoke race above was possible even though revoke itself was
+    already transactional. hashtext() collisions are possible in principle
+    (32-bit) but only cost a spurious lock-wait between two DIFFERENT
+    fingerprints that happen to collide, never incorrect behavior --
+    advisory locks are just mutual exclusion, not a correctness check on
+    their own. Released automatically at COMMIT/ROLLBACK. */
+export async function lockKeyFingerprint(client: PoolClient, publicKeyFingerprint: string): Promise<void> {
+  await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [publicKeyFingerprint]);
 }
 
 export type ActionType = "argument" | "issue_proposal" | "second" | "accountability_support";

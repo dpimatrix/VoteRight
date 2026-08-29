@@ -27,6 +27,7 @@ import * as Crypto from 'expo-crypto';
 
 import { adoptSessionId, get, post } from '@/services/api';
 import { reassociatePushToken } from '@/lib/pushNotifications';
+import { canonicalKeyProofPayload } from '@/lib/canonical';
 
 // Imported lazily (not at module scope) because expo-secure-store's native
 // module isn't necessarily compiled into every installed build yet — Expo
@@ -102,10 +103,28 @@ async function saveRecord(record: KeyRecord): Promise<void> {
   await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(record));
 }
 
+// Shared by signPayload below and the proof-of-possession signatures
+// /api/keys/register and /api/keys/recover now require (found live
+// 2026-08-29 -- see app/src/app/api/keys/register/route.ts's own comment
+// for the full vulnerability this closes: public keys are deliberately
+// public, so without this, anyone who'd merely SEEN a victim's key could
+// claim it as their own and hijack a future recovery attempt onto their
+// own identity).
+function signWithSecretKey(secretKey: Uint8Array, canonicalPayload: string): string {
+  const data = new TextEncoder().encode(canonicalPayload);
+  return bytesToBase64(ed25519.sign(data, secretKey));
+}
+
 async function registerIfNeeded(record: KeyRecord): Promise<KeyRecord> {
   if (record.registered) return record;
   try {
-    await post('/api/keys/register', { publicKey: record.publicKeyB64 });
+    const userId = await currentUserIdForSigning();
+    const secretKey = base64ToBytes(record.secretKeyB64);
+    const proofSignature = signWithSecretKey(
+      secretKey,
+      canonicalKeyProofPayload({ userId, fingerprint: record.fingerprint }),
+    );
+    await post('/api/keys/register', { publicKey: record.publicKeyB64, proofSignature });
     record.registered = true;
     await saveRecord(record);
   } catch (e) {
@@ -138,9 +157,7 @@ export async function signPayload(
   const record = await loadRecord();
   if (!record) throw new Error('no signing key — call ensureSigningKey() first');
   const secretKey = base64ToBytes(record.secretKeyB64);
-  const data = new TextEncoder().encode(canonicalPayload);
-  const sig = ed25519.sign(data, secretKey);
-  return { signature: bytesToBase64(sig), publicKeyFingerprint: record.fingerprint };
+  return { signature: signWithSecretKey(secretKey, canonicalPayload), publicKeyFingerprint: record.fingerprint };
 }
 
 let cachedUserId: string | null = null;
@@ -286,7 +303,17 @@ export async function importEncryptedBackup(
   const publicKeyB64 = bytesToBase64(publicKey);
   const fingerprint = fingerprintOf(publicKey);
 
-  const res = await post<{ recovered: boolean; anonId?: string }>('/api/keys/recover', { publicKey: publicKeyB64 });
+  // Proof of possession (found live 2026-08-29 -- see /api/keys/recover's
+  // own comment): binds to whatever this session's userId is RIGHT NOW,
+  // before this recovery call -- exactly what the server independently
+  // resolves from this same request's session header when it verifies.
+  const userId = await currentUserIdForSigning();
+  const proofSignature = signWithSecretKey(secretKey, canonicalKeyProofPayload({ userId, fingerprint }));
+
+  const res = await post<{ recovered: boolean; anonId?: string }>('/api/keys/recover', {
+    publicKey: publicKeyB64,
+    proofSignature,
+  });
 
   if (res.recovered && res.anonId) {
     adoptSessionId(res.anonId);

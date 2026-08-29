@@ -1,6 +1,6 @@
 import { currentOrNewUserId } from "@/lib/anon";
 import { db } from "@/lib/db";
-import { hashContext, keyCurrentlyValid } from "@/lib/signing";
+import { hashContext, keyCurrentlyValid, lockKeyFingerprint } from "@/lib/signing";
 
 /* Revokes a compromised key (e.g. after a backup export leaked) — signatures made
    BEFORE this event remain valid/verifiable forever; the key just can't sign
@@ -14,6 +14,12 @@ export async function POST(request: Request) {
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // Found live 2026-08-29: without this, a concurrent /api/keys/recover
+    // for this same fingerprint could read the pre-revoke state via its own
+    // separate query and still commit a 'recovered' row after this
+    // transaction's own commit, silently undoing the revoke. See
+    // lockKeyFingerprint's own doc comment.
+    await lockKeyFingerprint(client, fingerprint);
     if (!(await keyCurrentlyValid(client, userId, fingerprint))) {
       await client.query("ROLLBACK");
       return Response.json({ error: "key not found or already retired" }, { status: 404 });

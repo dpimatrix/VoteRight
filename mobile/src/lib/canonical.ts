@@ -29,3 +29,10 @@ export function canonicalSecondPayload(opts: { userId: string; proposalId: strin
 export function canonicalAccountabilitySupportPayload(opts: { userId: string; campaignId: string }): string {
   return JSON.stringify(['accountability_support', opts.userId, opts.campaignId]);
 }
+
+// Proof-of-possession for /api/keys/register and /api/keys/recover (found
+// live 2026-08-29, see app/src/lib/canonical.ts's own comment for the full
+// vulnerability this closes) -- must match that file's version exactly.
+export function canonicalKeyProofPayload(opts: { userId: string; fingerprint: string }): string {
+  return JSON.stringify(['key_proof', opts.userId, opts.fingerprint]);
+}

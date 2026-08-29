@@ -6,6 +6,8 @@
    Ed25519 support (current Chrome/Firefox/Safari); this module must only ever
    be imported from "use client" components. */
 
+import { canonicalKeyProofPayload } from "./canonical";
+
 const DB_NAME = "voteright-signing";
 const STORE = "keys";
 const RECORD_ID = "primary";
@@ -75,12 +77,28 @@ async function fingerprintOf(rawPublicKey: Uint8Array): Promise<string> {
   return base64Url(digest).slice(0, 22);
 }
 
+// Shared by signPayload below and the proof-of-possession signatures
+// /api/keys/register and /api/keys/recover now require (found live
+// 2026-08-29 -- see those routes' own comments) -- same raw Ed25519 sign
+// call, just usable before a record's been fully saved/loaded, which
+// registerIfNeeded/importEncryptedBackup both need.
+async function signWithKey(privateKey: CryptoKey, canonicalPayload: string): Promise<string> {
+  const data = new TextEncoder().encode(canonicalPayload);
+  const sig = await crypto.subtle.sign({ name: "Ed25519" }, privateKey, data);
+  return bytesToBase64(new Uint8Array(sig));
+}
+
 async function registerIfNeeded(record: KeyRecord): Promise<KeyRecord> {
   if (record.registered) return record;
+  const userId = await currentUserIdForSigning();
+  const proofSignature = await signWithKey(
+    record.privateKey,
+    canonicalKeyProofPayload({ userId, fingerprint: record.fingerprint }),
+  );
   const res = await fetch("/api/keys/register", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ publicKey: record.publicKeyRawB64 }),
+    body: JSON.stringify({ publicKey: record.publicKeyRawB64, proofSignature }),
   });
   if (res.ok) {
     record.registered = true;
@@ -113,9 +131,7 @@ export async function ensureSigningKey(): Promise<{ publicKeyRawB64: string; fin
 export async function signPayload(canonicalPayload: string): Promise<{ signature: string; publicKeyFingerprint: string }> {
   const record = await loadRecord();
   if (!record) throw new Error("no signing key - call ensureSigningKey() first");
-  const data = new TextEncoder().encode(canonicalPayload);
-  const sig = await crypto.subtle.sign({ name: "Ed25519" }, record.privateKey, data);
-  return { signature: bytesToBase64(new Uint8Array(sig)), publicKeyFingerprint: record.fingerprint };
+  return { signature: await signWithKey(record.privateKey, canonicalPayload), publicKeyFingerprint: record.fingerprint };
 }
 
 let cachedUserId: string | null = null;
@@ -215,19 +231,37 @@ export async function importEncryptedBackup(backup: EncryptedBackup, passphrase:
   const jwk = (await crypto.subtle.exportKey("jwk", privateKey)) as { x: string };
   const rawPublicKey = base64UrlToBytes(jwk.x);
   const publicKeyRawB64 = bytesToBase64(rawPublicKey);
+  const fp = await fingerprintOf(rawPublicKey);
+
+  // Proof of possession (found live 2026-08-29 -- see /api/keys/recover's
+  // own comment): binds to whatever this session's userId is RIGHT NOW,
+  // before this recovery call -- exactly what the server independently
+  // resolves from this same request's cookie when it verifies.
+  const userId = await currentUserIdForSigning();
+  const proofSignature = await signWithKey(privateKey, canonicalKeyProofPayload({ userId, fingerprint: fp }));
 
   const res = await fetch("/api/keys/recover", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ publicKey: publicKeyRawB64 }),
+    body: JSON.stringify({ publicKey: publicKeyRawB64, proofSignature }),
   });
   const body = (await res.json()) as { recovered: boolean };
+
+  // Found live 2026-08-29: unlike mobile's own importEncryptedBackup
+  // (signing.ts), this never reset cachedUserId after a successful
+  // recovery re-points the session cookie server-side. Any signed action
+  // for the rest of this page's lifetime would keep embedding the STALE
+  // pre-recovery userId into its canonical payload while the server
+  // verifies against the NEW cookie's userId -- a mismatch that fails
+  // signature verification outright, not silently wrong data, but a real
+  // break every time until the next full page reload.
+  if (body.recovered) cachedUserId = null;
 
   await saveRecord({
     id: RECORD_ID,
     privateKey,
     publicKeyRawB64,
-    fingerprint: await fingerprintOf(rawPublicKey),
+    fingerprint: fp,
     registered: true,
   });
   return { recovered: body.recovered };
@@ -243,17 +277,27 @@ export async function revokeAndRotate(): Promise<void> {
   const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"])) as CryptoKeyPair;
   const rawPublicKey = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
   const newPublicKeyRawB64 = bytesToBase64(rawPublicKey);
+  const newFingerprint = await fingerprintOf(rawPublicKey);
+  // Proof of possession for the NEW key (found live 2026-08-29 -- see
+  // /api/keys/rotate's own comment): freshly generated right above, so
+  // signing with it here just proves what's already true, but the server
+  // has no other way to know that.
+  const userId = await currentUserIdForSigning();
+  const newKeyProofSignature = await signWithKey(
+    pair.privateKey,
+    canonicalKeyProofPayload({ userId, fingerprint: newFingerprint }),
+  );
   const res = await fetch("/api/keys/rotate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ oldFingerprint: record.fingerprint, newPublicKey: newPublicKeyRawB64 }),
+    body: JSON.stringify({ oldFingerprint: record.fingerprint, newPublicKey: newPublicKeyRawB64, newKeyProofSignature }),
   });
   if (!res.ok) throw new Error("rotation failed server-side");
   await saveRecord({
     id: RECORD_ID,
     privateKey: pair.privateKey,
     publicKeyRawB64: newPublicKeyRawB64,
-    fingerprint: await fingerprintOf(rawPublicKey),
+    fingerprint: newFingerprint,
     registered: true,
   });
 }
