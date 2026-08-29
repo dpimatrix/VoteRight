@@ -1,17 +1,31 @@
+import { cookies } from "next/headers";
 import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { SCREEN_KEYS, SCREEN_LABEL, currentAdmin, hasAdminAccess, listAdminAccounts } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAccountsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ newUsername?: string; newSecret?: string }>;
-}) {
+// Must match the same literal in api/admin/admin-accounts/route.ts (not
+// imported across the route.ts boundary -- see that file's own comment).
+const ENROLL_COOKIE = "vr_admin_enroll";
+
+export default async function AdminAccountsPage() {
   if (!(await hasAdminAccess("admin_accounts"))) return <AdminAccessDenied screen="admin_accounts" />;
-  const sp = await searchParams;
   const me = await currentAdmin();
   const accounts = await listAdminAccounts();
+
+  // Found live 2026-08-29: this used to read newUsername/newSecret straight
+  // from the URL query string, which (despite the banner's own claim below)
+  // is routinely retrievable afterward -- access logs, browser history, any
+  // outbound Referer header on this page. Now sourced from a short-lived
+  // (60s) httpOnly cookie the creation route sets instead of a redirect
+  // param -- see that route's own comment for the full reasoning.
+  let enroll: { username: string; secret: string } | null = null;
+  try {
+    const raw = (await cookies()).get(ENROLL_COOKIE)?.value;
+    if (raw) enroll = JSON.parse(raw);
+  } catch {
+    enroll = null;
+  }
 
   return (
     <>
@@ -22,14 +36,14 @@ export default async function AdminAccountsPage({
         admin's.
       </p>
 
-      {sp.newSecret && (
+      {enroll && (
         <div className="disclosure">
           <span className="tag">Save this now</span>
           <span>
-            Enrollment for <strong>{sp.newUsername}</strong> — scan or manually enter this into their authenticator
-            app. <strong>Shown once; it is not stored anywhere retrievable after this page reloads.</strong>
+            Enrollment for <strong>{enroll.username}</strong> — scan or manually enter this into their authenticator
+            app. <strong>Not visible again after about a minute, and never stored anywhere retrievable.</strong>
             <br />
-            <code className="mono" style={{ wordBreak: "break-all", display: "block", marginTop: "0.4rem" }}>{sp.newSecret}</code>
+            <code className="mono" style={{ wordBreak: "break-all", display: "block", marginTop: "0.4rem" }}>{enroll.secret}</code>
           </span>
         </div>
       )}
@@ -54,12 +68,20 @@ export default async function AdminAccountsPage({
           </div>
           <form method="post" action={`/api/admin/admin-accounts/${a.id}`} style={{ marginTop: "0.5rem" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem 1rem", fontSize: "0.85rem" }}>
-              {SCREEN_KEYS.map((s) => (
-                <label key={s} style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                  <input type="checkbox" name={`screen_${s}`} defaultChecked={a.screens.includes(s)} />
-                  {SCREEN_LABEL[s]}
-                </label>
-              ))}
+              {SCREEN_KEYS.map((s) => {
+                // Same self-lockout guard the API route enforces server-side
+                // (see that route's own comment) -- shown here too rather
+                // than left to silently revert on save with no explanation,
+                // same posture as every other silent-no-op gap fixed today.
+                const lockedOn = s === "admin_accounts" && a.id === me?.id;
+                return (
+                  <label key={s} style={{ display: "flex", alignItems: "center", gap: "0.3rem" }} title={lockedOn ? "Can't remove your own access to this screen -- no one else could restore it" : undefined}>
+                    <input type="checkbox" name={`screen_${s}`} defaultChecked={a.screens.includes(s)} disabled={lockedOn} />
+                    {SCREEN_LABEL[s]}
+                    {lockedOn && " 🔒"}
+                  </label>
+                );
+              })}
             </div>
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
               <button className="btn" type="submit" name="action" value="save_screens" style={{ flex: 1 }}>
