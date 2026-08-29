@@ -177,9 +177,13 @@ async function sendEmail(userId, type, proposalId) {
   }
 }
 
-/* ── job 1: natural expiry ── */
 let closedCount = 0;
-{
+let eligibleCount = 0;
+let runStatus = "succeeded";
+let runNote = null;
+
+try {
+  /* ── job 1: natural expiry ── */
   const { rows: expired } = await client.query(
     `SELECT id, proposal_id FROM forum_threads WHERE status = 'open' AND closes_at <= now()`,
   );
@@ -200,11 +204,8 @@ let closedCount = 0;
     await notifyUsers(activeIds, "thread_closed", { proposalId: t.proposal_id, threadId: t.id });
     closedCount++;
   }
-}
 
-/* ── job 2: call-the-question eligibility ── */
-let eligibleCount = 0;
-{
+  /* ── job 2: call-the-question eligibility ── */
   const { rows: open } = await client.query(
     `SELECT id, proposal_id, opened_at, call_the_question_min_active AS min_active,
             call_the_question_min_open_hours AS min_hours
@@ -220,7 +221,38 @@ let eligibleCount = 0;
     await notifyUsers(activeIds, "ctq_eligible", { proposalId: t.proposal_id, threadId: t.id });
     eligibleCount++;
   }
+
+  runNote = `closed ${closedCount} expired thread(s), notified ${eligibleCount} newly-CTQ-eligible thread(s)`;
+  console.log(`close-and-notify-threads: ${runNote}`);
+} catch (e) {
+  runStatus = "failed";
+  runNote = `unexpected error: ${e.message}`;
+  console.error(`close-and-notify-threads failed: ${e.message}`);
 }
 
-console.log(`close-and-notify-threads: closed ${closedCount} expired thread(s), notified ${eligibleCount} newly-CTQ-eligible thread(s)`);
+// Admin observability (2026-08-29, found live -- this job previously had
+// none at all): logs to the same ingestion_runs ledger the data-feed
+// ingesters and checkpoint-and-publish.sh already use, so a silently
+// broken timer (the DATABASE_URL bug this exact deploy already hit once,
+// a revoked RESEND_API_KEY, the systemd timer itself getting disabled)
+// shows up in the admin freshness panel instead of only being visible via
+// journalctl on the VPS directly. data_through is deliberately just
+// TODAY's UTC date, not a real timestamp -- the column is DATE-typed (day
+// granularity), which can't distinguish "ran 5 minutes ago" from "ran 14
+// hours ago." That's coarser than this job's actual 15-minute cadence,
+// but it still catches the failure mode that matters most -- a
+// misconfiguration that fails EVERY run -- within at most a few days via
+// the same cadence-based staleness multiplier queries.ts already applies
+// to checkpoint-publish for the identical reason.
+try {
+  await client.query(
+    `INSERT INTO ingestion_runs (source, finished_at, status, rows_upserted, data_through, note)
+     VALUES ('close-and-notify-threads', now(), $1, $2, (now() AT TIME ZONE 'utc')::date, $3)`,
+    [runStatus, closedCount + eligibleCount, runNote],
+  );
+} catch (e) {
+  console.error(`close-and-notify-threads: failed to log run outcome: ${e.message}`);
+}
+
 await client.end();
+if (runStatus === "failed") process.exitCode = 1;

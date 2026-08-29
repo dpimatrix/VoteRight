@@ -65,6 +65,13 @@ const INGESTION_CADENCE_DAYS: Record<string, number> = {
   "arlington-agenda-items": 7, // Arlington County Board minutes PDF movers/seconders, weekly
   "dc-legislation-items": 7, // D.C. LIMS introducers/co-introducers, weekly
   "checkpoint-publish": 1, // daily VPS cron (db/checkpoint-and-publish.sh), not a data feed -- see ingestionFreshness doc
+  // Actual cadence is every 15 minutes (systemd timer, db/close-and-notify-
+  // threads.mjs), not daily -- but data_through there is only ever set to
+  // today's date (the column is DATE-typed, day granularity), so 1 day is
+  // the finest cadence this ledger can actually express for it. Coarser
+  // than ideal, but still catches "this has been failing every single run"
+  // within a few days rather than not at all.
+  "close-and-notify-threads": 1,
 };
 const STALE_MULTIPLIER = 3;
 
