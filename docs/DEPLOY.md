@@ -47,7 +47,15 @@ preferred consolidating onto it.
   added a new dependency: `npm run build` only runs `next build`, it never installs
   anything, so a newly-added package fails with `Module not found` until `npm install`
   actually puts it in `node_modules` — safe to run on every deploy regardless, it's a
-  fast no-op when nothing changed). Then
+  fast no-op when nothing changed). **`npm run build` runs `next build --webpack`, not
+  plain `next build`** (hit live 2026-08-26): this VPS's AlmaLinux 8.10 ships glibc
+  2.28, and Next 16's Turbopack requires a native binding built against glibc 2.29+ --
+  the WASM fallback Next loads instead is enough to run `next.config.ts` but NOT
+  enough for Turbopack itself, which then fails outright with "Turbopack is not
+  supported on this platform ... Only WebAssembly (WASM) bindings were loaded". No
+  fix on this OS short of an actual glibc upgrade (far too risky to attempt as a
+  build fix) -- `--webpack` is Next's own documented escape hatch for exactly this,
+  and needs no native bindings at all. Then
   `systemctl --user restart voteright` (with `XDG_RUNTIME_DIR=/run/user/$(id -u)`
   exported first if it's a fresh shell). Deliberately **not** automated via GitHub
   Actions (considered and declined). **Copying files without a build+restart does
