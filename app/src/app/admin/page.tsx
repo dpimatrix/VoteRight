@@ -3,7 +3,7 @@ import { currentAdmin } from "@/lib/adminAuth";
 import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 import { pendingCoverageGaps } from "@/lib/coverage";
 import { listAxesForAdmin } from "@/lib/priorityAxes";
-import { moderationQueue } from "@/lib/debates";
+import { moderationQueue, reportedThreadsQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
 import { adminPrivacyQueue } from "@/lib/privacy";
@@ -12,13 +12,16 @@ import { adminMandatePipeline } from "@/lib/referenda";
 
 export const dynamic = "force-dynamic";
 
-// checkpoint-publish writes our own audit trail OUT (git push); everything
-// else in ingestion_runs pulls external data IN. Same ledger, same health
-// logic, but conflating "the county stopped publishing" with "our own
-// tamper-evidence checkpoint stopped publishing" under one heading would
-// hide that they need different people/fixes -- split the display, not the
-// underlying query.
-const PUBLISHING_SOURCES = new Set(["checkpoint-publish"]);
+// checkpoint-publish writes our own audit trail OUT (git push); close-and-
+// notify-threads (added 2026-08-29 for the same reason -- it previously had
+// no observability at all) is an internal periodic sweep, not a publishing
+// job either, but it shares the same "this is OUR OWN infrastructure, not
+// an external source" category. Everything else in ingestion_runs pulls
+// external data IN. Same ledger, same health logic, but conflating "the
+// county stopped publishing" with "our own background jobs stopped
+// running" under one heading would hide that they need different
+// people/fixes -- split the display, not the underlying query.
+const INTERNAL_JOB_SOURCES = new Set(["checkpoint-publish", "close-and-notify-threads"]);
 
 function FreshnessCard({ f }: { f: IngestionFreshness }) {
   return (
@@ -86,15 +89,24 @@ export default async function AdminHome() {
         })())}
       {has("moderation") &&
         (await (async () => {
-          const mods = await moderationQueue();
+          // Found live 2026-08-29: this card only ever counted mods.length,
+          // silently omitting reportedThreadsQueue() -- the member-report
+          // queue (migration 093) that /admin/moderation itself has shown
+          // alongside argument moderation since it was added. An admin
+          // scanning this dashboard could see "0 pending" here and skip a
+          // screen that actually has real abuse reports waiting.
+          const [mods, reported] = await Promise.all([moderationQueue(), reportedThreadsQueue()]);
+          const total = mods.length + reported.length;
           return (
             <Link className="seat" href="/admin/moderation">
               <span className="seat-ic">AM</span>
               <span className="sname">
-                Argument moderation
-                <span className="smeta">pre-publish review for debate arguments</span>
+                Argument moderation &amp; reports
+                <span className="smeta">
+                  {mods.length} argument{mods.length === 1 ? "" : "s"} awaiting pre-publish review · {reported.length} reported thread{reported.length === 1 ? "" : "s"}
+                </span>
               </span>
-              <span className={`chip band ${mods.length > 0 ? "bm1" : "b0"}`}>{mods.length} pending</span>
+              <span className={`chip band ${total > 0 ? "bm1" : "b0"}`}>{total} pending</span>
             </Link>
           );
         })())}
@@ -257,8 +269,8 @@ export default async function AdminHome() {
         // any logged-in admin regardless of per-screen grants, same as the
         // rest of the layout chrome.
         const all = await ingestionFreshness();
-        const feeds = all.filter((f) => !PUBLISHING_SOURCES.has(f.source));
-        const publishing = all.filter((f) => PUBLISHING_SOURCES.has(f.source));
+        const feeds = all.filter((f) => !INTERNAL_JOB_SOURCES.has(f.source));
+        const internal = all.filter((f) => INTERNAL_JOB_SOURCES.has(f.source));
         return (
           <>
             <div className="grouph" style={{ marginTop: "1rem" }}>Data freshness (DATA-OPS §6)</div>
@@ -266,9 +278,9 @@ export default async function AdminHome() {
             {feeds.map((f) => (
               <FreshnessCard key={f.source} f={f} />
             ))}
-            <div className="grouph" style={{ marginTop: "1rem" }}>Audit &amp; publishing jobs</div>
-            {publishing.length === 0 && <p className="nopos">No publishing runs recorded yet.</p>}
-            {publishing.map((f) => (
+            <div className="grouph" style={{ marginTop: "1rem" }}>Internal jobs (audit, publishing &amp; background sweeps)</div>
+            {internal.length === 0 && <p className="nopos">No internal job runs recorded yet.</p>}
+            {internal.map((f) => (
               <FreshnessCard key={f.source} f={f} />
             ))}
           </>
