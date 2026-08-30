@@ -1109,7 +1109,13 @@ CREATE TABLE verification_records (
     method          TEXT NOT NULL CHECK (method IN ('address_attestation','third_party_id_check')),
     provider_reference TEXT,                              -- opaque token from vendor, never raw ID/doc
     verified_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at      TIMESTAMPTZ
+    expires_at      TIMESTAMPTZ,
+    -- The jurisdiction THIS specific attestation resolved to (migration 096)
+    -- -- users.residence_jurisdiction_id only ever holds the LATEST one, so
+    -- without this a referendum's anti-gaming "verified before it opened"
+    -- check had no way to confirm which jurisdiction an old attestation was
+    -- actually for. See issueBallot() in app/src/lib/referenda.ts.
+    jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id)
 );
 
 -- Append-only lifecycle log for a participant's signing keypair(s) — the client

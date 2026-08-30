@@ -145,6 +145,19 @@ export async function issueBallot(
     // real voter-registration cutoff -- not a rate limit on switching itself,
     // which a self-attested, anonymous-session system can't meaningfully
     // enforce anyway (a determined actor would just start a fresh session).
+    //
+    // Real gap found live 2026-08-29: this used to just check "did the user
+    // EVER complete any address_attestation before opens_at," with no check
+    // that it was actually FOR the eligible jurisdiction -- verify in an
+    // unrelated jurisdiction on day 1, wait for a referendum to open
+    // elsewhere, re-verify into the eligible one, vote, switch back. old_up
+    // (migration 096's verification_records.jurisdiction_id) walks UP from
+    // each pre-opens_at attestation's OWN jurisdiction independently of the
+    // user's CURRENT residence chain (`up`), so it correctly still passes
+    // someone who legitimately moved WITHIN the same eligible jurisdiction
+    // (e.g. Rockville -> Bethesda, both under Montgomery County) -- verified
+    // against exactly that scenario plus the actual gaming attack in a
+    // throwaway Postgres schema before shipping this.
     const chk = await client.query(
       `WITH RECURSIVE up AS (
          SELECT j.ocd_id, j.parent_ocd_id
@@ -152,13 +165,19 @@ export async function issueBallot(
           WHERE u.id = $2
          UNION ALL
          SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN up ON j.ocd_id = up.parent_ocd_id
+       ),
+       old_up AS (
+         SELECT j.ocd_id, j.parent_ocd_id
+           FROM verification_records vr
+           JOIN jurisdictions j ON j.ocd_id = vr.jurisdiction_id
+          WHERE vr.user_id = $2 AND vr.method = 'address_attestation'
+            AND vr.verified_at <= (SELECT opens_at FROM referenda WHERE id = $1)
+         UNION ALL
+         SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN old_up ON j.ocd_id = old_up.parent_ocd_id
        )
        SELECT r.status,
               EXISTS (SELECT 1 FROM up WHERE up.ocd_id = r.eligibility_jurisdiction_id) AS eligible,
-              EXISTS (
-                SELECT 1 FROM verification_records vr
-                 WHERE vr.user_id = $2 AND vr.method = 'address_attestation' AND vr.verified_at <= r.opens_at
-              ) AS residency_established_before_open
+              EXISTS (SELECT 1 FROM old_up WHERE old_up.ocd_id = r.eligibility_jurisdiction_id) AS residency_established_before_open
          FROM referenda r WHERE r.id = $1`,
       [refId, userId],
     );

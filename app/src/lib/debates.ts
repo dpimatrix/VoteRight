@@ -71,10 +71,17 @@ export async function verifyAddress(
   const client = await db().connect();
   try {
     await client.query("BEGIN");
+    // jurisdiction_id (migration 096): the jurisdiction THIS attestation
+    // resolved to, not just whatever users.residence_jurisdiction_id ends
+    // up as below -- a later re-verification overwrites that column, but
+    // this row's own jurisdiction_id is what issueBallot()'s anti-gaming
+    // check needs to confirm which jurisdiction was actually attested to
+    // as of any given past verified_at, independent of where the user
+    // lives now.
     await client.query(
-      `INSERT INTO verification_records (user_id, method, provider_reference, expires_at)
-       VALUES ($1, 'address_attestation', $2, now() + interval '1 year')`,
-      [userId, `format-check-v0.1+${res.method}`],
+      `INSERT INTO verification_records (user_id, method, provider_reference, expires_at, jurisdiction_id)
+       VALUES ($1, 'address_attestation', $2, now() + interval '1 year', $3)`,
+      [userId, `format-check-v0.1+${res.method}`, residence],
     );
     await client.query(
       `UPDATE users SET verification_tier = 'address_verified'
