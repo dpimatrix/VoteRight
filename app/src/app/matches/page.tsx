@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t, tf } from "@/lib/i18n";
 import { ownRaceIds } from "@/lib/jurisdictions";
-import { matchesForRace } from "@/lib/matches";
+import { matchesForRace, toPublicResults } from "@/lib/matches";
 import { isSampleData, races } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,14 @@ export default async function MatchesPage({
           </>
         ) : (
           <MatchResultsList
-            results={data!.results}
+            // Found live 2026-08-29: this used to pass the full results
+            // (including each candidate's raw aggregate score) straight to
+            // a client component -- Next.js serializes every prop crossing
+            // that boundary into the RSC payload sent to the browser, so
+            // the raw number was reaching the client here regardless of
+            // whether MatchResultsList chose to render it. See
+            // toPublicResults's own comment in lib/matches.ts.
+            results={toPublicResults(data!.results)}
             priorities={data!.priorities}
             d={d}
             lang={lang}

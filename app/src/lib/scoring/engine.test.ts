@@ -138,7 +138,77 @@ describe("S5 aggregation", () => {
 
 describe("S8 versioning", () => {
   it("algorithm version embeds a hash of every constant", () => {
-    expect(ALGORITHM_VERSION).toMatch(/^score-v0\.1\+cfg-[0-9a-f]{8}$/);
+    // v0.2 (2026-08-29): bumped alongside two real bug fixes below that
+    // change the actual computation for some inputs, not just CONFIG
+    // (which the cfg- hash half of this string already covers on its own).
+    expect(ALGORITHM_VERSION).toMatch(/^score-v0\.2\+cfg-[0-9a-f]{8}$/);
     expect(CONFIG.coverageGate).toBe(0.5);
+  });
+});
+
+// Regression coverage for two real bugs found live 2026-08-29 (code
+// review): both changed v0.1's actual output for some real inputs, hence
+// the version bump asserted above.
+
+describe("rounding symmetry (v0.2 fix)", () => {
+  it("rounds a negative half-integer tie away from zero, not toward +Infinity", () => {
+    // Two equal-weight votes, mean exactly -1.5. Math.round(-1.5) === -1 in
+    // JS -- one full unit more favorable than symmetric rounding, and the
+    // bug this test guards against.
+    const av = axisValue(
+      [
+        { value: -2, sourceType: "voting_record_inferred", date: null },
+        { value: -1, sourceType: "voting_record_inferred", date: null },
+      ],
+      ASOF,
+    );
+    expect(av.value).toBe(-2);
+  });
+
+  it("rounds the mirror-image positive tie the same direction, for symmetry", () => {
+    const av = axisValue(
+      [
+        { value: 2, sourceType: "voting_record_inferred", date: null },
+        { value: 1, sourceType: "voting_record_inferred", date: null },
+      ],
+      ASOF,
+    );
+    expect(av.value).toBe(2);
+  });
+});
+
+describe("aggregate withholding when insufficient (v0.2 fix)", () => {
+  const priorities = [
+    { axisId: "a", direction: 1 as const, weight: 5 as const },
+    { axisId: "b", direction: 1 as const, weight: 5 as const },
+    { axisId: "c", direction: 1 as const, weight: 4 as const },
+  ];
+
+  it("never returns a nonzero aggregate for an insufficient-coverage candidate", () => {
+    // Only axis "a" (weight 5 of 14, coverage ~0.36 < the 0.5 gate) has
+    // evidence, and it's a maximal +2 agreement -- the raw aggregate this
+    // would otherwise compute to is 1 (the highest possible value), which
+    // must never reach a caller once overall === "insufficient".
+    const s = scoreCandidate(
+      priorities,
+      { a: [{ value: 2, sourceType: "voting_record_inferred", date: null }] },
+      ASOF,
+    );
+    expect(s.overall).toBe("insufficient");
+    expect(s.aggregate).toBe(0);
+  });
+
+  it("still returns the real aggregate once coverage clears the gate", () => {
+    const s = scoreCandidate(
+      priorities,
+      {
+        a: [{ value: 2, sourceType: "voting_record_inferred", date: null }],
+        b: [{ value: 2, sourceType: "voting_record_inferred", date: null }],
+        c: [{ value: 2, sourceType: "voting_record_inferred", date: null }],
+      },
+      ASOF,
+    );
+    expect(s.overall).not.toBe("insufficient");
+    expect(s.aggregate).toBeGreaterThan(0);
   });
 });

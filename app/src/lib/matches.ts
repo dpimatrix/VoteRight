@@ -31,6 +31,42 @@ export interface MatchResult {
 
 const OVERALL_ORDER = { strong: 0, good: 1, mixed: 2, weak: 3, insufficient: 4 } as const;
 
+export type PublicCandidateScore = Omit<CandidateScore, "aggregate">;
+export interface PublicMatchResult extends Omit<MatchResult, "score"> {
+  score: PublicCandidateScore;
+}
+
+/** Strips the raw continuous aggregate score before any result crosses a
+    client boundary. Real gap found live 2026-08-29: neither /api/matches
+    nor the server-rendered /matches page redacted it -- SCORING.md S1.1
+    says the UI never shows "87.3/100," only the labeled band, but nothing
+    enforced that server-side; MatchResultsList.tsx simply chose not to
+    render the field, which is a client-only gate, not a real one (the raw
+    number was still sitting in the JSON/RSC payload either way, readable
+    from devtools for any real, named candidate). Kept as a strict
+    allowlist -- same reasoning paymentVerification.ts's own
+    PublicPaymentConfig already documents -- so a future new CandidateScore
+    field defaults to NOT exposed until someone deliberately adds it here.
+
+    coverage is deliberately kept, not redacted alongside aggregate: it
+    backs the match-completeness bar MatchResultsList already renders, and
+    unlike aggregate it doesn't characterize a candidate's political
+    position at all, just how much evidence exists to score against. */
+export function toPublicResults(results: MatchResult[]): PublicMatchResult[] {
+  return results.map((r) => ({
+    ...r,
+    score: {
+      overall: r.score.overall,
+      coverage: r.score.coverage,
+      dealbreaker: r.score.dealbreaker,
+      answered: r.score.answered,
+      total: r.score.total,
+      perAxis: r.score.perAxis,
+      algorithmVersion: r.score.algorithmVersion,
+    },
+  }));
+}
+
 /** Score every candidate in a race against one voter's priorities (SCORING.md S4–S5). */
 export async function matchesForRace(raceId: string, userId: string) {
   const [rawPriorities, cands, axes] = await Promise.all([

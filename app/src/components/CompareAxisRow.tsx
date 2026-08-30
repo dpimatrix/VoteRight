@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Lang, t } from "@/lib/i18n";
-import type { MatchResult, PriorityWithAxis } from "@/lib/matches";
+import type { PublicMatchResult, PriorityWithAxis } from "@/lib/matches";
 import { BAND_CLASS, BAND_KEY, SRC_LABEL } from "@/lib/scoreLabels";
 
 /** One priority's row on the compare page: both candidates' band chips side
@@ -18,18 +18,18 @@ export function CompareAxisRow({
   lang,
 }: {
   priority: PriorityWithAxis;
-  a: MatchResult;
-  b: MatchResult;
+  a: PublicMatchResult;
+  b: PublicMatchResult;
   d: ReturnType<typeof t>;
   lang: Lang;
 }) {
   const [open, setOpen] = useState<"a" | "b" | null>(null);
 
-  const scoreFor = (m: MatchResult) => m.score.perAxis[priority.axisId]?.agreement ?? null;
-  const conflictFor = (m: MatchResult) => m.score.perAxis[priority.axisId]?.conflict ?? false;
-  const evidenceFor = (m: MatchResult) => m.evidence[priority.axisId] ?? [];
+  const scoreFor = (m: PublicMatchResult) => m.score.perAxis[priority.axisId]?.agreement ?? null;
+  const conflictFor = (m: PublicMatchResult) => m.score.perAxis[priority.axisId]?.conflict ?? false;
+  const evidenceFor = (m: PublicMatchResult) => m.evidence[priority.axisId] ?? [];
 
-  const chip = (side: "a" | "b", m: MatchResult) => {
+  const chip = (side: "a" | "b", m: PublicMatchResult) => {
     const ag = scoreFor(m);
     return (
       <button

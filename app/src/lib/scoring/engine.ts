@@ -28,7 +28,15 @@ const cfgHash = createHash("sha256")
   .update(JSON.stringify(CONFIG))
   .digest("hex")
   .slice(0, 8);
-export const ALGORITHM_VERSION = `score-v0.1+cfg-${cfgHash}`;
+// v0.2 (2026-08-29): fixed two real bugs in the v0.1 implementation (see
+// weightedMeanValue's and scoreCandidate's own comments below) -- the
+// manual version component bumps because the actual computation changed
+// for some real inputs, not just CONFIG (which cfgHash already covers on
+// its own). S1.4's "same inputs + same ALGORITHM_VERSION -> same output"
+// promise would otherwise be silently broken for anyone comparing scores
+// computed before and after this fix under what looked like an unchanged
+// version string.
+export const ALGORITHM_VERSION = `score-v0.2+cfg-${cfgHash}`;
 
 /* ── types ── */
 export interface EvidenceCoding {
@@ -69,6 +77,19 @@ function recencyMultiplier(date: string | null, asOf: Date): number {
   return Math.pow(0.5, ageYears / CONFIG.recencyHalfLifeYears);
 }
 
+// Real bug found live 2026-08-29: Math.round resolves .5 ties toward
+// +Infinity, not away from zero -- an undisclosed, systematically
+// pro-agreement rounding asymmetry SCORING.md's "rounded to the nearest
+// integer" rule never specified and no existing test caught. -1.5 rounded
+// to -1 (one full unit more favorable than symmetric rounding), while the
+// mirror-image +1.5 rounded to +2 -- exactly the kind of directional bias
+// SCORING.md S7's partisan-symmetry audit gate (|A(profile)+A(mirror)| ≤
+// 0.05) exists to catch. Round-half-away-from-zero treats a negative and
+// positive half-integer tie identically.
+function roundHalfAwayFromZero(x: number): number {
+  return x >= 0 ? Math.floor(x + 0.5) : Math.ceil(x - 0.5);
+}
+
 function weightedMeanValue(items: EvidenceCoding[], asOf: Date): number | null {
   let num = 0;
   let den = 0;
@@ -79,7 +100,7 @@ function weightedMeanValue(items: EvidenceCoding[], asOf: Date): number | null {
     den += w;
   }
   if (den === 0) return null;
-  return clamp(Math.round(num / den), -2, 2);
+  return clamp(roundHalfAwayFromZero(num / den), -2, 2);
 }
 
 /** S3: candidate's value on one axis, with the conflict rule. */
@@ -138,14 +159,28 @@ export function scoreCandidate(
   }
 
   const coverage = wAll > 0 ? wAnswered / wAll : 0;
-  const aggregate = wAnswered > 0 ? num / (2 * wAnswered) : 0;
+  const rawAggregate = wAnswered > 0 ? num / (2 * wAnswered) : 0;
 
   let overall: OverallBand;
   if (coverage < CONFIG.coverageGate) overall = "insufficient";
-  else if (aggregate >= CONFIG.bands.strong) overall = "strong";
-  else if (aggregate >= CONFIG.bands.good) overall = "good";
-  else if (aggregate > CONFIG.bands.mixedLow) overall = "mixed";
+  else if (rawAggregate >= CONFIG.bands.strong) overall = "strong";
+  else if (rawAggregate >= CONFIG.bands.good) overall = "good";
+  else if (rawAggregate > CONFIG.bands.mixedLow) overall = "mixed";
   else overall = "weak";
+
+  // Real bug found live 2026-08-29: aggregate used to be returned as a real
+  // (sometimes maximal, e.g. 1) number even when overall === "insufficient",
+  // contradicting this field's own doc comment above ("0 when insufficient")
+  // and SCORING.md's rule that an under-coded candidate's fit is withheld,
+  // never scored. rawAggregate still decides the band above, using every
+  // answered axis regardless of coverage -- only the returned aggregate is
+  // zeroed once a candidate has already been placed in "insufficient".
+  // Side effect, not a regression: matches.ts sorts candidates within a
+  // band tier by aggregate, so multiple insufficient candidates -- already
+  // the very last tier, per S1.3 -- now all tie at 0 there instead of
+  // ordering by a value nobody sees anyway; they fall back to whatever
+  // stable order the race's candidate list itself provided.
+  const aggregate = overall === "insufficient" ? 0 : rawAggregate;
 
   return {
     overall,
