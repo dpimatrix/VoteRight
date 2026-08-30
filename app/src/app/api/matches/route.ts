@@ -1,5 +1,5 @@
 import { currentUserId } from "@/lib/anon";
-import { matchesForRace } from "@/lib/matches";
+import { matchesForRace, toPublicResults } from "@/lib/matches";
 
 export async function GET(request: Request) {
   const raceId = new URL(request.url).searchParams.get("race");
@@ -14,9 +14,15 @@ export async function GET(request: Request) {
   // web's server-rendered page already had for free) -- same public-record
   // citations already shown in full on each candidate's profile page, so
   // sending them here isn't a new disclosure, just an earlier one.
+  //
+  // toPublicResults (found live 2026-08-29): results used to go out as-is,
+  // including each candidate's raw continuous aggregate score -- see that
+  // function's own comment for why that's the one field that must never
+  // reach a client at all, redacted here rather than trusted to a client
+  // that simply chooses not to render it.
   return Response.json({
     algorithmVersion: results[0]?.score.algorithmVersion ?? null,
     priorities,
-    results,
+    results: toPublicResults(results),
   });
 }

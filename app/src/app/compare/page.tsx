@@ -4,7 +4,7 @@ import { PolAvatar } from "@/components/PolAvatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
-import { matchesForRace } from "@/lib/matches";
+import { matchesForRace, toPublicResults } from "@/lib/matches";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,13 @@ export default async function ComparePage({
   const userId = await currentUserId();
 
   const raceId = sp.race;
-  const data = userId && raceId ? await matchesForRace(raceId, userId) : null;
+  // Found live 2026-08-29: a/b (passed as props to CompareAxisRow, a client
+  // component) used to carry the full unredacted score, including each
+  // candidate's raw aggregate -- same RSC-payload leak as matches/page.tsx
+  // had, just via a different screen the earlier review pass didn't cover.
+  // See toPublicResults's own comment in lib/matches.ts.
+  const raw = userId && raceId ? await matchesForRace(raceId, userId) : null;
+  const data = raw ? { ...raw, results: toPublicResults(raw.results) } : null;
   const a = data?.results.find((r) => r.politicianId === sp.a);
   const b = data?.results.find((r) => r.politicianId === sp.b);
 

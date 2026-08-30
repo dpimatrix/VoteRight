@@ -6,7 +6,7 @@ import { AxisDots } from "./AxisDots";
 import { Chev } from "./Chev";
 import { PolAvatar } from "./PolAvatar";
 import { tf, type Lang, type t } from "@/lib/i18n";
-import type { MatchResult, PriorityWithAxis } from "@/lib/matches";
+import type { PriorityWithAxis, PublicMatchResult } from "@/lib/matches";
 
 // Overall-band chip (strong/good/mixed/weak/insufficient) -- distinct from
 // scoreLabels.ts's BAND_CLASS, which maps a single axis's -2..2 agreement
@@ -24,7 +24,12 @@ export function MatchResultsList({
   lang,
   raceId,
 }: {
-  results: MatchResult[];
+  // PublicMatchResult, not MatchResult (found live 2026-08-29): this
+  // component must never even be OFFERED a raw aggregate score to
+  // accidentally render -- see toPublicResults's own comment in
+  // lib/matches.ts. Both call sites (the API route and the server-rendered
+  // page) now redact before this component ever sees a result.
+  results: PublicMatchResult[];
   priorities: PriorityWithAxis[];
   d: ReturnType<typeof t>;
   lang: Lang;
