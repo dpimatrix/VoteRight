@@ -613,6 +613,20 @@ async function activeParticipantIds(threadId: string): Promise<string[]> {
    for the full writeup. */
 export async function ctqVote(threadId: string, userId: string, requestContext?: { ip: string | null; contextHash: string | null }) {
   const client = await db().connect();
+  // Declared outside the try so the post-commit notifyUsers() call below
+  // (found live 2026-08-30) can run truly outside the transaction's own
+  // try/catch -- it used to run INSIDE that try, after COMMIT, so a
+  // notification hiccup there would hit the catch's ROLLBACK (a no-op on
+  // an already-committed transaction) and rethrow, reporting a
+  // successfully-closed thread to the caller as a failure. notifyUsers is
+  // already meant to be best-effort/non-throwing on its own (see
+  // notifications.ts's own "Never throws" doc comment, and the sibling fix
+  // there for the one gap in that promise) -- this just also stops the
+  // ACTION's own transaction from being blamed for it structurally,
+  // regardless of whether notifyUsers ever throws in practice.
+  let closed = false;
+  let proposalId: string | null = null;
+  let activeIds: string[] = [];
   try {
     await client.query("BEGIN");
     // Same gap class as agreeVote above: the debate page only renders the
@@ -635,7 +649,7 @@ export async function ctqVote(threadId: string, userId: string, requestContext?:
     const t = thread.rows[0];
     const hoursOpen = (Date.now() - new Date(t.opened_at).getTime()) / 3600_000;
 
-    const activeIds = await activeParticipantIds(threadId);
+    activeIds = await activeParticipantIds(threadId);
     if (activeIds.length < t.min_active || hoursOpen < t.min_hours) {
       // Floors not met -- the mechanism isn't offered yet, regardless of
       // this specific user's own eligibility.
@@ -661,8 +675,6 @@ export async function ctqVote(threadId: string, userId: string, requestContext?:
     }
     const voteCount = await client.query(`SELECT count(*)::float AS n FROM call_the_question_votes WHERE thread_id = $1`, [threadId]);
     const votes = voteCount.rows[0].n as number;
-    let closed = false;
-    let proposalId: string | null = null;
     if (activeIds.length > 0 && (votes / activeIds.length) * 100 >= t.pct) {
       const prop = await client.query(
         `UPDATE forum_threads SET status = 'closed', closed_early = TRUE, closed_early_at = now() WHERE id = $1
@@ -674,17 +686,21 @@ export async function ctqVote(threadId: string, userId: string, requestContext?:
       closed = true;
     }
     await client.query("COMMIT");
-    if (closed && proposalId) {
-      const { notifyUsers } = await import("./notifications");
-      await notifyUsers(activeIds, "thread_closed", { proposalId, threadId });
-    }
-    return { ok: true as const, closed };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
   } finally {
     client.release();
   }
+  // Outside the try/catch entirely now -- see this function's own header
+  // comment above for why. Notified after COMMIT, same as before; the only
+  // change is that a failure here can no longer be mistaken for the vote
+  // itself failing.
+  if (closed && proposalId) {
+    const { notifyUsers } = await import("./notifications");
+    await notifyUsers(activeIds, "thread_closed", { proposalId, threadId });
+  }
+  return { ok: true as const, closed };
 }
 
 /* ── thread reports + admin force-close (2026-08-24, migration 093) ──

@@ -111,10 +111,22 @@ export async function createNotification(userId: string, type: NotificationType,
     console.error(`notification write failed for ${userId}: ${(e as Error).message}`);
     return; // no row written -- nothing to notify by push/email either
   }
+  // Found live 2026-08-30: this query wasn't guarded like the INSERT above
+  // it, contradicting this function's own "Never throws" promise -- a
+  // transient DB error here would propagate out of createNotification()/
+  // notifyUsers() uncaught, turning a best-effort notification failure into
+  // a hard error for whatever real action (a CTQ vote closing a thread,
+  // etc.) triggered it. proposalTitle already has a real fallback
+  // (copyFor's own `proposalTitle ?? "A debate you're part of"`), so
+  // falling back to null here costs nothing but a slightly generic title.
   let proposalTitle: string | null = null;
   if (opts.proposalId) {
-    const { rows } = await db().query(`SELECT title FROM issue_proposals WHERE id = $1`, [opts.proposalId]);
-    proposalTitle = rows[0]?.title ?? null;
+    try {
+      const { rows } = await db().query(`SELECT title FROM issue_proposals WHERE id = $1`, [opts.proposalId]);
+      proposalTitle = rows[0]?.title ?? null;
+    } catch (e) {
+      console.error(`proposal title lookup failed for notification to ${userId}: ${(e as Error).message}`);
+    }
   }
   await Promise.all([sendPush(userId, type, proposalTitle), sendEmail(userId, type, proposalTitle)]);
 }

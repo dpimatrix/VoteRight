@@ -27,6 +27,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const lang = String(form.get("lang") ?? "en");
   const back = String(form.get("back") ?? "/debates");
   if (!userId) return redirectTo((await verifiedUserId()) ? `/verify/payment?lang=${lang}` : `/verify?lang=${lang}`, request);
-  await ctqVote(threadId, userId, requestContext);
+  // Found live 2026-08-29: this used to discard ctqVote()'s own {ok: false}
+  // entirely -- reachable via the same class of race every other action on
+  // this page has (floors/thread-open state changing in the gap between
+  // page load and submit). ctqVote itself has no differentiated reason
+  // (all three of its own rejection branches collapse to a bare
+  // {ok: false}), so this surfaces the generic action-error banner rather
+  // than a specific one -- still real feedback instead of none at all.
+  const res = await ctqVote(threadId, userId, requestContext);
+  if (!res.ok) return redirectTo(`${back}?lang=${lang}&error=ctq`, request);
   return redirectTo(`${back}?lang=${lang}`, request);
 }
