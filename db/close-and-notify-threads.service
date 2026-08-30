@@ -4,6 +4,18 @@ Description=VoteRight debate thread lifecycle sweep (natural expiry + CTQ eligib
 [Service]
 Type=oneshot
 WorkingDirectory=%h/repo
+# Real production failure (2026-08-30, found live testing the notification
+# pipeline): every single scheduled run since this timer was enabled failed
+# with exit 127 ("command not found") -- a systemd --user service does not
+# inherit an interactive shell's exported PATH, so "/usr/bin/env node" had
+# nothing but the unit's own minimal default PATH to search, which doesn't
+# include this VPS's cPanel-installed Node (ea-nodejs22, not on the system
+# PATH -- see DEPLOY.md and roster-refresh.sh's own identical `export PATH=`
+# line for the same underlying constraint). roster-refresh.service didn't
+# hit this because its ExecStart calls a wrapper .sh that exports PATH
+# itself before invoking node; this unit calls node directly, so the fix
+# has to live here instead.
+Environment=PATH=/opt/cpanel/ea-nodejs22/bin:/usr/bin:/bin
 ExecStart=/usr/bin/env node %h/repo/db/close-and-notify-threads.mjs
 # No StandardOutput/StandardError override -- systemd --user services
 # default to the journal, which captures this automatically with zero
