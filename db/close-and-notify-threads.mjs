@@ -142,11 +142,15 @@ async function sendPush(userId, type, proposalId) {
     if (rows.length === 0) return;
     const { title, body } = copyFor(type, await proposalTitleFor(proposalId));
     const messages = rows.map((r) => ({ to: r.token, title, body, sound: "default" }));
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify(messages),
     });
+    // Same gap as notifications.ts's own sendPush, found together live
+    // 2026-08-30: fetch() only throws on a network-level failure, not an
+    // HTTP error response -- nothing here ever noticed a non-2xx.
+    if (!res.ok) console.error(`push send failed for ${userId}: HTTP ${res.status} ${await res.text()}`);
   } catch (e) {
     console.error(`push send failed for ${userId}: ${e.message}`);
   }
@@ -162,7 +166,13 @@ async function sendEmail(userId, type, proposalId) {
     const to = rows[0]?.notification_email;
     if (!to) return;
     const { title, body } = copyFor(type, await proposalTitleFor(proposalId));
-    await fetch("https://api.resend.com/emails", {
+    // Real production incident this fix responds to (2026-08-30): a
+    // truncated RESEND_API_KEY made every send here get rejected by Resend
+    // with an HTTP 401 -- fetch() doesn't throw for that, so it went
+    // completely unnoticed (no log line here, no entry in Resend's own
+    // dashboard since the request never got past authentication to be
+    // queued) despite the in-app notification row being written correctly.
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({
@@ -172,6 +182,7 @@ async function sendEmail(userId, type, proposalId) {
         text: `${body}\n\nManage notification preferences: ${process.env.SITE_URL ?? "https://voteright.dpimatrix.com"}/notifications`,
       }),
     });
+    if (!res.ok) console.error(`notification email send failed for ${userId}: HTTP ${res.status} ${await res.text()}`);
   } catch (e) {
     console.error(`notification email send failed for ${userId}: ${e.message}`);
   }
