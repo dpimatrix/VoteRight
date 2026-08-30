@@ -57,11 +57,18 @@ async function sendPush(userId: string, type: NotificationType, proposalTitle: s
     // Expo's push API accepts a batch in one call -- one message object per
     // token, same request. https://docs.expo.dev/push-notifications/sending-notifications/
     const messages = rows.map((r) => ({ to: r.token as string, title, body, sound: "default" }));
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify(messages),
     });
+    // Real gap found live 2026-08-30: fetch() only throws on a network-level
+    // failure -- an HTTP error response (bad payload, revoked credentials,
+    // Expo-side rejection) completed the request just fine and fell through
+    // silently, with nothing in the catch below to ever log it. Same fix as
+    // sendEmail's below; a non-2xx here is a real failure worth a log line,
+    // not evidence-free.
+    if (!res.ok) console.error(`push send failed for ${userId}: HTTP ${res.status} ${await res.text()}`);
   } catch (e) {
     // Best-effort, same posture as anomalyDetection.ts's flagIfAnomalous --
     // a delivery failure must never roll back the underlying DB event.
@@ -87,12 +94,23 @@ async function sendEmail(userId: string, type: NotificationType, proposalTitle: 
     const to = rows[0]?.notification_email as string | undefined;
     if (!to) return;
     const { title, body } = pushCopy(type, proposalTitle);
-    await client.emails.send({
+    // Real gap found live 2026-08-30: the Resend SDK does NOT throw on a
+    // rejected send (a truncated/invalid API key, in the incident that
+    // surfaced this) -- it resolves normally with { data: null, error }.
+    // Its own internal logging is deliberately disabled in production (see
+    // its logError()'s own NODE_ENV check), so the caller MUST inspect
+    // `error` itself or a real rejection is completely invisible: no thrown
+    // exception, nothing in this catch, no entry in Resend's own dashboard
+    // since the request never got far enough to be queued. This is exactly
+    // how a truncated production RESEND_API_KEY went unnoticed for over a
+    // day despite the in-app notification row being written correctly.
+    const { error } = await client.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? "VoteRight <notifications@voteright.dpimatrix.com>",
       to,
       subject: title,
       text: `${body}\n\nManage notification preferences: ${process.env.SITE_URL ?? "https://voteright.dpimatrix.com"}/notifications`,
     });
+    if (error) console.error(`notification email send failed for ${userId}: ${error.name} -- ${error.message}`);
   } catch (e) {
     console.error(`notification email send failed for ${userId}: ${(e as Error).message}`);
   }
