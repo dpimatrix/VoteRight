@@ -19,15 +19,38 @@ interface Arg {
   my_vote: string | null;
 }
 
+// Found live 2026-08-29: second/ctq/agree/report's form-POST routes all
+// used to discard their own action's rejection reason, redirecting back
+// with zero indication anything had gone wrong -- reachable in normal use
+// (a thread closing, an argument's moderation status changing) not just a
+// direct-POST bypass. Each route now redirects with ?error=<code> on
+// failure; this maps every code any of them can produce to a message, with
+// a generic fallback so an unrecognized future code still shows something
+// rather than silently rendering nothing. "closed" (report) and
+// "thread_closed" (agree) are two different literal strings from two
+// different functions for the same underlying situation -- both map here.
+function actionErrorMessage(code: string, d: ReturnType<typeof t>): string {
+  const byCode: Record<string, string> = {
+    self: d.deb_action_error_self,
+    thread_closed: d.deb_action_error_thread_closed,
+    closed: d.deb_action_error_thread_closed,
+    not_approved: d.deb_action_error_not_approved,
+    not_found: d.deb_action_error_not_found,
+    invalid: d.deb_action_error_invalid,
+  };
+  return byCode[code] ?? d.deb_action_error_generic;
+}
+
 export default async function DebatePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; error?: string }>;
 }) {
   const { id } = await params;
-  const lang = langFrom((await searchParams).lang);
+  const sp = await searchParams;
+  const lang = langFrom(sp.lang);
   const d = t(lang);
   const userId = await currentUserId();
   const detail = await debateDetail(id, userId);
@@ -56,6 +79,7 @@ export default async function DebatePage({
         <div className="pagetitle">{detail.title}</div>
         <p className="sub">{detail.topic}</p>
         <p style={{ fontSize: "0.92rem" }}>{detail.body}</p>
+        {sp.error && <p className="nopos">{actionErrorMessage(sp.error, d)}</p>}
 
         {detail.status === "seconding" && (
           <div className="card">

@@ -152,6 +152,18 @@ const DICT = {
     report_ph: "What's wrong with this thread?",
     report_btn: "Report",
     report_done: "✓ Reported — a moderator will review it.",
+    // Found live 2026-08-29: second/ctq/agree/report's form-POST paths all
+    // discarded their action's own rejection reason (thread closed in the
+    // gap between page load and submit, an argument's moderation status
+    // changing underneath the reader, etc.), redirecting back with zero
+    // indication anything had gone wrong. self was already signaled by
+    // /second's redirect but never rendered anywhere until now.
+    deb_action_error_self: "You can't second your own proposal.",
+    deb_action_error_thread_closed: "This debate closed before your action went through.",
+    deb_action_error_not_approved: "That argument is no longer available (pending or removed by moderation).",
+    deb_action_error_not_found: "That argument no longer exists.",
+    deb_action_error_invalid: "Please enter a reason before submitting your report.",
+    deb_action_error_generic: "That action couldn't be completed — the situation may have changed. Please refresh and try again.",
     notif_bell_label: "Notifications",
     notif_h: "Notifications",
     notif_empty: "No notifications yet.",
@@ -571,6 +583,12 @@ const DICT = {
     report_ph: "¿Qué tiene de malo este hilo?",
     report_btn: "Reportar",
     report_done: "✓ Reportado — un moderador lo revisará.",
+    deb_action_error_self: "No puedes secundar tu propia propuesta.",
+    deb_action_error_thread_closed: "Este debate cerró antes de que tu acción se completara.",
+    deb_action_error_not_approved: "Ese argumento ya no está disponible (pendiente o eliminado por moderación).",
+    deb_action_error_not_found: "Ese argumento ya no existe.",
+    deb_action_error_invalid: "Escribe un motivo antes de enviar tu reporte.",
+    deb_action_error_generic: "Esa acción no se pudo completar — la situación pudo haber cambiado. Actualiza la página e intenta de nuevo.",
     notif_bell_label: "Notificaciones",
     notif_h: "Notificaciones",
     notif_empty: "Aún no hay notificaciones.",

@@ -30,9 +30,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const back = String(form.get("back") ?? "/debates");
   const reason = String(form.get("reason") ?? "").trim();
   if (!userId) return redirectTo((await verifiedUserId()) ? `/verify/payment?lang=${lang}` : `/verify?lang=${lang}`, request);
-  // Form path has no error UI to surface a rejection to -- same defense-in-
-  // depth posture agree/ctq's form paths already document; the real UI only
-  // submits this when reason is non-empty.
-  if (reason) await reportThread(threadId, userId, reason, requestContext);
+  // Found live 2026-08-29: this used to discard reportThread()'s own
+  // rejection reason entirely (most reachably "closed" -- the thread can
+  // close in the gap between page load, where the report form's own
+  // rendering was gated on it still being open, and this submit). Now
+  // surfaces it via ?error=, rendered as a banner by debates/[id]/page.tsx.
+  if (reason) {
+    const res = await reportThread(threadId, userId, reason, requestContext);
+    if (!res.ok) return redirectTo(`${back}?lang=${lang}&error=${res.reason}`, request);
+  }
   return redirectTo(`${back}?lang=${lang}`, request);
 }
