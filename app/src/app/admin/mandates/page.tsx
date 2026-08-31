@@ -6,6 +6,27 @@ export const dynamic = "force-dynamic";
 
 interface RaceCand { candidacy_id: string; name: string; party: string | null; status: string }
 
+// Found live 2026-08-31 alongside the route that now sends these codes:
+// certify/publish/redact each have a real rejection reason that used to be
+// discarded outright, silently redirecting back to this exact page with no
+// indication anything failed. Same TOCTOU-race shape already fixed
+// elsewhere this session (agree/ctq/report/second) -- e.g. another admin's
+// recertify flipping meets_publish_threshold between this page's own load
+// and a stale "Publish" click.
+function adminMandateErrorMessage(code: string): string {
+  if (code === "not_closed") return "Certify failed — this referendum isn't closed yet (it may have just closed, or reopened, since this page loaded).";
+  if (code === "blocked") return "Publish failed — this mandate no longer meets its publish threshold (recheck the numbers below; they may have changed since this page loaded).";
+  if (code === "not_found") return "Publish failed — that mandate no longer exists.";
+  // Distinct from a "nothing to redact" success (0 rows redacted, a real
+  // no-op outcome, not an error): this is specifically "this referendum
+  // was never published at all" -- redactReferendumIdentities' own §10.1
+  // gate refuses to sever identities from an unpublished referendum's
+  // ballot tokens. Worth a clear message since a silently-failed redact
+  // here is a real privacy gap, not just a UX one.
+  if (code === "not_published") return "Redaction failed — this referendum hasn't been published yet, so its identities were never touched (§10.1 only allows redaction after publication).";
+  return "Action failed.";
+}
+
 export default async function AdminMandatesPage({
   searchParams,
 }: {
@@ -26,6 +47,7 @@ export default async function AdminMandatesPage({
       {e === "cite" && (
         <p className="pill broken">✗ An attributed stance needs the candidate&apos;s own public statement as a citation (§2.3).</p>
       )}
+      {e && e !== "cite" && <p className="pill broken">✗ {adminMandateErrorMessage(e)}</p>}
 
       <div className="grouph">Ready to schedule (debate closed, question called)</div>
       {p.ready.length === 0 && <p className="nopos">None waiting.</p>}
@@ -112,7 +134,8 @@ export default async function AdminMandatesPage({
             <span className={`chip band ${m.overlay_status === "published" ? "b2" : "b0"}`}>{m.overlay_status}</span>
           </div>
           <div className="cover" style={{ margin: "0.2rem 0" }}>
-            {m.office ?? "no office"} · turnout {m.turnout_count.toLocaleString()} ({m.turnout_pct ?? 0}% of registered,
+            {m.office ?? "no office"} · turnout {m.turnout_count.toLocaleString()} (
+            {m.turnout_pct === null ? "no registered-voter count on file" : `${m.turnout_pct}% of registered`},
             threshold {m.threshold_pct}%) · margin +{m.margin_pct}%
           </div>
           {m.overlay_status === "below_threshold_unpublished" && (
@@ -124,8 +147,26 @@ export default async function AdminMandatesPage({
             ) : (
               // Same visible-CHECK pattern as the dispute console: the button exists,
               // the schema forbids the transition, and the operator sees why.
+              //
+              // Real gap found live 2026-08-31: this used to render `m.turnout_pct ?? 0`
+              // unconditionally, so a jurisdiction with NO registered_voter_count seeded
+              // yet (a real, reachable data gap -- the column is nullable, "refreshed
+              // periodically from official SBE stats" per its own schema comment, and
+              // several ingest sources were already flagged stale elsewhere in this
+              // admin console) looked EXACTLY like a genuine "almost nobody voted"
+              // result: "turnout 0% < 1.0%". An operator can't tell "this mandate
+              // genuinely failed turnout" from "this jurisdiction's denominator was
+              // never ingested" from that message alone -- the fix is a data-ingest
+              // problem, not a real low-turnout finding, and conflating them risked an
+              // operator either wrongly declining to publish a well-turned-out mandate,
+              // or chasing a "turnout problem" that was never real. The voter-facing
+              // mandate detail page (mandates/[id]/page.tsx) already correctly
+              // distinguished null from 0 here; only this admin view had the gap.
               <button disabled title="voter_mandates CHECK: publish requires meets_publish_threshold">
-                Publish blocked — turnout {m.turnout_pct ?? 0}% &lt; {m.threshold_pct}% (schema CHECK)
+                Publish blocked —{" "}
+                {m.turnout_pct === null
+                  ? "no registered-voter count on file for this jurisdiction (cannot compute turnout %)"
+                  : `turnout ${m.turnout_pct}% < ${m.threshold_pct}% (schema CHECK)`}
               </button>
             )
           )}
