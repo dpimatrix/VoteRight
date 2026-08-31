@@ -351,6 +351,17 @@ const DICT = {
     priv_request_p:
       "Access, correct, delete, or export your data. No email or account needed — the request is tied to the same anonymous cookie identity your data is.",
     priv_request_ok: "Request received. Track it below — response due within 45 days (appeals: 60).",
+    // Real gap found live 2026-08-31: createRequest()'s own {ok:false}
+    // result (currently only reachable if an appeal submission is missing
+    // which request it's appealing) used to be discarded outright here --
+    // every submission redirected to the SAME "Request received" success
+    // banner regardless of outcome. A statutory-rights request silently
+    // not being recorded, while telling the person it was, is a real gap
+    // even though the normal UI's own appeal button always supplies
+    // appeal_of correctly (this is a defense-in-depth fix, not a
+    // commonly-reachable-through-normal-use one -- see the route's own
+    // comment for the full reasoning).
+    priv_request_error: "That request couldn't be submitted — please try again.",
     priv_t_access: "Access — what do you hold about me?",
     priv_t_correction: "Correction — fix inaccurate data",
     priv_t_deletion: "Deletion — delete my data",
@@ -783,6 +794,7 @@ const DICT = {
     priv_request_p:
       "Accede, corrige, elimina o exporta tus datos. Sin correo ni cuenta — la solicitud queda ligada a la misma identidad anónima de cookie que tus datos.",
     priv_request_ok: "Solicitud recibida. Síguela abajo — respuesta en un máximo de 45 días (apelaciones: 60).",
+    priv_request_error: "Esa solicitud no se pudo enviar — inténtalo de nuevo.",
     priv_t_access: "Acceso — ¿qué datos tienen sobre mí?",
     priv_t_correction: "Corrección — corregir datos inexactos",
     priv_t_deletion: "Eliminación — eliminar mis datos",

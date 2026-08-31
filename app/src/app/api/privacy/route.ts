@@ -15,12 +15,21 @@ export async function POST(request: Request) {
   // including unverified visitors — the cookie identity IS the authentication,
   // because it is the same identity the data is stored under.
   const userId = await currentOrNewUserId();
-  await createRequest({
+  const res = await createRequest({
     userId,
     type: type as RequestType,
     details: String(form.get("details") ?? "") || undefined,
     responseContact: String(form.get("contact") ?? "") || undefined,
     appealOf: String(form.get("appeal_of") ?? "") || undefined,
   });
-  return redirectTo(`/privacy/request?lang=${lang}&ok=1`, request);
+  // Real gap found live 2026-08-31: createRequest()'s own {ok:false} (an
+  // appeal submitted with no request to appeal) used to be discarded
+  // outright -- every submission redirected to the same "Request received"
+  // success banner regardless of outcome. A statutory MODPA rights request
+  // silently not being recorded, while telling the person it was, is worth
+  // fixing even though the page's own appeal button always supplies
+  // appeal_of correctly (this is a defense-in-depth fix against a
+  // malformed/direct request, not a commonly-reachable-through-normal-use
+  // gap).
+  return redirectTo(`/privacy/request?lang=${lang}&${res.ok ? "ok=1" : "error=1"}`, request);
 }
