@@ -8,10 +8,21 @@ export const dynamic = "force-dynamic";
 // imported across the route.ts boundary -- see that file's own comment).
 const ENROLL_COOKIE = "vr_admin_enroll";
 
-export default async function AdminAccountsPage() {
+export default async function AdminAccountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   if (!(await hasAdminAccess("admin_accounts"))) return <AdminAccessDenied screen="admin_accounts" />;
   const me = await currentAdmin();
   const accounts = await listAdminAccounts();
+  // Real gap found live 2026-08-31: the creation route already redirects
+  // here with ?error=username_taken on a duplicate-username attempt (its
+  // own comment even says so: "no dedicated error UI for this yet, just
+  // avoid a raw 500") -- but this page never read searchParams at all, so
+  // that redirect landed on the exact same page with zero visible
+  // difference from a successful creation.
+  const { error } = await searchParams;
 
   // Found live 2026-08-29: this used to read newUsername/newSecret straight
   // from the URL query string, which (despite the banner's own claim below)
@@ -35,6 +46,10 @@ export default async function AdminAccountsPage() {
         admin should see below. Each admin enrolls their own authenticator app (TOTP), separate from every other
         admin's.
       </p>
+
+      {error === "username_taken" && (
+        <p className="nopos" style={{ color: "var(--adv, #b00)" }}>That username is already taken — pick a different one.</p>
+      )}
 
       {enroll && (
         <div className="disclosure">
