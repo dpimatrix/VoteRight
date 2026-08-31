@@ -37,6 +37,14 @@ yarn-error.*
 # EAS submit credentials (never commit — supplied out-of-band)
 google-service-account.json
 
+# Firebase Android client config (2026-08-31, FCM push credentials) -- not a
+# private key like the service account above, but kept out of git anyway per
+# the owner's own call: uploaded to EAS instead as a file-type environment
+# variable (GOOGLE_SERVICES_JSON), referenced via app.config.js's
+# googleServicesFile fallback chain. A real local copy is still needed here
+# for `expo start`/local builds -- supplied out-of-band, same as the file above.
+google-services.json
+
 # typescript
 *.tsbuildinfo
 
