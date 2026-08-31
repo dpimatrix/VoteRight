@@ -59,12 +59,32 @@ export default ({ config }) => {
       // from an EAS file-type environment variable for cloud builds
       // (`eas env:create --type file --name GOOGLE_SERVICES_JSON`),
       // falling back to a real local copy in the project root for
-      // `expo start`/local builds. Only registered in Firebase under the
-      // PRODUCTION package name above -- a `development-local`
-      // (APP_ENV=local) build's own `.mobile.local` package won't match
-      // this file's package_name and would need its own separate Firebase
-      // Android app registration if local push testing is ever needed.
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+      // `expo start`/local builds.
+      //
+      // Real gap found live 2026-08-31 (independent adversarial review,
+      // caught before it ever shipped): this file is only registered in
+      // Firebase under the PRODUCTION package name -- a `development-local`
+      // (isLocal) build's own `.mobile.local` package doesn't match it. The
+      // comment here used to claim that would just leave local push testing
+      // non-functional; that's wrong. Expo's Google Services Gradle plugin
+      // actively FAILS the build outright on a package_name mismatch
+      // ("No matching client found for package name..."), and separately,
+      // `development-local` isn't one of EAS's canonical named environments
+      // (development/preview/production), so the GOOGLE_SERVICES_JSON
+      // file-type env var wouldn't even be injected for a cloud build under
+      // that profile -- the local-file fallback would then also fail, since
+      // the file is gitignored and never uploaded. Cheapest correct fix:
+      // don't reference the file at all for isLocal builds. Local push
+      // testing was never the goal (see the header comment two levels up);
+      // it would need its own separate Firebase Android app registration
+      // under the `.mobile.local` package if that's ever actually wanted.
+      //
+      // `||` not `??` on the non-local path: an env var that resolves to an
+      // empty string (a misconfigured CI/EAS environment substituting ""
+      // instead of leaving it truly unset) must also fall through to the
+      // local-file fallback, not get handed to the build as a literal empty
+      // path -- `??` alone only catches null/undefined, not "".
+      googleServicesFile: isLocal ? undefined : (process.env.GOOGLE_SERVICES_JSON || "./google-services.json"),
     },
     ios: {
       ...config.ios,

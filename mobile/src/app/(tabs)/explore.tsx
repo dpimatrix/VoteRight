@@ -105,66 +105,24 @@ export default function MatchesScreen() {
     setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-2)));
   const nameOf = (id: string) => matches?.results.find((r) => r.politicianId === id)?.fullName ?? '';
 
-  const loadRaces = useCallback(async () => {
-    try {
-      if (!hasSession()) await ensureSession();
-      const res = await get<{ races: Race[] }>('/api/races');
-      setRaces(res.races);
-      // Keep the user's current chip selected across a focus-triggered
-      // refresh (below) if it's still a valid race -- only default to the
-      // first one when there's no prior selection, or the previously
-      // selected race dropped out of a newly-narrowed list. Otherwise
-      // every tab-switch-and-back would yank the user back to the first
-      // chip even when nothing about their own ballot changed.
-      setRaceId((cur) => (cur && res.races.some((r) => r.id === cur) ? cur : (res.races[0]?.id ?? null)));
-    } catch (e) {
-      console.error('Races load failed:', e);
-      setError(d.races_load_error);
-    }
-  }, [d.races_load_error]);
-
-  // Real gap found live testing (2026-08-31): this used to be a plain
-  // useEffect (fire once on mount, never again) -- harmless-looking, but
-  // expo-router's NativeTabsView mounts EVERY tab's screen eagerly and
-  // simultaneously the moment the tab layout itself renders (confirmed
-  // directly against its own source, not assumed -- see
-  // mobile/AGENTS.md's warning against trusting training data for Expo
-  // specifics), not lazily on first visit. That means this tab's own
-  // "on mount" race-list fetch fires the instant the app launches,
-  // regardless of which tab is actually visible -- typically well before
-  // a fresh install's user has even reached the Verify screen, let alone
-  // completed it. Once fetched unfiltered (no residence yet), it never
-  // refetched again for the rest of the session: a real address's Matches
-  // tab kept showing every County Council district nationwide-shaped
-  // seat instead of narrowing to the resident's own one, even though the
-  // exact same data/matching logic (ownRaceIds -> filterToOwnDistricts)
-  // that /api/ballot already uses correctly was right there in /api/races
-  // the whole time (see userResidence's own doc comment for the earlier,
-  // separately-fixed instance of this same underlying class of gap).
-  // useFocusEffect (already used below for loadMatches) fires on initial
-  // focus too, so this is a strict improvement, not just an addition --
-  // it now also refetches every time this tab regains focus, picking up
-  // a residence that was verified after the app's very first render.
-  useFocusEffect(
-    useCallback(() => {
-      loadRaces();
-    }, [loadRaces]),
-  );
-
-  // Monotonic generation counter, not a per-effect `cancelled` closure --
-  // needs to guard a manual "Try again" retry too, not just the focus
-  // effect's own re-runs, so one shared counter both the effect and the
-  // button bump.
+  // Monotonic generation counter -- guards a loadMatches() call's own async
+  // response against a stale, out-of-order resolution (e.g. a manual chip
+  // tap superseded moments later by a focus-triggered reload) clobbering a
+  // fresher one.
   const loadGeneration = useRef(0);
 
-  const loadMatches = useCallback(() => {
-    if (!raceId) return;
+  // Takes the race id explicitly rather than closing over `raceId` state --
+  // see the useFocusEffect below for why: that was the actual root cause of
+  // a real double-fetch/wrong-data-flash bug found by independent code
+  // review shortly after this file's own district-narrowing fix shipped
+  // (2026-08-31).
+  const loadMatches = useCallback((id: string) => {
     const gen = ++loadGeneration.current;
     setMatches(null);
     setError(null);
     setExpanded(null);
     setSelected([]);
-    get<MatchesResponse>(`/api/matches?race=${raceId}`)
+    get<MatchesResponse>(`/api/matches?race=${id}`)
       .then((res) => {
         if (loadGeneration.current === gen) setMatches(res);
       })
@@ -186,17 +144,102 @@ export default function MatchesScreen() {
         console.error('Matches load failed:', e);
         setError(d.matches_load_error);
       });
-  }, [raceId, d.need_priorities_error, d.matches_load_error]);
+  }, [d.need_priorities_error, d.matches_load_error]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadMatches();
-    }, [loadMatches]),
-  );
+  // Re-fetches match scores for whichever race is CURRENTLY selected --
+  // what the manual "Try again" button and background/foreground
+  // auto-retry both actually want (re-attempt the score fetch, not a fresh
+  // /api/races round trip).
+  const retryMatches = useCallback(() => {
+    if (raceId) loadMatches(raceId);
+  }, [raceId, loadMatches]);
   // Gated to the generic load error specifically, not need_priorities_error
   // -- that one means "you haven't set priorities yet," which resuming
   // from the background doesn't change; retrying would just 409 again.
-  useRetryOnForeground(error === d.matches_load_error, loadMatches);
+  useRetryOnForeground(error === d.matches_load_error, retryMatches);
+
+  // Real gaps found live testing (2026-08-31), both stemming from the same
+  // root cause: loadRaces (the race/office pill list) and loadMatches (the
+  // score results for whichever race is selected) used to be two
+  // INDEPENDENT focus-triggered effects, with loadMatches's own effect
+  // re-firing whenever loadRaces changed `raceId`. That's a real
+  // dependency, not a mistake on its own -- but expo-router's useFocusEffect
+  // re-invokes its callback on ANY identity change while the screen stays
+  // focused, not only on a genuine focus/blur transition (confirmed
+  // directly against its own source -- see mobile/AGENTS.md's warning
+  // against trusting training data for Expo specifics). That meant a
+  // SINGLE tab-focus could fire loadMatches TWICE: once immediately with
+  // whatever raceId was left over from before this focus, and again
+  // moments later once the races fetch resolved and corrected it --
+  // wasting a request every time, and if the first (stale) response landed
+  // after the second had already started, briefly flashing the wrong
+  // race's results on screen right after a residence narrowed the ballot.
+  // Two more gaps in loadRaces itself, also found by that same review: no
+  // generation-style guard against two overlapping calls resolving out of
+  // order (unlike loadMatches, which always had one), and its own error
+  // state was never cleared on a later success, so one transient failure
+  // could leave the error banner stuck indefinitely even once everything
+  // was working again.
+  //
+  // Fixed by sequencing instead of racing: this single focus effect awaits
+  // the races fetch for the CURRENT list/id, then calls loadMatches with
+  // that exact id directly -- loadMatches no longer independently reacts
+  // to raceId changing (it takes an explicit parameter now), so it can
+  // only ever fire once per focus, with data already confirmed fresh
+  // moments earlier. The `cancelled` flag is this effect's own staleness
+  // guard, playing the same role loadGeneration plays for loadMatches --
+  // a superseded focus event's response can no longer clobber a newer
+  // one's state. Deliberately has no `raceId` in its own dependency array
+  // (manually tapping a different chip below calls loadMatches directly
+  // instead of going through this effect) -- otherwise every manual chip
+  // tap would also trigger a full, unnecessary /api/races re-fetch.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          if (!hasSession()) await ensureSession();
+          const res = await get<{ races: Race[] }>('/api/races');
+          if (cancelled) return;
+          setRaces(res.races);
+          setError(null);
+          // Keep the user's current chip selected across this
+          // focus-triggered refresh if it's still a valid race -- only
+          // default to the first one when there's no prior selection, or
+          // the previously selected race dropped out of a newly-narrowed
+          // list. Otherwise every tab-switch-and-back would yank the user
+          // back to the first chip even when nothing about their own
+          // ballot changed. Read via the functional setState form rather
+          // than closing over `raceId` state, so this effect's own
+          // identity doesn't depend on it either (same reasoning as above).
+          let nextId: string | null = null;
+          setRaceId((cur) => {
+            nextId = cur && res.races.some((r) => r.id === cur) ? cur : (res.races[0]?.id ?? null);
+            return nextId;
+          });
+          if (nextId) {
+            loadMatches(nextId);
+          } else {
+            // No races on this resident's own ballot right now (a real,
+            // reachable state) -- clear any previously-loaded matches/
+            // selection/expanded-panel state instead of leaving a stale
+            // race's candidate grid rendered with no chip selected to
+            // explain it.
+            setMatches(null);
+            setExpanded(null);
+            setSelected([]);
+          }
+        } catch (e) {
+          if (cancelled) return;
+          console.error('Races load failed:', e);
+          setError(d.races_load_error);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [loadMatches, d.races_load_error]),
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -215,7 +258,10 @@ export default function MatchesScreen() {
             {races.map((r) => (
               <Pressable
                 key={r.id}
-                onPress={() => setRaceId(r.id)}
+                onPress={() => {
+                  setRaceId(r.id);
+                  loadMatches(r.id);
+                }}
                 style={[
                   styles.raceChip,
                   {
@@ -234,7 +280,7 @@ export default function MatchesScreen() {
           <View style={styles.rowWrap}>
             <ThemedText type="small">{error}</ThemedText>
             {error === d.matches_load_error && (
-              <Pressable onPress={loadMatches}>
+              <Pressable onPress={retryMatches}>
                 <ThemedText type="small" style={{ color: colors.evidence }}>
                   {d.try_again}
                 </ThemedText>
