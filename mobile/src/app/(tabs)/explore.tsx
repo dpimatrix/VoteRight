@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -110,16 +110,46 @@ export default function MatchesScreen() {
       if (!hasSession()) await ensureSession();
       const res = await get<{ races: Race[] }>('/api/races');
       setRaces(res.races);
-      if (res.races[0]) setRaceId(res.races[0].id);
+      // Keep the user's current chip selected across a focus-triggered
+      // refresh (below) if it's still a valid race -- only default to the
+      // first one when there's no prior selection, or the previously
+      // selected race dropped out of a newly-narrowed list. Otherwise
+      // every tab-switch-and-back would yank the user back to the first
+      // chip even when nothing about their own ballot changed.
+      setRaceId((cur) => (cur && res.races.some((r) => r.id === cur) ? cur : (res.races[0]?.id ?? null)));
     } catch (e) {
       console.error('Races load failed:', e);
       setError(d.races_load_error);
     }
   }, [d.races_load_error]);
 
-  useEffect(() => {
-    loadRaces();
-  }, [loadRaces]);
+  // Real gap found live testing (2026-08-31): this used to be a plain
+  // useEffect (fire once on mount, never again) -- harmless-looking, but
+  // expo-router's NativeTabsView mounts EVERY tab's screen eagerly and
+  // simultaneously the moment the tab layout itself renders (confirmed
+  // directly against its own source, not assumed -- see
+  // mobile/AGENTS.md's warning against trusting training data for Expo
+  // specifics), not lazily on first visit. That means this tab's own
+  // "on mount" race-list fetch fires the instant the app launches,
+  // regardless of which tab is actually visible -- typically well before
+  // a fresh install's user has even reached the Verify screen, let alone
+  // completed it. Once fetched unfiltered (no residence yet), it never
+  // refetched again for the rest of the session: a real address's Matches
+  // tab kept showing every County Council district nationwide-shaped
+  // seat instead of narrowing to the resident's own one, even though the
+  // exact same data/matching logic (ownRaceIds -> filterToOwnDistricts)
+  // that /api/ballot already uses correctly was right there in /api/races
+  // the whole time (see userResidence's own doc comment for the earlier,
+  // separately-fixed instance of this same underlying class of gap).
+  // useFocusEffect (already used below for loadMatches) fires on initial
+  // focus too, so this is a strict improvement, not just an addition --
+  // it now also refetches every time this tab regains focus, picking up
+  // a residence that was verified after the app's very first render.
+  useFocusEffect(
+    useCallback(() => {
+      loadRaces();
+    }, [loadRaces]),
+  );
 
   // Monotonic generation counter, not a per-effect `cancelled` closure --
   // needs to guard a manual "Try again" retry too, not just the focus
