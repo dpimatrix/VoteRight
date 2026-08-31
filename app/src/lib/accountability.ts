@@ -37,10 +37,24 @@ export function buildDisclosure(opts: {
 
 /* ── pathways for a politician's current seat (§7.4 lookup) ── */
 export async function pathwaysForPolitician(politicianId: string): Promise<{ pathways: Pathway[]; holds_office: boolean }> {
+  // Real gap found live 2026-08-31: holds_office used to be a per-row scalar
+  // subquery on the SAME query as the pathways JOIN below, so it was only
+  // ever computed when at least one pathway row existed. A politician who
+  // genuinely holds office today, but whose specific office/jurisdiction
+  // simply has no curated accountability_pathways row yet (accountability
+  // data coverage is nowhere near complete at nationwide scale -- see this
+  // file's own header comment on the word "recall" never appearing unless
+  // a specific office really has one, which cuts both ways: absence of
+  // curated data must never be read as absence of the office itself)
+  // produced ZERO rows here, and holds_office silently fell back to false
+  // -- rendering "This person holds no current office" on a real,
+  // currently-serving politician's own accountability panel. Fixed by
+  // computing holds_office as its own independent top-level query,
+  // unconditional on whether any pathway happens to exist.
+  const holds = await db().query(`SELECT current_office_id IS NOT NULL AS holds_office FROM politicians WHERE id = $1`, [politicianId]);
   const { rows } = await db().query(
     `SELECT ap.id, ap.mechanism_type, ap.is_binding, ap.legal_citation,
-            ap.signature_requirement_note, ap.description, o.title AS office_title,
-            (SELECT current_office_id IS NOT NULL FROM politicians WHERE id = $1) AS holds_office
+            ap.signature_requirement_note, ap.description, o.title AS office_title
        FROM accountability_pathways ap
        LEFT JOIN offices o ON o.id = ap.office_id
       WHERE ap.office_id = (SELECT current_office_id FROM politicians WHERE id = $1)
@@ -58,7 +72,7 @@ export async function pathwaysForPolitician(politicianId: string): Promise<{ pat
   );
   return {
     pathways: rows as Pathway[],
-    holds_office: rows[0]?.holds_office ?? false,
+    holds_office: holds.rows[0]?.holds_office ?? false,
   };
 }
 

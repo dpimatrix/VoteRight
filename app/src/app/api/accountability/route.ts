@@ -46,6 +46,13 @@ export async function POST(request: Request) {
     description: String(form.get("description") ?? ""),
     citationUrl: String(form.get("citation_url") ?? "") || undefined,
   });
-  const dest = res.ok ? `/accountability/${res.id}?lang=${lang}` : `/accountability?lang=${lang}`;
+  // Real gap found live 2026-08-31: createCampaign()'s own rejection reason
+  // ("pathway" -- bad id, or "pathway_mismatch" -- e.g. a reform campaign
+  // submitted against a non-petition pathway) used to be discarded outright
+  // here, redirecting back to a bare "/accountability" with zero indication
+  // anything failed -- same silent-no-op class already fixed this session
+  // for every debate action and the referenda/mandate admin actions, just
+  // never extended to this form.
+  const dest = res.ok ? `/accountability/${res.id}?lang=${lang}` : `/accountability?lang=${lang}&error=1`;
   return redirectTo(dest, request);
 }

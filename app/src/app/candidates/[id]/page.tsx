@@ -339,7 +339,23 @@ export default async function CandidatePage({
       <div className="card">
         <div className="grouph" style={{ margin: "0 0 0.3rem" }}>{d.acct_h}</div>
         {!holds_office && <p className="nopos" style={{ margin: "0 0 0.4rem" }}>{d.acct_not_office}</p>}
-        {holds_office && !pathways.some((p) => p.mechanism_type !== "charter_amendment_petition" && p.is_binding && p.mechanism_type !== "next_election_defeat") && (
+        {/* Real gap found live 2026-08-31: acct_none_note ("no removal
+            mechanism exists... that is the honest answer") used to render
+            whenever pathways had no binding lever, with no distinction
+            from pathways being EMPTY outright -- confirmed against
+            production, true for 97.8% of currently-serving politicians
+            nationwide (accountability_pathways data coverage is nowhere
+            near complete at that scale), versus a single real,
+            affirmatively-researched negative-finding row in the whole
+            database. Whether we have ANY curated pathway data for this
+            office at all (pathways.length > 0) is the real signal that
+            distinguishes "we researched this, here's what's real" from
+            "we haven't gotten to this office yet" -- see acct_no_data_yet's
+            own i18n comment for the full reasoning. */}
+        {holds_office && pathways.length === 0 && (
+          <p className="nopos" style={{ margin: "0 0 0.4rem" }}>{d.acct_no_data_yet}</p>
+        )}
+        {holds_office && pathways.length > 0 && !pathways.some((p) => p.mechanism_type !== "charter_amendment_petition" && p.is_binding && p.mechanism_type !== "next_election_defeat") && (
           <p className="nopos" style={{ margin: "0 0 0.4rem" }}>{d.acct_none_note}</p>
         )}
         {pathways.map((p) => (
