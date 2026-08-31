@@ -88,14 +88,33 @@ export async function checkVelocity(
   }
 }
 
-/** Flags (never blocks) if the request's geolocated country isn't the US --
-    deliberately coarse. IP geolocation isn't accurate enough for
-    state-level comparison to be a low-noise signal (VPNs, mobile carriers,
-    and corporate networks routing traffic through a different state are
-    all common and innocent); country-level still catches the clearest
-    cases for a platform that's entirely US jurisdictions. A real US
-    resident traveling abroad triggering a false positive here is exactly
-    why this flags for review instead of blocking. */
+// Real gap found live 2026-08-31: this used to check `geo.country !== "US"`
+// literally, but this platform's own jurisdiction seeding explicitly covers
+// "all 50 states + DC + the 5 inhabited territories" (Puerto Rico, Guam,
+// American Samoa, the US Virgin Islands, the Northern Mariana Islands) --
+// real jurisdictions with real seeded officeholder data and real ballots,
+// not edge cases. Verified directly against this exact installed
+// geoip-lite build (not assumed): a real, currently-allocated Guam IP range
+// (202.128.0.1) resolves to `country: "GU"`, not "US" -- meaning every
+// single legitimate Guam-based voter action (address verification,
+// seconding, calling the question, reporting, casting a referendum ballot)
+// would have generated a false "geo_mismatch" flag, every time, forever,
+// based purely on where they actually live. The other four territories'
+// exact GeoLite2 coding wasn't directly confirmed the same way, but the
+// cost of covering them defensively is negligible next to the cost of
+// silently flagging real residents of a platform that explicitly serves
+// them as jurisdictions.
+const US_AND_TERRITORY_COUNTRY_CODES = new Set(["US", "PR", "GU", "VI", "AS", "MP"]);
+
+/** Flags (never blocks) if the request's geolocated country isn't the US or
+    one of its territories -- deliberately coarse. IP geolocation isn't
+    accurate enough for state-level comparison to be a low-noise signal
+    (VPNs, mobile carriers, and corporate networks routing traffic through a
+    different state are all common and innocent); country-level still
+    catches the clearest cases for a platform that's entirely US
+    jurisdictions. A real US resident traveling abroad triggering a false
+    positive here is exactly why this flags for review instead of
+    blocking. */
 export async function checkGeoMismatch(
   client: QueryableClient,
   opts: { action: AnomalyAction; userId: string; ip: string | null; relatedId?: string },
@@ -103,7 +122,7 @@ export async function checkGeoMismatch(
   if (!opts.ip) return;
   const geo = geoipLookup(opts.ip);
   if (!geo) return; // unresolvable (private range, lookup miss) -- not evidence of anything, don't flag
-  if (geo.country !== "US") {
+  if (!US_AND_TERRITORY_COUNTRY_CODES.has(geo.country)) {
     await client.query(
       `INSERT INTO anomaly_flags (user_id, action_type, reason, detail, related_id) VALUES ($1, $2, 'geo_mismatch', $3, $4)`,
       [opts.userId, opts.action, `request geolocated to ${geo.country}, not US`, opts.relatedId ?? null],

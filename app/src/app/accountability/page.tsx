@@ -12,9 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function AccountabilityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; error?: string }>;
 }) {
-  const lang = langFrom((await searchParams).lang);
+  const sp = await searchParams;
+  const lang = langFrom(sp.lang);
   const d = t(lang);
   const userId = await currentUserId();
   const tier = userId ? await userTier(userId) : "unverified";
@@ -38,6 +39,8 @@ export default async function AccountabilityPage({
           <span className="tag">{lang === "es" ? "Consultivo" : "Advisory"}</span>
           <span>{d.acct_not_signature}</span>
         </div>
+
+        {sp.error && <p className="nopos">{d.deb_action_error_generic}</p>}
 
         <div className="grouph">{d.acct_campaigns_h}</div>
         {campaigns.length === 0 && <p className="nopos">{d.acct_campaigns_none}</p>}

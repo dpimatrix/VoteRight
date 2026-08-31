@@ -146,6 +146,18 @@ export async function executeDeletion(userId: string, requestId: string) {
     // users row itself, above.
     await client.query(`DELETE FROM push_tokens WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+    // Real gap found live 2026-08-31: ARCHITECTURE.md §10 (this function's
+    // own documented design, not an inference) explicitly promises "the
+    // row is pseudonymized (auth_id tombstoned, display_name and
+    // email_hash cleared, VERIFICATION RECORDS PURGED) rather than
+    // physically removed" -- but nothing here ever actually purged
+    // verification_records. This is address_attestation's own real
+    // residential address history (plus any other verification method's
+    // records) tied to this identity -- exactly the kind of sensitive
+    // personal data MODPA's deletion right exists to cover, and a direct,
+    // documented gap between this codebase's own stated design and what
+    // the code actually did.
+    await client.query(`DELETE FROM verification_records WHERE user_id = $1`, [userId]);
     await client.query(`UPDATE referendum_ballot_tokens SET user_id = NULL WHERE user_id = $1`, [userId]);
     await client.query(
       `UPDATE privacy_requests SET status = 'completed', resolved_at = now(),

@@ -9,6 +9,16 @@ const ERROR_NOTE: Record<string, string> = {
   not_in_review: "That axis isn't awaiting review (someone may have already acted on it).",
   not_found: "Axis not found.",
   race: "Someone else already acted on this axis.",
+  // Real gap found live 2026-08-31: createDraftAxis() already returns one of
+  // these 4 reasons on failure, but api/admin/priority-axes/route.ts (the
+  // "draft a new axis" form's own action) discarded it outright, always
+  // redirecting back here as if the save succeeded -- unlike every action
+  // on THIS SAME PAGE below (approve/reject/retire/etc.), which already
+  // correctly wired into this exact ERROR_NOTE lookup.
+  topic: "Choose an existing topic or name a new one.",
+  fields: "Every field (key, question, both poles) is required.",
+  duplicate_key: "That axis key is already used within this topic — pick a different one.",
+  error: "That axis couldn't be saved.",
 };
 
 function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminAxis[]; meAdmin: string }) {

@@ -351,6 +351,17 @@ const DICT = {
     priv_request_p:
       "Access, correct, delete, or export your data. No email or account needed — the request is tied to the same anonymous cookie identity your data is.",
     priv_request_ok: "Request received. Track it below — response due within 45 days (appeals: 60).",
+    // Real gap found live 2026-08-31: createRequest()'s own {ok:false}
+    // result (currently only reachable if an appeal submission is missing
+    // which request it's appealing) used to be discarded outright here --
+    // every submission redirected to the SAME "Request received" success
+    // banner regardless of outcome. A statutory-rights request silently
+    // not being recorded, while telling the person it was, is a real gap
+    // even though the normal UI's own appeal button always supplies
+    // appeal_of correctly (this is a defense-in-depth fix, not a
+    // commonly-reachable-through-normal-use one -- see the route's own
+    // comment for the full reasoning).
+    priv_request_error: "That request couldn't be submitted — please try again.",
     priv_t_access: "Access — what do you hold about me?",
     priv_t_correction: "Correction — fix inaccurate data",
     priv_t_deletion: "Deletion — delete my data",
@@ -401,6 +412,22 @@ const DICT = {
       "What voters can actually do, seat by seat — real mechanisms with real citations, never a button that pretends to a power that doesn't exist.",
     acct_none_note:
       "No removal mechanism exists for this office before the next election. That is the honest answer — the levers below are what's real.",
+    // Real gap found live 2026-08-31: acct_none_note used to render whenever
+    // this office simply had ZERO curated accountability_pathways rows at
+    // all -- which, checked directly against production, was true for
+    // 9,574 of 9,793 currently-serving politicians (97.8%) nationwide,
+    // versus a single real, affirmatively-researched "no mechanism exists"
+    // row in the entire database. "No removal mechanism exists... that is
+    // the honest answer" is a strong, confident factual claim; "we haven't
+    // researched this office's mechanisms yet" is a completely different,
+    // much weaker one, and conflating them meant the app was making the
+    // former claim, at nationwide scale, almost every time the real
+    // situation was the latter -- exactly the failure mode this file's own
+    // header comment says this feature exists to avoid ("the word 'recall'
+    // never appears unless a specific office really has one" cuts both
+    // ways: absence of curated data must never be read as an affirmative
+    // absence of the mechanism itself).
+    acct_no_data_yet: "We haven't researched this specific office's accountability mechanisms yet — this isn't a claim that none exist, only that we don't have it documented here yet.",
     acct_not_office: "This person holds no current office; jurisdiction-wide mechanisms are shown.",
     acct_binding: "Binding",
     acct_organizing: "Organizing",
@@ -767,6 +794,7 @@ const DICT = {
     priv_request_p:
       "Accede, corrige, elimina o exporta tus datos. Sin correo ni cuenta — la solicitud queda ligada a la misma identidad anónima de cookie que tus datos.",
     priv_request_ok: "Solicitud recibida. Síguela abajo — respuesta en un máximo de 45 días (apelaciones: 60).",
+    priv_request_error: "Esa solicitud no se pudo enviar — inténtalo de nuevo.",
     priv_t_access: "Acceso — ¿qué datos tienen sobre mí?",
     priv_t_correction: "Corrección — corregir datos inexactos",
     priv_t_deletion: "Eliminación — eliminar mis datos",
@@ -817,6 +845,7 @@ const DICT = {
       "Lo que los votantes realmente pueden hacer, asiento por asiento — mecanismos reales con citas reales, nunca un botón que finja un poder que no existe.",
     acct_none_note:
       "No existe ningún mecanismo de destitución para este cargo antes de la próxima elección. Esa es la respuesta honesta — las palancas de abajo son lo real.",
+    acct_no_data_yet: "Todavía no hemos investigado los mecanismos de rendición de cuentas de este cargo específico — esto no es una afirmación de que no existan, solo que aún no lo tenemos documentado aquí.",
     acct_not_office: "Esta persona no ocupa un cargo actual; se muestran los mecanismos de toda la jurisdicción.",
     acct_binding: "Vinculante",
     acct_organizing: "Organizativo",

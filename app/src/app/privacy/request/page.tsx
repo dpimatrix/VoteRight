@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function PrivacyRequestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; ok?: string }>;
+  searchParams: Promise<{ lang?: string; ok?: string; error?: string }>;
 }) {
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
@@ -31,6 +31,7 @@ export default async function PrivacyRequestPage({
         <p className="sub">{d.priv_request_p}</p>
 
         {sp.ok && <p className="pill kept">✓ {d.priv_request_ok}</p>}
+        {sp.error && <p className="nopos">{d.priv_request_error}</p>}
 
         <div className="card">
           <form method="post" action="/api/privacy" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
