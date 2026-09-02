@@ -14,7 +14,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "VoteRight may use your camera to scan your payment card details during payment verification, instead of typing them in by hand."
       },
-      "buildNumber": "8"
+      "buildNumber": "9"
     },
     "android": {
       "adaptiveIcon": {
