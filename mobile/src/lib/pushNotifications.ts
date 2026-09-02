@@ -105,16 +105,34 @@ export async function reassociatePushToken(): Promise<void> {
     initial registration never actually got a token, since the listener
     simply never fires in that case. */
 export function subscribeToPushTokenRotation(): () => void {
-  const sub = Notifications.addPushTokenListener(async (devicePushToken) => {
-    try {
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      if (!projectId) return;
-      const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId, devicePushToken });
-      lastToken = token;
-      await submitPushToken(token);
-    } catch (e) {
-      console.error('Push token rotation re-registration failed:', e);
-    }
-  });
-  return () => sub.remove();
+  // The registration call itself -- not just the async work inside the
+  // callback -- must be guarded too. Prime suspect (not yet confirmed
+  // against an actual device crash log) for Apple's 2026-09-01 iOS 1.1.5
+  // (build 9) launch-crash rejection: this is called unguarded from the
+  // root layout's useEffect on every single boot (see _layout.tsx), and
+  // addPushTokenListener can throw synchronously on iOS (native
+  // module/entitlement init issues -- this build was the first ever to
+  // ship expo-notifications on iOS, after build 8/1.1.4 shipped without
+  // it) -- an uncaught throw here takes down the whole app before a
+  // single screen renders. Fixing it regardless: this violates the "never
+  // block app startup" posture this file already applies everywhere else
+  // (see registerForPushNotifications' own header comment) whether or not
+  // it turns out to be THE cause of this specific rejection.
+  try {
+    const sub = Notifications.addPushTokenListener(async (devicePushToken) => {
+      try {
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+        if (!projectId) return;
+        const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId, devicePushToken });
+        lastToken = token;
+        await submitPushToken(token);
+      } catch (e) {
+        console.error('Push token rotation re-registration failed:', e);
+      }
+    });
+    return () => sub.remove();
+  } catch (e) {
+    console.error('Push token rotation listener registration failed:', e);
+    return () => {};
+  }
 }
