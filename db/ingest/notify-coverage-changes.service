@@ -1,0 +1,10 @@
+[Unit]
+Description=VoteRight coverage-alert watchdog (newly-Tracked seats)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/repo
+ExecStart=%h/repo/db/ingest/notify-coverage-changes.sh
+# No StandardOutput/StandardError override -- systemd --user services
+# default to the journal, which captures this automatically with zero
+# extra config. View with: journalctl --user -u notify-coverage-changes.service

@@ -14,11 +14,33 @@
 // very first line of app/_layout.tsx, before anything else.
 import * as Crypto from 'expo-crypto';
 
-if (typeof globalThis.crypto === 'undefined') {
-  // @ts-expect-error -- RN's global object type doesn't declare `crypto`
-  globalThis.crypto = {};
-}
-if (typeof globalThis.crypto.getRandomValues === 'undefined') {
-  globalThis.crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T =>
-    Crypto.getRandomValues(array as never) as T;
+// Guarded (2026-09-02, investigating the iOS 1.1.5/build-9 launch-crash
+// rejection): this runs at MODULE LOAD TIME -- the first line of
+// app/_layout.tsx, before React renders a single component -- so an
+// unguarded throw here is the hardest possible crash-on-launch: earlier
+// than any error boundary, earlier than the splash screen even having a
+// screen to sit on top of. If globalThis.crypto already exists on a given
+// platform's JS engine but as a non-configurable/non-writable object
+// (iOS and Android engine globals aren't guaranteed identical -- this
+// project has hit exactly this kind of platform divergence before, see
+// this file's own header comment on Hermes lacking getRandomValues at
+// all), the assignment below throws a TypeError. Prime suspect, not
+// confirmed against an actual device crash log (none available -- no
+// iOS test device on hand right now). Matches the tolerance the rest of
+// this feature already has: signing.ts's own calls are already
+// try/caught (per this file's header comment, "nothing visibly broke"
+// when getRandomValues was simply missing) -- if this installer fails,
+// signing degrades the same already-tolerated way instead of taking the
+// whole app down.
+try {
+  if (typeof globalThis.crypto === 'undefined') {
+    // @ts-expect-error -- RN's global object type doesn't declare `crypto`
+    globalThis.crypto = {};
+  }
+  if (typeof globalThis.crypto.getRandomValues === 'undefined') {
+    globalThis.crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T =>
+      Crypto.getRandomValues(array as never) as T;
+  }
+} catch (e) {
+  console.error('crypto polyfill installation failed:', e);
 }

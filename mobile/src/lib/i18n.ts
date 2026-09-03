@@ -85,6 +85,12 @@ const DICT = {
     priorities_sub: 'Pick a side on at least 3 issues to see how candidates match you.',
     topics_load_error: 'Could not load issues. Pull down to try again.',
     priorities_save_error: 'Could not save your priorities. Try again.',
+    priority_wish_h: "Don't see your priority?",
+    priority_wish_sub: 'Suggest a new priority issue for VoteRight staff to review — approved suggestions become real, balanced priority questions for everyone.',
+    priority_wish_ph: 'e.g. Flood mitigation funding for the Rock Creek corridor',
+    priority_wish_submit: 'Send suggestion',
+    priority_wish_sent: "Sent — you'll be notified once it's reviewed.",
+    priority_wish_error: 'Could not send your suggestion. Try again.',
     see_matches: 'See matches',
     pick_more: 'Pick {n} more',
 
@@ -126,7 +132,14 @@ const DICT = {
     // nationwide -- a resident's actual local government may be a city,
     // parish, borough, etc., not necessarily a county.
     debates_sub: "Advisory — residents propose, second, and debate issues; local government isn't bound by outcomes.",
-    verify_to_participate: 'Verify your address to participate',
+    // Reworded 2026-09-03 (owner feedback): the old copy opened with
+    // "Verify your address..." which reads as a fresh demand even to a
+    // resident who already verified on the Ballot screen -- confusing
+    // regardless of whether the tier check itself is correct. Leads with
+    // WHY (reading is free, participating needs a one-time check) instead
+    // of repeating the imperative, and explicitly names Ballot's own
+    // check as the same one, so it doesn't read as a second, separate ask.
+    verify_to_participate: "Reading is open to everyone. Posting, seconding, and voting need a one-time address check — the same one from your Ballot, if you've already done it.",
     // Real bug found live 2026-08-23: this label was shown for BOTH the
     // fully-unverified case and the address-verified-but-not-paid case (the
     // navigation target already correctly split between /verify and
@@ -180,6 +193,8 @@ const DICT = {
     notif_mark_read: 'Mark as read',
     notif_thread_closed: 'Debate closed: {title}',
     notif_ctq_eligible: 'Calling the question is now available: {title}',
+    notif_priority_wish_approved: 'Your priority suggestion was approved',
+    notif_priority_wish_rejected: "Your priority suggestion wasn't approved",
     notif_view_debate: 'View debate',
     notif_email_h: 'Email notifications',
     notif_email_note: "Optional — get an email when a debate you're part of closes or can be called to a close. Never used for anything else.",
@@ -488,6 +503,12 @@ const DICT = {
     // ---- (tabs)/priorities.tsx ----
     priorities_title: 'Tus prioridades',
     priorities_sub: 'Elige una postura en al menos 3 temas para ver qué tanto coinciden los candidatos contigo.',
+    priority_wish_h: '¿No ves tu prioridad?',
+    priority_wish_sub: 'Sugiere un nuevo tema de prioridad para que el equipo de VoteRight lo revise — las sugerencias aprobadas se convierten en preguntas de prioridad reales y equilibradas para todos.',
+    priority_wish_ph: 'p. ej. Fondos para mitigación de inundaciones en el corredor de Rock Creek',
+    priority_wish_submit: 'Enviar sugerencia',
+    priority_wish_sent: 'Enviada — te avisaremos cuando sea revisada.',
+    priority_wish_error: 'No se pudo enviar tu sugerencia. Inténtalo de nuevo.',
     topics_load_error: 'No se pudieron cargar los temas. Desliza hacia abajo para intentar de nuevo.',
     priorities_save_error: 'No se pudieron guardar tus prioridades. Intenta de nuevo.',
     see_matches: 'Ver coincidencias',
@@ -523,7 +544,7 @@ const DICT = {
     // ---- (tabs)/debates.tsx: list ----
     debates_title: 'Debates',
     debates_sub: 'Consultivo — los residentes proponen, secundan y debaten temas; el gobierno local no está obligado por los resultados.',
-    verify_to_participate: 'Verifica tu dirección para participar',
+    verify_to_participate: 'La lectura está abierta a todos. Publicar, apoyar y votar requieren una verificación de dirección única — la misma de tu Boleta, si ya la hiciste.',
     pay_to_participate: 'Dirección verificada — paga para completar la verificación',
     debates_load_error: 'No se pudieron cargar los debates. Desliza hacia abajo para intentar de nuevo.',
     status_debating: 'En debate',
@@ -571,6 +592,8 @@ const DICT = {
     notif_mark_read: 'Marcar como leída',
     notif_thread_closed: 'Debate cerrado: {title}',
     notif_ctq_eligible: 'Ya se puede pedir la votación: {title}',
+    notif_priority_wish_approved: 'Tu sugerencia de prioridad fue aprobada',
+    notif_priority_wish_rejected: 'Tu sugerencia de prioridad no fue aprobada',
     notif_view_debate: 'Ver debate',
     notif_email_h: 'Notificaciones por correo',
     notif_email_note: 'Opcional — recibe un correo cuando un debate en el que participas cierre o se pueda pedir la votación. Nunca se usa para otra cosa.',

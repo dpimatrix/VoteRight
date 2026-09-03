@@ -50,6 +50,9 @@ export default async function AdminAccountsPage({
       {error === "username_taken" && (
         <p className="nopos" style={{ color: "var(--adv, #b00)" }}>That username is already taken — pick a different one.</p>
       )}
+      {error === "invalid_email" && (
+        <p className="nopos" style={{ color: "var(--adv, #b00)" }}>That doesn't look like a valid email address — screen access was still saved, but the email wasn't.</p>
+      )}
 
       {enroll && (
         <div className="disclosure">
@@ -82,6 +85,16 @@ export default async function AdminAccountsPage({
             <span className="cover">created {a.createdAt}</span>
           </div>
           <form method="post" action={`/api/admin/admin-accounts/${a.id}`} style={{ marginTop: "0.5rem" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+              Alert email
+              <input
+                type="email"
+                name="email"
+                defaultValue={a.email ?? ""}
+                placeholder="not set -- no operational alerts sent"
+                style={{ flex: 1, minWidth: "12rem" }}
+              />
+            </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem 1rem", fontSize: "0.85rem" }}>
               {SCREEN_KEYS.map((s) => {
                 // Same self-lockout guard the API route enforces server-side

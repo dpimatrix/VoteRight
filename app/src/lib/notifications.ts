@@ -30,7 +30,7 @@ import { db } from "./db";
    adding a real users.lang_preference column and UI to set it, deliberately
    out of scope here rather than guessed at. */
 
-export type NotificationType = "thread_closed" | "ctq_eligible";
+export type NotificationType = "thread_closed" | "ctq_eligible" | "priority_wish_approved" | "priority_wish_rejected";
 
 interface NotifyOpts {
   proposalId?: string;
@@ -41,19 +41,36 @@ interface NotifyOpts {
 // English-only copy for push/email -- see the file header's KNOWN
 // LIMITATION note. `title` unused by findable to future body content;
 // proposalTitle is interpolated where available.
-function pushCopy(type: NotificationType, proposalTitle: string | null): { title: string; body: string } {
+function pushCopy(type: NotificationType, proposalTitle: string | null, detail: string | null): { title: string; body: string } {
   const title = proposalTitle ?? "A debate you're part of";
   if (type === "thread_closed") {
     return { title: "Debate closed", body: `"${title}" has closed and is moving toward a referendum.` };
   }
-  return { title: "Debate can now be called to a close", body: `"${title}" has enough participants and has been open long enough for any active participant to vote to end debate early.` };
+  if (type === "ctq_eligible") {
+    return { title: "Debate can now be called to a close", body: `"${title}" has enough participants and has been open long enough for any active participant to vote to end debate early.` };
+  }
+  // Priority-wish decisions (2026-09-03): no proposalId, so `title` above
+  // is unused for these two -- the wish's own statement isn't threaded
+  // through here (see the header's KNOWN LIMITATION on why push/email are
+  // English-only; keeping it in the in-app row's `detail` column, always
+  // rendered client-side, is enough).
+  if (type === "priority_wish_approved") {
+    return {
+      title: "Your priority suggestion was approved",
+      body: detail ? `It's being added as a real priority axis. Note from the reviewer: ${detail}` : "It's being added as a real priority axis.",
+    };
+  }
+  return {
+    title: "Your priority suggestion wasn't approved",
+    body: detail ? `Reviewer's note: ${detail}` : "No reason was given.",
+  };
 }
 
-async function sendPush(userId: string, type: NotificationType, proposalTitle: string | null): Promise<void> {
+async function sendPush(userId: string, type: NotificationType, proposalTitle: string | null, detail: string | null): Promise<void> {
   try {
     const { rows } = await db().query(`SELECT token FROM push_tokens WHERE user_id = $1`, [userId]);
     if (rows.length === 0) return;
-    const { title, body } = pushCopy(type, proposalTitle);
+    const { title, body } = pushCopy(type, proposalTitle, detail);
     // Expo's push API accepts a batch in one call -- one message object per
     // token, same request. https://docs.expo.dev/push-notifications/sending-notifications/
     const messages = rows.map((r) => ({ to: r.token as string, title, body, sound: "default" }));
@@ -83,7 +100,7 @@ function resend(): Resend | null {
   return resendClient;
 }
 
-async function sendEmail(userId: string, type: NotificationType, proposalTitle: string | null): Promise<void> {
+async function sendEmail(userId: string, type: NotificationType, proposalTitle: string | null, detail: string | null): Promise<void> {
   const client = resend();
   if (!client) return;
   try {
@@ -93,7 +110,7 @@ async function sendEmail(userId: string, type: NotificationType, proposalTitle: 
     );
     const to = rows[0]?.notification_email as string | undefined;
     if (!to) return;
-    const { title, body } = pushCopy(type, proposalTitle);
+    const { title, body } = pushCopy(type, proposalTitle, detail);
     // Real gap found live 2026-08-30: the Resend SDK does NOT throw on a
     // rejected send (a truncated/invalid API key, in the incident that
     // surfaced this) -- it resolves normally with { data: null, error }.
@@ -146,7 +163,8 @@ export async function createNotification(userId: string, type: NotificationType,
       console.error(`proposal title lookup failed for notification to ${userId}: ${(e as Error).message}`);
     }
   }
-  await Promise.all([sendPush(userId, type, proposalTitle), sendEmail(userId, type, proposalTitle)]);
+  const detail = opts.detail ?? null;
+  await Promise.all([sendPush(userId, type, proposalTitle, detail), sendEmail(userId, type, proposalTitle, detail)]);
 }
 
 /** Same as createNotification, for every id in userIds -- de-duplicated so

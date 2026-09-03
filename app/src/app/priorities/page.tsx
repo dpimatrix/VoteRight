@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PrioritiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; race?: string }>;
+  searchParams: Promise<{ lang?: string; race?: string; wishSent?: string; wishError?: string }>;
 }) {
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
@@ -34,6 +34,18 @@ export default async function PrioritiesPage({
           need_more: d.need_more,
         }}
       />
+
+      <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.priority_wish_h}</div>
+        <p className="nopos" style={{ margin: "0.35rem 0" }}>{d.priority_wish_sub}</p>
+        {sp.wishSent === "1" && <p className="pill kept" style={{ display: "inline-block", margin: "0 0 0.5rem" }}>{d.priority_wish_sent}</p>}
+        {sp.wishError && <p className="nopos" style={{ color: "var(--adv, #b00)" }}>{d.priority_wish_error}</p>}
+        <form method="post" action="/api/priority-wishes" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <input type="hidden" name="lang" value={lang} />
+          <textarea name="statement" rows={2} placeholder={d.priority_wish_ph} required style={{ flex: 1, minWidth: 240 }} />
+          <button className="btn" type="submit">{d.priority_wish_submit}</button>
+        </form>
+      </div>
       </div>
     </>
   );

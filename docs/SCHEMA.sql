@@ -61,6 +61,7 @@ CREATE TABLE races (
     election_cycle_id   UUID NOT NULL REFERENCES election_cycles(id),
     office_id           UUID NOT NULL REFERENCES offices(id),
     seats_elected       SMALLINT NOT NULL DEFAULT 1,    -- how many candidacies can end 'won': 4 for the at-large Council contest
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),  -- migration 097 -- lets the coverage-alert watchdog find newly-tracked seats
     UNIQUE (election_cycle_id, office_id)
 );
 
@@ -758,7 +759,7 @@ CREATE INDEX idx_thread_reports_thread ON thread_reports (thread_id, created_at)
 CREATE TABLE notifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id),
-    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible')),
+    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible', 'priority_wish_approved', 'priority_wish_rejected')),
     proposal_id UUID REFERENCES issue_proposals(id),
     thread_id   UUID REFERENCES forum_threads(id),
     detail      TEXT,                      -- e.g. an admin's closed_reason, when relevant
@@ -1236,6 +1237,7 @@ CREATE TABLE admin_accounts (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username     TEXT NOT NULL UNIQUE,
     totp_secret  TEXT NOT NULL,
+    email        TEXT,        -- optional operational-alert destination (migration 097), not a login credential
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     disabled_at  TIMESTAMPTZ
 );
@@ -1275,6 +1277,35 @@ CREATE TABLE api_keys (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_used_at TIMESTAMPTZ,
     revoked_at   TIMESTAMPTZ
+);
+
+-- Admin operational alerts + Priority-Wishes (migration 097, 2026-09-03).
+-- Single global watermark for the coverage-alert watchdog script --
+-- "last time we told admins about newly-Tracked seats" -- not a state
+-- machine of its own, same "one settings-shaped row" instinct as other
+-- single-row config tables in this schema.
+CREATE TABLE coverage_notification_state (
+    id                SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    last_notified_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO coverage_notification_state (id) VALUES (1);
+
+-- A resident suggests a new priority axis; staff review and decide.
+-- Modeled on issue_proposals' own propose -> review -> becomes-official
+-- shape (already live for debate topics), not a new governance pattern.
+-- An approved wish does NOT automatically become a topic_axes row --
+-- staff still write the final, balanced axis wording (priorityAxes.ts)
+-- using the wish as input; this table records only the suggestion and
+-- its disposition.
+CREATE TABLE priority_wishes (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submitter_id  UUID NOT NULL REFERENCES users(id),
+    statement     TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_note    TEXT,
+    decided_by    UUID REFERENCES admin_accounts(id),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decided_at    TIMESTAMPTZ
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -1340,3 +1371,4 @@ CREATE INDEX idx_user_key_events_fingerprint ON user_key_events(public_key_finge
 CREATE INDEX idx_signed_actions_user ON signed_actions(user_id);
 CREATE INDEX idx_signed_actions_fingerprint ON signed_actions(public_key_fingerprint);
 CREATE INDEX idx_signed_actions_seq ON signed_actions(seq DESC);
+CREATE INDEX priority_wishes_pending_idx ON priority_wishes (created_at) WHERE status = 'pending';

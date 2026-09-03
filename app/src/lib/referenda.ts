@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { notifyAdmins } from "./adminNotify";
 
 /* Phase 4: advisory referenda → ballot tokens → voter mandates → candidate
    commitments (ARCHITECTURE.md §7.3, §7.9, §10.1). Accountability pathways
@@ -382,6 +383,34 @@ export async function certifyReferendum(refId: string, officeId: string, summary
       [refId, officeId, summary, tally.total, tally.margin_pct, turnoutPct, thresholdPct, meets],
     );
     await client.query("COMMIT");
+    // Real "who's supposed to know?" gap found live-testing (2026-09-03):
+    // meets_publish_threshold flips true right here, once, at certify time
+    // -- it's never recomputed afterward (turnout is a snapshot, not a
+    // live figure) -- but nothing told any admin this mandate was now
+    // publishable. Best-effort, after COMMIT: a delivery failure must
+    // never roll back a certification that already succeeded.
+    // Real gap found by code review: this call sat inside the same try
+    // block as the transaction above with no try/catch of its own -- the
+    // "never rolls back an already-succeeded certification" guarantee
+    // depended entirely on notifyAdmins() itself never throwing, which
+    // isn't enforced at THIS call site (a future edit to that function
+    // could silently break it). Explicit belt-and-suspenders here, same
+    // discipline pushNotifications.ts's own registration calls already
+    // apply on the mobile side: if this somehow throws anyway, the outer
+    // catch's ROLLBACK is a harmless no-op post-COMMIT, but the caller
+    // would still see a false failure and could wrongly retry -- swallow
+    // it here instead so that can't happen.
+    if (meets) {
+      try {
+        await notifyAdmins(
+          "mandates",
+          "A mandate is ready to publish",
+          `"${summary}" cleared its publish threshold (${turnoutPct}% turnout, ${thresholdPct}% required) and is ready for review at ${process.env.SITE_URL ?? "https://voteright.dpimatrix.com"}/admin/mandates`,
+        );
+      } catch (e) {
+        console.error(`mandate-publish-ready alert failed for mandate ${ins.rows[0].id}: ${(e as Error).message}`);
+      }
+    }
     return { ok: true as const, mandateId: ins.rows[0].id as string, meets, tally };
   } catch (e) {
     await client.query("ROLLBACK");
