@@ -1,6 +1,7 @@
 import { currentAdmin, hasAdminAccess } from "@/lib/adminAuth";
 import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { listAxesForAdmin, topicsList, type AdminAxis } from "@/lib/priorityAxes";
+import { listPendingPriorityWishes } from "@/lib/priorityWishes";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,7 @@ export default async function AdminPriorityAxesPage({
   const sp = await searchParams;
   const axes = await listAxesForAdmin();
   const topics = await topicsList();
+  const wishes = await listPendingPriorityWishes();
 
   return (
     <>
@@ -147,6 +149,33 @@ export default async function AdminPriorityAxesPage({
         the old one, never a silent edit of what candidates have already been coded against.
       </p>
       {sp.e && <p className="nopos" style={{ color: "var(--adv, #b00)" }}>{ERROR_NOTE[sp.e] ?? sp.e}</p>}
+
+      <div className="grouph">Priority wishes ({wishes.length} pending)</div>
+      <p className="sub" style={{ marginTop: 0 }}>
+        Resident suggestions for a new priority axis. Approving here does NOT create a live axis
+        automatically — draft the actual, balanced axis wording below yourself, using the wish as
+        input. This just tells the submitter what happened to their suggestion.
+      </p>
+      {wishes.length === 0 && <p className="nopos">No pending wishes.</p>}
+      {wishes.map((w) => (
+        <div className="card" key={w.id} style={{ padding: "0.7rem 0.9rem" }}>
+          <p style={{ fontSize: "0.9rem", margin: 0 }}>{w.statement}</p>
+          <p className="nopos" style={{ margin: "0.3rem 0 0" }}>suggested {w.createdAt.slice(0, 10)}</p>
+          <form
+            method="post"
+            action={`/api/admin/priority-wishes/${w.id}`}
+            className="admform"
+            style={{ marginTop: "0.5rem", alignItems: "flex-end" }}
+          >
+            <label style={{ flex: 1, fontSize: "0.8rem", width: "100%" }}>
+              Note to submitter (optional — they'll see this either way)
+              <input name="note" style={{ width: "100%" }} />
+            </label>
+            <button type="submit" name="action" value="approve">Approve</button>
+            <button type="submit" name="action" value="reject" className="btn secondary">Reject</button>
+          </form>
+        </div>
+      ))}
 
       <div className="grouph">Draft a new axis</div>
       <div className="card">

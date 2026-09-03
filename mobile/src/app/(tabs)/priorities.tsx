@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -45,6 +45,31 @@ export default function PrioritiesScreen() {
   const [busy, setBusy] = useState(false);
   const count = Object.keys(sel).length;
   const seededRef = useRef(false);
+
+  // Priority-Wishes (2026-09-03): a resident suggests a new priority axis
+  // that isn't on the list yet. Independent of the topics/selection state
+  // above -- this is a one-off suggestion, not part of what gets POSTed
+  // to /api/priorities.
+  const [wishText, setWishText] = useState('');
+  const [wishBusy, setWishBusy] = useState(false);
+  const [wishSent, setWishSent] = useState(false);
+  const [wishError, setWishError] = useState(false);
+  async function submitWish() {
+    if (!wishText.trim()) return;
+    setWishBusy(true);
+    setWishError(false);
+    try {
+      if (!hasSession()) await ensureSession();
+      await post('/api/priority-wishes', { statement: wishText.trim() });
+      setWishText('');
+      setWishSent(true);
+    } catch (e) {
+      console.error('Priority wish submit failed:', e);
+      setWishError(true);
+    } finally {
+      setWishBusy(false);
+    }
+  }
 
   // Ref-based generation guard, not a plain closure `cancelled` boolean --
   // loadTopics is also called directly by the "Try again" button below, so
@@ -214,6 +239,42 @@ export default function PrioritiesScreen() {
             {count >= 3 ? d.see_matches : tf(d.pick_more, { n: 3 - count })}
           </ThemedText>
         </Pressable>
+
+        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+          <ThemedText type="smallBold">{d.priority_wish_h}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {d.priority_wish_sub}
+          </ThemedText>
+          {wishSent ? (
+            <ThemedText type="small" style={{ color: colors.evidence }}>
+              {d.priority_wish_sent}
+            </ThemedText>
+          ) : (
+            <>
+              <TextInput
+                value={wishText}
+                onChangeText={setWishText}
+                placeholder={d.priority_wish_ph}
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                style={[styles.wishInput, { borderColor: colors.textSecondary, color: colors.text }]}
+              />
+              {wishError && <ThemedText type="small">{d.priority_wish_error}</ThemedText>}
+              <Pressable
+                disabled={!wishText.trim() || wishBusy}
+                onPress={submitWish}
+                style={[
+                  styles.wishSubmitBtn,
+                  { borderColor: !wishText.trim() || wishBusy ? colors.textSecondary : colors.evidence },
+                ]}
+              >
+                <ThemedText type="small" themeColor={!wishText.trim() || wishBusy ? 'textSecondary' : undefined}>
+                  {d.priority_wish_submit}
+                </ThemedText>
+              </Pressable>
+            </>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -231,4 +292,6 @@ const styles = StyleSheet.create({
   poleBtn: { flex: 1, borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center' },
   weightRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
   submitBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
+  wishInput: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, minHeight: 60, textAlignVertical: 'top' },
+  wishSubmitBtn: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center' },
 });

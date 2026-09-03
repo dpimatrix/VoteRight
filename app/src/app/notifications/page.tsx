@@ -69,7 +69,11 @@ export default async function NotificationsPage({
             <p style={{ fontSize: "0.92rem", margin: 0 }}>
               {n.type === "thread_closed"
                 ? tf(d.notif_thread_closed, { title: n.proposal_title ?? "" })
-                : tf(d.notif_ctq_eligible, { title: n.proposal_title ?? "" })}
+                : n.type === "ctq_eligible"
+                  ? tf(d.notif_ctq_eligible, { title: n.proposal_title ?? "" })
+                  : n.type === "priority_wish_approved"
+                    ? d.notif_priority_wish_approved
+                    : d.notif_priority_wish_rejected}
             </p>
             {n.detail && <p className="nopos" style={{ margin: "0.3rem 0 0" }}>{n.detail}</p>}
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>

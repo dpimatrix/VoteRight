@@ -3,6 +3,7 @@ import { currentAdmin } from "@/lib/adminAuth";
 import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 import { pendingCoverageGaps } from "@/lib/coverage";
 import { listAxesForAdmin } from "@/lib/priorityAxes";
+import { listPendingPriorityWishes } from "@/lib/priorityWishes";
 import { moderationQueue, reportedThreadsQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
@@ -251,13 +252,18 @@ export default async function AdminHome() {
       {has("priority_axes") &&
         (await (async () => {
           const axes = await listAxesForAdmin();
-          const needsAttention = axes.filter((a) => a.status === "in_review" || a.status === "draft").length;
+          const wishes = await listPendingPriorityWishes();
+          // Two different queues on the same screen (drafts/reviews awaiting
+          // action vs. resident-submitted wishes awaiting a decision) --
+          // summed here so the dashboard card's one number means "anything
+          // on this screen needs your attention," not just half of it.
+          const needsAttention = axes.filter((a) => a.status === "in_review" || a.status === "draft").length + wishes.length;
           return (
             <Link className="seat" href="/admin/priority-axes">
               <span className="seat-ic">PA</span>
               <span className="sname">
                 Priority topics &amp; axes
-                <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish</span>
+                <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish, plus resident wishes</span>
               </span>
               <span className={`chip band ${needsAttention > 0 ? "b1" : "b0"}`}>{needsAttention} pending</span>
             </Link>
