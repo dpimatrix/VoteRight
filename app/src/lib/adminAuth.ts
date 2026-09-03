@@ -237,6 +237,7 @@ export function sessionMaxAgeSeconds(): number {
 export interface AdminAccountRow {
   id: string;
   username: string;
+  email: string | null;
   screens: ScreenKey[];
   createdAt: string;
   disabled: boolean;
@@ -244,7 +245,7 @@ export interface AdminAccountRow {
 
 export async function listAdminAccounts(): Promise<AdminAccountRow[]> {
   const { rows } = await db().query(
-    `SELECT a.id, a.username, a.created_at::date::text AS created_at, a.disabled_at IS NOT NULL AS disabled,
+    `SELECT a.id, a.username, a.email, a.created_at::date::text AS created_at, a.disabled_at IS NOT NULL AS disabled,
             COALESCE(array_agg(s.screen_key) FILTER (WHERE s.screen_key IS NOT NULL), '{}') AS screens
        FROM admin_accounts a
        LEFT JOIN admin_screen_access s ON s.admin_id = a.id
@@ -252,7 +253,7 @@ export async function listAdminAccounts(): Promise<AdminAccountRow[]> {
       ORDER BY a.username`,
   );
   return rows.map((r) => ({
-    id: r.id, username: r.username, createdAt: r.created_at, disabled: r.disabled, screens: r.screens as ScreenKey[],
+    id: r.id, username: r.username, email: r.email, createdAt: r.created_at, disabled: r.disabled, screens: r.screens as ScreenKey[],
   }));
 }
 
@@ -272,6 +273,17 @@ export async function setScreenAccess(adminId: string, screen: ScreenKey, grante
   } else {
     await db().query(`DELETE FROM admin_screen_access WHERE admin_id = $1 AND screen_key = $2`, [adminId, screen]);
   }
+}
+
+/** Alert destination only -- NOT a login credential (TOTP stays the only
+    way in). Nullable/self-managed, same "opt-in, no silent default" as
+    the voter-side notification_email column. Basic shape validation only
+    (this is an operator typing their own address, not adversarial user
+    input); pass null to clear it. */
+export async function setAdminEmail(adminId: string, email: string | null): Promise<{ ok: boolean }> {
+  if (email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false };
+  await db().query(`UPDATE admin_accounts SET email = $2 WHERE id = $1`, [adminId, email]);
+  return { ok: true };
 }
 
 /** Soft-disable -- an existing session for this admin stops working on its

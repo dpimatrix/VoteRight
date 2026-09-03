@@ -1,4 +1,4 @@
-import { SCREEN_KEYS, currentAdmin, hasAdminAccess, setAdminDisabled, setScreenAccess } from "@/lib/adminAuth";
+import { SCREEN_KEYS, currentAdmin, hasAdminAccess, setAdminDisabled, setAdminEmail, setScreenAccess } from "@/lib/adminAuth";
 import { redirectTo } from "@/lib/redirect";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +23,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const granted = s === "admin_accounts" && me?.id === id ? true : form.has(`screen_${s}`);
       await setScreenAccess(id, s, granted);
     }
+    // Alert email saved from the same form -- it's an operational contact
+    // detail alongside screen access, not a separate concern worth its own
+    // button. Blank input clears it (an admin who no longer wants alerts).
+    const email = String(form.get("email") ?? "").trim();
+    await setAdminEmail(id, email || null);
   } else if (action === "disable" || action === "enable") {
     const me = await currentAdmin();
     if (me?.id === id) return new Response("can't disable your own account", { status: 400 }); // avoid a self-lockout with no other admin able to re-enable it
