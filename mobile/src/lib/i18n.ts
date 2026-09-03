@@ -328,6 +328,16 @@ const DICT = {
     binding_chip: 'Binding',
     organizing_chip: 'Organizing',
     start_campaign_h: 'Start a campaign',
+    // Real gap found live testing 2026-09-03: outside the DC/Maryland/
+    // Virginia jurisdictions accountability_pathways has been curated for
+    // so far, officePathways and petitionPathway are BOTH empty, but this
+    // whole card rendered anyway with zero pathway chips to pick -- a dead
+    // end the resident could fill out but never submit. Same "absence of
+    // curated data must never be read as an affirmative absence of the
+    // mechanism itself" principle as web's acct_no_data_yet, just at the
+    // scope of "your whole area" instead of "this one office".
+    no_coverage_in_area:
+      "We haven't researched accountability mechanisms for your area yet — this isn't a claim that none exist for your representatives, only that we don't have any documented here yet. Coverage right now is strongest in the DC, Maryland, and Virginia region.",
     target_politician_h: 'Target a politician',
     // Real gap found live testing (2026-08-23): web's equivalent field
     // (acct_desc_ph) asks for both an outcome and a citation; this asked
@@ -727,6 +737,8 @@ const DICT = {
     binding_chip: 'Vinculante',
     organizing_chip: 'Organizativo',
     start_campaign_h: 'Iniciar una campaña',
+    no_coverage_in_area:
+      'Todavía no hemos investigado los mecanismos de rendición de cuentas para tu área — esto no es una afirmación de que no existan para tus representantes, solo que aún no los tenemos documentados aquí. La cobertura actual es más completa en la región de DC, Maryland y Virginia.',
     target_politician_h: 'Dirigirse a un funcionario',
     why_campaign_placeholder: '¿Qué debería pasar, y por qué? Cita el historial.',
     start_campaign_politician_btn: 'Iniciar campaña contra funcionario',

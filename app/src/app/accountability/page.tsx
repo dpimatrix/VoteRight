@@ -28,6 +28,10 @@ export default async function AccountabilityPage({
   const officePathways = pathways.filter(
     (p: { mechanism_type: string }) => p.mechanism_type !== "charter_amendment_petition",
   );
+  // See acct_no_coverage's own i18n comment: both lists empty means no
+  // curated accountability_pathways data exists anywhere in this resident's
+  // jurisdiction stack, not that no campaign is possible.
+  const hasCoverage = officePathways.length > 0 || !!petitionPathway;
 
   return (
     <>
@@ -62,58 +66,64 @@ export default async function AccountabilityPage({
         {verified ? (
           <>
             <div className="grouph">{d.acct_start_h}</div>
-            <div className="card">
-              <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.acct_target_pol}</div>
-              <form method="post" action="/api/accountability" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
-                <input type="hidden" name="lang" value={lang} />
-                <input type="hidden" name="target_type" value="politician" />
-                <PoliticianCampaignFields
-                  officePathways={officePathways}
-                  politicians={politicians}
-                  mechLabel={d.mech as Record<string, string>}
-                  lang={lang}
-                  d={d}
-                />
-                <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
-                <input
-                  type="url"
-                  name="citation_url"
-                  className="statement"
-                  style={{ minHeight: 0 }}
-                  placeholder={d.acct_cite_ph}
-                />
-                <button className="btn" type="submit">{d.acct_submit_politician}</button>
-              </form>
-            </div>
-            {petitionPathway && (
-              <div className="card">
-                <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.acct_target_reform}</div>
-                <form method="post" action="/api/accountability" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
-                  <input type="hidden" name="lang" value={lang} />
-                  <input type="hidden" name="target_type" value="charter_or_law_change" />
-                  <input type="hidden" name="pathway_id" value={(petitionPathway as { id: string }).id} />
-                  <ReformTitleField
-                    pathwayId={(petitionPathway as { id: string }).id}
-                    placeholder={d.acct_reform_ph}
-                    lang={lang}
-                    d={d}
-                  />
-                  <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
-                  <input
-                    type="url"
-                    name="citation_url"
-                    className="statement"
-                    style={{ minHeight: 0 }}
-                    placeholder={d.acct_cite_ph}
-                  />
-                  <button className="btn" type="submit">{d.acct_submit_reform}</button>
-                </form>
-              </div>
+            {hasCoverage ? (
+              <>
+                <div className="card">
+                  <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.acct_target_pol}</div>
+                  <form method="post" action="/api/accountability" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    <input type="hidden" name="lang" value={lang} />
+                    <input type="hidden" name="target_type" value="politician" />
+                    <PoliticianCampaignFields
+                      officePathways={officePathways}
+                      politicians={politicians}
+                      mechLabel={d.mech as Record<string, string>}
+                      lang={lang}
+                      d={d}
+                    />
+                    <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
+                    <input
+                      type="url"
+                      name="citation_url"
+                      className="statement"
+                      style={{ minHeight: 0 }}
+                      placeholder={d.acct_cite_ph}
+                    />
+                    <button className="btn" type="submit">{d.acct_submit_politician}</button>
+                  </form>
+                </div>
+                {petitionPathway && (
+                  <div className="card">
+                    <div className="pagetitle" style={{ marginTop: 0, fontSize: "1.02rem" }}>{d.acct_target_reform}</div>
+                    <form method="post" action="/api/accountability" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                      <input type="hidden" name="lang" value={lang} />
+                      <input type="hidden" name="target_type" value="charter_or_law_change" />
+                      <input type="hidden" name="pathway_id" value={(petitionPathway as { id: string }).id} />
+                      <ReformTitleField
+                        pathwayId={(petitionPathway as { id: string }).id}
+                        placeholder={d.acct_reform_ph}
+                        lang={lang}
+                        d={d}
+                      />
+                      <textarea name="description" rows={3} placeholder={d.acct_desc_ph} required />
+                      <input
+                        type="url"
+                        name="citation_url"
+                        className="statement"
+                        style={{ minHeight: 0 }}
+                        placeholder={d.acct_cite_ph}
+                      />
+                      <button className="btn" type="submit">{d.acct_submit_reform}</button>
+                    </form>
+                  </div>
+                )}
+                <div className="privnote">
+                  <span className="dot" style={{ background: "var(--adv)" }} />
+                  <span>{d.acct_support_pub}</span>
+                </div>
+              </>
+            ) : (
+              <p className="nopos">{d.acct_no_coverage}</p>
             )}
-            <div className="privnote">
-              <span className="dot" style={{ background: "var(--adv)" }} />
-              <span>{d.acct_support_pub}</span>
-            </div>
           </>
         ) : (
           <Link className="btn secondary" href={`/verify?lang=${lang}`}>{d.verify_need}</Link>

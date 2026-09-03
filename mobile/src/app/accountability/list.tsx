@@ -102,6 +102,11 @@ export default function AccountabilityScreen() {
   const officePathways = pathways?.filter((p) => p.mechanism_type !== 'charter_amendment_petition') ?? [];
   const petitionPathway = pathways?.find((p) => p.mechanism_type === 'charter_amendment_petition');
   const verified = tier !== null && tier !== 'unverified';
+  // See no_coverage_in_area's own i18n comment: both lists empty means no
+  // curated accountability_pathways data exists anywhere in this resident's
+  // jurisdiction stack, not that no campaign is possible. pathways === null
+  // means still loading -- don't flash this before data arrives.
+  const hasCoverage = officePathways.length > 0 || !!petitionPathway;
 
   // Grouped by jurisdiction, then office (2026-08-23, owner asked directly:
   // "group by the offices across the ecosystem the address belongs to") --
@@ -232,6 +237,13 @@ export default function AccountabilityScreen() {
           <>
             <ThemedText type="smallBold">{d.start_campaign_h}</ThemedText>
 
+            {!hasCoverage && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {d.no_coverage_in_area}
+              </ThemedText>
+            )}
+
+            {officePathways.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
               <ThemedText type="small">{d.target_politician_h}</ThemedText>
               <View style={styles.pickerRow}>
@@ -332,6 +344,7 @@ export default function AccountabilityScreen() {
                 <ThemedText type="smallBold">{d.start_campaign_politician_btn}</ThemedText>
               </Pressable>
             </View>
+            )}
 
             {petitionPathway && (
               <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>

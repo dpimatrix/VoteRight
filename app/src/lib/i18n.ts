@@ -450,6 +450,17 @@ const DICT = {
     acct_not_signature: "In-app support is not a petition signature and has no legal effect.",
     acct_supporters: "supporters",
     acct_start_h: "Start a campaign",
+    // Real gap found live testing 2026-09-03: outside the DC/Maryland/
+    // Virginia jurisdictions accountability_pathways has been curated for
+    // so far, officePathways and petitionPathway are BOTH empty, but the
+    // campaign-creation forms below rendered anyway -- a <select> with zero
+    // <option>s (web) / zero pathway chips to pick (mobile), a dead end the
+    // resident could fill out but never submit. Same "absence of curated
+    // data must never be read as an affirmative absence of the mechanism
+    // itself" principle as acct_no_data_yet above, just at the scope of
+    // "your whole area" instead of "this one office".
+    acct_no_coverage:
+      "We haven't researched accountability mechanisms for your area yet — this isn't a claim that none exist for your representatives, only that we don't have any documented here yet. Coverage right now is strongest in the DC, Maryland, and Virginia region.",
     acct_target_pol: "Hold an officeholder accountable",
     acct_target_reform: "Change the law or charter",
     acct_desc_ph: "What should happen, and why? Cite the record.",
@@ -877,6 +888,8 @@ const DICT = {
     acct_not_signature: "El apoyo en la app no es una firma de petición y no tiene efecto legal.",
     acct_supporters: "apoyos",
     acct_start_h: "Iniciar una campaña",
+    acct_no_coverage:
+      "Todavía no hemos investigado los mecanismos de rendición de cuentas para tu área — esto no es una afirmación de que no existan para tus representantes, solo que aún no los tenemos documentados aquí. La cobertura actual es más completa en la región de DC, Maryland y Virginia.",
     acct_target_pol: "Pedir cuentas a un funcionario",
     acct_target_reform: "Cambiar la ley o la carta del condado",
     acct_desc_ph: "¿Qué debería pasar, y por qué? Cita el historial.",
