@@ -1,0 +1,15 @@
+[Unit]
+Description=Run VoteRight coverage-alert watchdog daily
+
+[Timer]
+# Daily at 04:00 local server time -- after roster-refresh's monthly
+# 03:00 slot (avoids overlap), frequent enough that a new race doesn't
+# sit unreported for weeks the way a monthly check would allow.
+OnCalendar=*-*-* 04:00:00
+# If the VPS happens to be down/rebooting exactly at the scheduled time,
+# run the missed cycle as soon as it's back up instead of silently
+# skipping it -- same reasoning as roster-refresh.timer.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
