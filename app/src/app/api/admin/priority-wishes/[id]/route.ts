@@ -15,6 +15,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const action = String(form.get("action") ?? "");
   const note = String(form.get("note") ?? "").trim() || null;
   if (action !== "approve" && action !== "reject") return new Response("bad action", { status: 400 });
-  await decidePriorityWish(id, admin.id, action === "approve" ? "approved" : "rejected", note);
-  return redirectTo("/admin/priority-axes", request);
+  // Real gap found by code review, same class already swept elsewhere on
+  // this page's sibling axes actions: decidePriorityWish's WHERE status =
+  // 'pending' guard means a second admin racing to decide the same wish
+  // gets { ok: false } silently discarded here before -- they'd see the
+  // page reload with no error, believing their note/decision was saved
+  // when it wasn't.
+  const res = await decidePriorityWish(id, admin.id, action === "approve" ? "approved" : "rejected", note);
+  return redirectTo(`/admin/priority-axes${res.ok ? "" : "?e=wish_already_decided"}`, request);
 }

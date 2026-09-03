@@ -51,3 +51,13 @@ CREATE TABLE priority_wishes (
 -- Partial index -- the admin queue only ever lists pending wishes; a full
 -- index would carry every decided row forever for no query that needs it.
 CREATE INDEX priority_wishes_pending_idx ON priority_wishes (created_at) WHERE status = 'pending';
+
+-- notifications.type's existing CHECK only allowed ('thread_closed',
+-- 'ctq_eligible') -- widened for the two new values notifications.ts/
+-- priorityWishes.ts now write (decidePriorityWish's notifyUsers call).
+-- Postgres auto-names an inline column CHECK as
+-- "<table>_<column>_check"; drop by that name, re-add explicitly named so
+-- a future widening doesn't have to guess it again.
+ALTER TABLE notifications DROP CONSTRAINT notifications_type_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
+  CHECK (type IN ('thread_closed', 'ctq_eligible', 'priority_wish_approved', 'priority_wish_rejected'));

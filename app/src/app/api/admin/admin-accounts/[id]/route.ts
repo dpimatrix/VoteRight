@@ -27,7 +27,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // detail alongside screen access, not a separate concern worth its own
     // button. Blank input clears it (an admin who no longer wants alerts).
     const email = String(form.get("email") ?? "").trim();
-    await setAdminEmail(id, email || null);
+    const emailRes = await setAdminEmail(id, email || null);
+    // Real gap found by code review: setAdminEmail's { ok: false } on a
+    // malformed address was discarded here -- screen access still saved
+    // correctly, but the page just reloaded with no error and the field
+    // silently reverted, the exact "silent no-op" class this page's own
+    // username_taken handling already exists to avoid for account creation.
+    if (!emailRes.ok) return redirectTo("/admin/admin-accounts?error=invalid_email", request);
   } else if (action === "disable" || action === "enable") {
     const me = await currentAdmin();
     if (me?.id === id) return new Response("can't disable your own account", { status: 400 }); // avoid a self-lockout with no other admin able to re-enable it

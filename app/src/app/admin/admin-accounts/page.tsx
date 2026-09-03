@@ -50,6 +50,9 @@ export default async function AdminAccountsPage({
       {error === "username_taken" && (
         <p className="nopos" style={{ color: "var(--adv, #b00)" }}>That username is already taken — pick a different one.</p>
       )}
+      {error === "invalid_email" && (
+        <p className="nopos" style={{ color: "var(--adv, #b00)" }}>That doesn't look like a valid email address — screen access was still saved, but the email wasn't.</p>
+      )}
 
       {enroll && (
         <div className="disclosure">

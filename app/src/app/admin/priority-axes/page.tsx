@@ -20,6 +20,7 @@ const ERROR_NOTE: Record<string, string> = {
   fields: "Every field (key, question, both poles) is required.",
   duplicate_key: "That axis key is already used within this topic — pick a different one.",
   error: "That axis couldn't be saved.",
+  wish_already_decided: "Someone else already decided that wish — your note wasn't saved.",
 };
 
 function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminAxis[]; meAdmin: string }) {

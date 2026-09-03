@@ -45,10 +45,9 @@ const runId = run.rows[0].id;
 try {
   const state = await client.query(`SELECT last_notified_at FROM coverage_notification_state WHERE id = 1`);
   const since = state.rows[0].last_notified_at;
-  const checkedAt = new Date();
 
   const newlyTracked = await client.query(
-    `SELECT o.title, j.name AS jurisdiction_name
+    `SELECT o.title, j.name AS jurisdiction_name, r.created_at
        FROM races r
        JOIN offices o ON o.id = r.office_id
        JOIN jurisdictions j ON j.ocd_id = o.jurisdiction_id
@@ -56,6 +55,22 @@ try {
       ORDER BY j.name, o.title`,
     [since],
   );
+  // Real gap found by code review: a plain `new Date()` captured BEFORE
+  // this query, then written back as the watermark regardless, has a
+  // race window -- a race inserted between that capture and the query
+  // running gets reported now, but the watermark rolls back to before
+  // it, so the NEXT run's `created_at > since` matches the same row
+  // again (a duplicate alert, contradicting the "never a repeat" claim
+  // above). Fixed by deriving the new watermark from the query's own
+  // results instead of wall-clock time: MAX(created_at) among rows
+  // actually reported, so a row is never reported twice, and never
+  // skipped either. When nothing new is found, the watermark is left
+  // untouched entirely -- there's no safe "now()" to advance to that
+  // couldn't race a concurrent insert the same way.
+  const newWatermark =
+    newlyTracked.rows.length > 0
+      ? newlyTracked.rows.reduce((max, r) => (r.created_at > max ? r.created_at : max), newlyTracked.rows[0].created_at)
+      : null;
 
   if (newlyTracked.rows.length > 0) {
     // Same admin_accounts + admin_screen_access join app/src/lib/adminNotify.ts
@@ -71,7 +86,16 @@ try {
          FROM admin_accounts a JOIN admin_screen_access s ON s.admin_id = a.id
         WHERE s.screen_key = 'race_coverage' AND a.disabled_at IS NULL AND a.email IS NOT NULL`,
     );
-    if (recipients.rows.length > 0 && process.env.RESEND_API_KEY) {
+    if (recipients.rows.length === 0) {
+      console.log("newly-tracked seats found, but no admin with race_coverage access has an alert email set -- nobody notified.");
+    } else if (!process.env.RESEND_API_KEY) {
+      // Real gap found by code review: this case (real recipients, but no
+      // API key configured) fell through both branches silently before --
+      // ingestion_runs still recorded 'succeeded' with the correct
+      // rows_upserted count, with nothing anywhere explaining why no
+      // email actually went out. Now it's at least visible in the journal.
+      console.error("newly-tracked seats found and admin(s) have alert emails set, but RESEND_API_KEY is unset -- nobody notified.");
+    } else {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const list = newlyTracked.rows.map((r) => `- ${r.title} (${r.jurisdiction_name})`).join("\n");
       const siteUrl = process.env.SITE_URL ?? "https://voteright.dpimatrix.com";
@@ -90,12 +114,12 @@ try {
           if (error) console.error(`coverage alert email failed for ${r.email}: ${error.name} -- ${error.message}`);
         }),
       );
-    } else if (recipients.rows.length === 0) {
-      console.log("newly-tracked seats found, but no admin with race_coverage access has an alert email set -- nobody notified.");
     }
   }
 
-  await client.query(`UPDATE coverage_notification_state SET last_notified_at = $1 WHERE id = 1`, [checkedAt]);
+  if (newWatermark) {
+    await client.query(`UPDATE coverage_notification_state SET last_notified_at = $1 WHERE id = 1`, [newWatermark]);
+  }
   await client.query(
     `UPDATE ingestion_runs SET finished_at = now(), status = 'succeeded', rows_upserted = $2, rows_skipped = 0
       WHERE id = $1`,

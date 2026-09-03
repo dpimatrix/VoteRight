@@ -759,7 +759,7 @@ CREATE INDEX idx_thread_reports_thread ON thread_reports (thread_id, created_at)
 CREATE TABLE notifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id),
-    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible')),
+    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible', 'priority_wish_approved', 'priority_wish_rejected')),
     proposal_id UUID REFERENCES issue_proposals(id),
     thread_id   UUID REFERENCES forum_threads(id),
     detail      TEXT,                      -- e.g. an admin's closed_reason, when relevant
@@ -1288,6 +1288,7 @@ CREATE TABLE coverage_notification_state (
     id                SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     last_notified_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+INSERT INTO coverage_notification_state (id) VALUES (1);
 
 -- A resident suggests a new priority axis; staff review and decide.
 -- Modeled on issue_proposals' own propose -> review -> becomes-official
