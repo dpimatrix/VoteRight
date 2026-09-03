@@ -50,7 +50,7 @@ interface StartResult {
   publishableKey?: string;
 }
 
-type Screen = 'loading' | 'already_verified' | 'not_configured' | 'need_address' | 'choose' | 'card_form' | 'check_code';
+type Screen = 'loading' | 'already_verified' | 'not_configured' | 'need_address' | 'choose' | 'card_form' | 'confirming' | 'check_code';
 
 export default function VerifyPaymentScreen() {
   const router = useRouter();
@@ -66,6 +66,7 @@ export default function VerifyPaymentScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkCode, setCheckCode] = useState<{ code: string; instructions: string | null } | null>(null);
+  const [confirmTimedOut, setConfirmTimedOut] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -125,14 +126,25 @@ export default function VerifyPaymentScreen() {
       // Our own payment_verified promotion happens off Stripe's webhook
       // (async, same as web) -- confirmPayment succeeding here only means
       // Stripe accepted the charge, not that our server has caught up yet.
-      // A short poll makes the wait feel immediate instead of leaving the
-      // user to guess and re-check manually.
+      //
+      // Real bug found live testing 2026-09-03: this used to call
+      // router.back() unconditionally once the poll below finished --
+      // whether it actually found payment_verified or just gave up after
+      // ~7.5s -- landing the resident back on whatever screen pushed them
+      // here. If the webhook hadn't caught up by that exact refocus
+      // moment, that screen's own tier refetch (correct, on every focus --
+      // see debates.tsx) still read the OLD tier: same "Pay by Card still
+      // enabled" symptom the resident actually reported, just one screen
+      // removed from where the charge happened. Staying on THIS screen
+      // instead -- confirming, then already_verified in place -- means the
+      // success state is never rendered before it's actually true.
+      setScreen('confirming');
       for (let i = 0; i < 5; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         try {
           const who = await get<{ tier: string }>('/api/whoami');
           if (who.tier === 'payment_verified') {
-            router.back();
+            setScreen('already_verified');
             return;
           }
         } catch (e) {
@@ -140,9 +152,12 @@ export default function VerifyPaymentScreen() {
         }
       }
       // Still not promoted after ~7.5s -- the charge went through on
-      // Stripe's side either way, so send them back rather than block here;
-      // the next screen load will reflect the tier once the webhook lands.
-      router.back();
+      // Stripe's side either way. Say so plainly rather than silently
+      // reverting to the pay form (which would look like nothing happened)
+      // or blocking here indefinitely; the resident can leave whenever
+      // they're ready and the normal focus-refetch elsewhere in the app
+      // picks up the real tier once the webhook lands.
+      setConfirmTimedOut(true);
     } catch (e) {
       console.error('Card confirmation failed:', e);
       setError(d.pay_error);
@@ -184,6 +199,20 @@ export default function VerifyPaymentScreen() {
         <Pressable onPress={() => router.replace('/verify')} style={[styles.btn, { backgroundColor: colors.evidence }]}>
           <ThemedText type="smallBold">{d.verify_btn}</ThemedText>
         </Pressable>
+      </KeyboardAwareScreen>
+    );
+  }
+
+  if (screen === 'confirming') {
+    return (
+      <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+        {!confirmTimedOut && <ActivityIndicator style={styles.spinner} />}
+        <ThemedText type="small">{confirmTimedOut ? d.pay_confirming_slow : d.pay_confirming}</ThemedText>
+        {confirmTimedOut && (
+          <Pressable onPress={() => router.back()} style={[styles.btn, { backgroundColor: colors.evidence }]}>
+            <ThemedText type="smallBold">{d.continue_btn}</ThemedText>
+          </Pressable>
+        )}
       </KeyboardAwareScreen>
     );
   }

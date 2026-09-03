@@ -288,6 +288,18 @@ const DICT = {
     // as prio_priv above, no account exists to match this to.
     pay_check_code_note: "Write this code on your check so it can be matched to you once received.",
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
+    // Real bug found live testing 2026-09-03: Stripe's confirmPayment()
+    // redirects the browser back to this page (?submitted=1) the instant
+    // the CHARGE succeeds -- our own payment_verified promotion happens off
+    // a separate, asynchronous Stripe webhook that can take a few seconds
+    // longer to arrive. Landing back here before it does used to just
+    // re-render the untouched "Pay to verify" form, as if nothing had
+    // happened, with zero indication a charge had already gone through.
+    // pay_confirming covers that gap while PaymentConfirming polls; if the
+    // webhook is unusually slow, pay_confirming_slow replaces it rather
+    // than polling forever silently.
+    pay_confirming: "Confirming your payment — this takes a few seconds…",
+    pay_confirming_slow: "Still confirming — your card was already charged, so this will resolve on its own. Refresh in a moment, or check back shortly.",
     backup_nudge_h: "Back up your key now",
     backup_nudge_p: "This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.",
     backup_nudge_btn: "Back up now",
@@ -751,6 +763,8 @@ const DICT = {
     pay_check_code_h: "Tu código de referencia",
     pay_check_code_note: "Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.",
     pay_success: "✓ Pago recibido — estás verificado y ya puedes participar en los debates.",
+    pay_confirming: "Confirmando tu pago — esto tarda unos segundos…",
+    pay_confirming_slow: "Todavía confirmando — tu tarjeta ya fue cobrada, así que esto se resolverá solo. Actualiza en un momento, o vuelve a revisar en breve.",
     backup_nudge_h: "Respalda tu clave ahora",
     backup_nudge_p: "Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.",
     backup_nudge_btn: "Respaldar ahora",

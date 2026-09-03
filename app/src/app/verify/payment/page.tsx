@@ -1,5 +1,6 @@
 import { BackupPrompt } from "@/components/BackupPrompt";
 import { PaymentCheckout } from "@/components/PaymentCheckout";
+import { PaymentConfirming } from "@/components/PaymentConfirming";
 import { SiteHeader } from "@/components/SiteHeader";
 import { verifiedUserId } from "@/lib/anon";
 import { userTier } from "@/lib/debates";
@@ -37,6 +38,16 @@ export default async function PaymentVerifyPage({
                   <BackupPrompt lang={lang} d={d} />
                 </>
               );
+
+            // Real bug found live testing 2026-09-03: Stripe's confirmPayment()
+            // redirects back here (?submitted=1) the instant the CHARGE
+            // succeeds -- our own payment_verified promotion happens off a
+            // separate, asynchronous webhook that can take a few seconds
+            // longer. Landing here before it lands used to just re-render
+            // the untouched pay form below, as if the charge never
+            // happened. See PaymentConfirming's own comment for how this
+            // resolves itself once the webhook catches up.
+            if (sp.submitted === "1") return <PaymentConfirming label={d.pay_confirming} stillLabel={d.pay_confirming_slow} />;
 
             const settings = await getPaymentSettings();
             const configured =
