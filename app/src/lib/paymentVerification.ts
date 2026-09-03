@@ -25,6 +25,20 @@ import {
 
 export type Gateway = "stripe" | "authorizenet";
 
+/** Stripe Payment Link URLs for the voluntary donation tiles shown once a
+    resident is payment_verified (migration 098) -- see that migration's
+    own comment for why this is admin-pasted hosted-checkout links rather
+    than a second in-app charge flow. Any tier left null hides that tile;
+    `more` is meant to point at a Stripe "customer enters amount" link. */
+export interface DonationLinks {
+  d20: string | null;
+  d50: string | null;
+  d100: string | null;
+  d500: string | null;
+  d1000: string | null;
+  more: string | null;
+}
+
 export interface PaymentSettings {
   feeCents: number | null;
   activeGateway: Gateway | null;
@@ -34,6 +48,7 @@ export interface PaymentSettings {
   authorizenetSignatureKey: string | null;
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
+  donationLinks: DonationLinks;
   updatedAt: string;
 }
 
@@ -43,7 +58,9 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
             stripe_secret_key, stripe_publishable_key, stripe_webhook_secret,
             authorizenet_api_login_id, authorizenet_transaction_key,
             authorizenet_public_client_key, authorizenet_signature_key, authorizenet_environment,
-            check_payment_enabled, check_instructions, updated_at
+            check_payment_enabled, check_instructions,
+            donation_link_20, donation_link_50, donation_link_100, donation_link_500, donation_link_1000, donation_link_more,
+            updated_at
        FROM payment_settings WHERE id = 1`,
   );
   const r = rows[0];
@@ -62,6 +79,14 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     authorizenetSignatureKey: r.authorizenet_signature_key,
     checkPaymentEnabled: r.check_payment_enabled,
     checkInstructions: r.check_instructions,
+    donationLinks: {
+      d20: r.donation_link_20,
+      d50: r.donation_link_50,
+      d100: r.donation_link_100,
+      d500: r.donation_link_500,
+      d1000: r.donation_link_1000,
+      more: r.donation_link_more,
+    },
     updatedAt: r.updated_at,
   };
 }
@@ -84,6 +109,17 @@ export async function updatePaymentSettings(opts: {
   authorizenetEnvironment?: "sandbox" | "production";
   checkPaymentEnabled?: boolean;
   checkInstructions?: string;
+  // Donation link fields (migration 098): pass an empty string, not undefined,
+  // to actually clear one -- same COALESCE convention as every field above,
+  // just used to let an admin remove a stale Stripe link rather than only
+  // ever add or replace one (the admin route reads these as "" not
+  // undefined for a submitted-but-empty field -- see its own comment).
+  donationLink20?: string;
+  donationLink50?: string;
+  donationLink100?: string;
+  donationLink500?: string;
+  donationLink1000?: string;
+  donationLinkMore?: string;
 }): Promise<void> {
   await db().query(
     `UPDATE payment_settings SET
@@ -99,6 +135,12 @@ export async function updatePaymentSettings(opts: {
        authorizenet_environment = COALESCE($10, authorizenet_environment),
        check_payment_enabled = COALESCE($11, check_payment_enabled),
        check_instructions = COALESCE($12, check_instructions),
+       donation_link_20 = COALESCE($13, donation_link_20),
+       donation_link_50 = COALESCE($14, donation_link_50),
+       donation_link_100 = COALESCE($15, donation_link_100),
+       donation_link_500 = COALESCE($16, donation_link_500),
+       donation_link_1000 = COALESCE($17, donation_link_1000),
+       donation_link_more = COALESCE($18, donation_link_more),
        updated_at = now()
      WHERE id = 1`,
     [
@@ -114,6 +156,12 @@ export async function updatePaymentSettings(opts: {
       opts.authorizenetEnvironment ?? null,
       opts.checkPaymentEnabled ?? null,
       opts.checkInstructions ?? null,
+      opts.donationLink20 ?? null,
+      opts.donationLink50 ?? null,
+      opts.donationLink100 ?? null,
+      opts.donationLink500 ?? null,
+      opts.donationLink1000 ?? null,
+      opts.donationLinkMore ?? null,
     ],
   );
 }
@@ -138,6 +186,10 @@ export interface PublicPaymentConfig {
   // secrets, Authorize.Net transaction key) stays server-only -- never add
   // a field here without checking it belongs on this allowlist.
   stripePublishableKey: string | null;
+  // Plain Stripe Payment Link URLs, not secrets -- safe on this allowlist
+  // the same way the publishable key above is. See DonationLinks' own
+  // comment.
+  donationLinks: DonationLinks;
 }
 
 /** The subset of getPaymentSettings() safe to hand to an unauthenticated-
@@ -161,6 +213,7 @@ export async function getPublicPaymentConfig(): Promise<PublicPaymentConfig> {
     checkPaymentEnabled: settings.checkPaymentEnabled,
     checkInstructions: settings.checkInstructions,
     stripePublishableKey: settings.activeGateway === "stripe" ? (settings.stripe?.publishableKey ?? null) : null,
+    donationLinks: settings.donationLinks,
   };
 }
 

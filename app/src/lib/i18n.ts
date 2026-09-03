@@ -300,6 +300,14 @@ const DICT = {
     // than polling forever silently.
     pay_confirming: "Confirming your payment — this takes a few seconds…",
     pay_confirming_slow: "Still confirming — your card was already charged, so this will resolve on its own. Refresh in a moment, or check back shortly.",
+    // Donation tiles (migration 098, admin-configured Stripe Payment Links
+    // -- see that migration's own comment for why this isn't a second
+    // in-app checkout). Shown only once payment_verified, so this never
+    // competes with or gets confused for the required $5 verification fee
+    // above.
+    donate_h: "Support VoteRight further",
+    donate_p: "Verification is $5 either way — this is optional, and separate from it. Handled entirely by Stripe; VoteRight never sees your card details.",
+    donate_more_btn: "More",
     backup_nudge_h: "Back up your key now",
     backup_nudge_p: "This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.",
     backup_nudge_btn: "Back up now",
@@ -765,6 +773,9 @@ const DICT = {
     pay_success: "✓ Pago recibido — estás verificado y ya puedes participar en los debates.",
     pay_confirming: "Confirmando tu pago — esto tarda unos segundos…",
     pay_confirming_slow: "Todavía confirmando — tu tarjeta ya fue cobrada, así que esto se resolverá solo. Actualiza en un momento, o vuelve a revisar en breve.",
+    donate_h: "Apoya más a VoteRight",
+    donate_p: "La verificación cuesta $5 de cualquier forma — esto es opcional y aparte. Lo maneja Stripe por completo; VoteRight nunca ve los datos de tu tarjeta.",
+    donate_more_btn: "Más",
     backup_nudge_h: "Respalda tu clave ahora",
     backup_nudge_p: "Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.",
     backup_nudge_btn: "Respaldar ahora",

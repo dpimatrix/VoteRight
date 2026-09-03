@@ -1,9 +1,10 @@
 import { CardField, confirmPayment, initStripe, StripeProvider } from '@stripe/stripe-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { BackupNudge } from '@/components/BackupNudge';
+import { ExternalLink } from '@/components/external-link';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
@@ -33,6 +34,15 @@ function formatFeeCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+interface DonationLinks {
+  d20: string | null;
+  d50: string | null;
+  d100: string | null;
+  d500: string | null;
+  d1000: string | null;
+  more: string | null;
+}
+
 interface PublicConfig {
   feeCents: number | null;
   activeGateway: 'stripe' | 'authorizenet' | null;
@@ -40,7 +50,16 @@ interface PublicConfig {
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
   stripePublishableKey: string | null;
+  donationLinks: DonationLinks;
 }
+
+const DONATION_TIERS: { key: keyof Omit<DonationLinks, 'more'>; amount: string }[] = [
+  { key: 'd20', amount: '$20' },
+  { key: 'd50', amount: '$50' },
+  { key: 'd100', amount: '$100' },
+  { key: 'd500', amount: '$500' },
+  { key: 'd1000', amount: '$1,000' },
+];
 
 interface StartResult {
   gateway: 'stripe' | 'authorizenet';
@@ -75,11 +94,18 @@ export default function VerifyPaymentScreen() {
           get<{ tier: string }>('/api/whoami'),
           get<PublicConfig>('/api/payment-verification/config'),
         ]);
+        // Real gap found alongside the donation tiles (2026-09-03): this
+        // used to return before setConfig() on the already-verified path,
+        // since the pay form below has no use for it -- but the
+        // already_verified screen's own donation tiles need
+        // config.donationLinks too, and that screen previously had no way
+        // to reach them on a fresh mount (only after a same-session
+        // submitCard() poll, which does set config via beginCardPayment).
+        setConfig(cfg);
         if (who.tier === 'payment_verified') {
           setScreen('already_verified');
           return;
         }
-        setConfig(cfg);
         setScreen(cfg.configured ? 'choose' : 'not_configured');
       } catch (e) {
         if (errorCode(e) === 'verify') {
@@ -218,9 +244,34 @@ export default function VerifyPaymentScreen() {
   }
 
   if (screen === 'already_verified') {
+    const links = config?.donationLinks;
+    const anyDonationLink = links && (DONATION_TIERS.some((tier) => links[tier.key]) || links.more);
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="small">{d.pay_success}</ThemedText>
+        {anyDonationLink && links && (
+          <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="smallBold">{d.donate_h}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {d.donate_p}
+            </ThemedText>
+            <View style={styles.pickerRow}>
+              {DONATION_TIERS.map(
+                (tier) =>
+                  links[tier.key] && (
+                    <ExternalLink key={tier.key} href={links[tier.key] as Href & string} style={[styles.pickerChip, { borderColor: colors.evidence }]}>
+                      <ThemedText type="small">{tier.amount}</ThemedText>
+                    </ExternalLink>
+                  ),
+              )}
+              {links.more && (
+                <ExternalLink href={links.more as Href & string} style={[styles.pickerChip, { borderColor: colors.evidence }]}>
+                  <ThemedText type="small">{d.donate_more_btn}</ThemedText>
+                </ExternalLink>
+              )}
+            </View>
+          </View>
+        )}
         <BackupNudge d={d} />
       </KeyboardAwareScreen>
     );
@@ -356,4 +407,6 @@ const styles = StyleSheet.create({
   error: { color: '#C0392B' },
   code: { fontSize: 28, letterSpacing: 2 },
   cardField: { height: 50 },
+  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.half },
+  pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
 });

@@ -1,4 +1,5 @@
 import { BackupPrompt } from "@/components/BackupPrompt";
+import { DonationTiles } from "@/components/DonationTiles";
 import { PaymentCheckout } from "@/components/PaymentCheckout";
 import { PaymentConfirming } from "@/components/PaymentConfirming";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -31,10 +32,16 @@ export default async function PaymentVerifyPage({
         ) : (
           await (async () => {
             const tier = await userTier(userId);
+            // Moved above the tier branch (was previously only fetched in
+            // the not-yet-verified path below) so the payment_verified
+            // branch can read settings.donationLinks too -- one settings
+            // row, one query, regardless of which branch needs it.
+            const settings = await getPaymentSettings();
             if (tier === "payment_verified")
               return (
                 <>
                   <p className="pill kept">{d.pay_success}</p>
+                  <DonationTiles links={settings.donationLinks} d={d} />
                   <BackupPrompt lang={lang} d={d} />
                 </>
               );
@@ -49,7 +56,6 @@ export default async function PaymentVerifyPage({
             // resolves itself once the webhook catches up.
             if (sp.submitted === "1") return <PaymentConfirming label={d.pay_confirming} stillLabel={d.pay_confirming_slow} />;
 
-            const settings = await getPaymentSettings();
             const configured =
               settings.feeCents && settings.activeGateway && ((settings.activeGateway === "stripe" && settings.stripe) || (settings.activeGateway === "authorizenet" && settings.authorizenet));
             if (!configured) return <p className="nopos">{d.pay_not_configured}</p>;
