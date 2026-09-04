@@ -123,15 +123,34 @@ export function PaymentCheckout({
     form?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       setStatus("processing");
-      const { error: confirmError } = await stripe.confirmPayment({
-        elements,
-        confirmParams: { return_url: `${window.location.origin}/verify/payment?lang=${lang}&submitted=1` },
-      });
-      if (confirmError) {
-        setError(confirmError.message);
+      try {
+        const { error: confirmError } = await stripe.confirmPayment({
+          elements,
+          confirmParams: { return_url: `${window.location.origin}/verify/payment?lang=${lang}&submitted=1` },
+        });
+        if (confirmError) {
+          setError(confirmError.message);
+          setStatus("error");
+        }
+        // On success Stripe redirects to return_url itself -- nothing else to do here.
+      } catch (e) {
+        // Real bug found live testing 2026-09-04: confirmPayment() can
+        // REJECT rather than resolve with { error } -- observed with Link
+        // enrollment active, "IntegrationError: We could not retrieve data
+        // from the specified Element... make sure it is mounted and the
+        // ready event has been emitted" (Link's own auth popup/iframe
+        // activity appears to invalidate this component's Elements
+        // reference). With no catch here, that became an uncaught promise
+        // rejection and setStatus("processing") never got reset -- the
+        // resident was stuck on "Processing..." forever with no way to
+        // recover except reloading the page, and the charge never actually
+        // completed either way. Whatever the underlying trigger, any
+        // rejection here needs to land the resident back in a recoverable
+        // state, not a permanent spinner.
+        console.error("confirmPayment rejected:", e);
+        setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
       }
-      // On success Stripe redirects to return_url itself -- nothing else to do here.
     });
   }
 
