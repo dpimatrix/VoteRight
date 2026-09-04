@@ -1205,15 +1205,6 @@ CREATE TABLE payment_settings (
     authorizenet_environment    TEXT NOT NULL DEFAULT 'sandbox' CHECK (authorizenet_environment IN ('sandbox', 'production')),
     check_payment_enabled       BOOLEAN NOT NULL DEFAULT true,
     check_instructions          TEXT,
-    -- Stripe Payment Link URLs for the voluntary donation tiles shown on
-    -- the "you're verified" screen (migration 098) -- admin-pasted, not
-    -- generated here; NULL means that tile is hidden.
-    donation_link_20            TEXT,
-    donation_link_50            TEXT,
-    donation_link_100           TEXT,
-    donation_link_500           TEXT,
-    donation_link_1000          TEXT,
-    donation_link_more          TEXT,
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

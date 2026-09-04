@@ -449,13 +449,16 @@ const DICT = {
     // PaymentConfirming.
     pay_confirming: 'Confirming your payment — this takes a few seconds…',
     pay_confirming_slow: 'Still confirming — your card was already charged, so this will resolve on its own. You can leave this screen; it will update once confirmed.',
-    // Donation tiles (migration 098, admin-configured Stripe Payment Links
-    // opened via ExternalLink -- see that migration's own comment, and
-    // settings.tsx's Membership section, for why mobile never charges a
-    // donation natively).
+    // Donation tiles (migration 099, dynamic Stripe Checkout Sessions via
+    // /api/donate/checkout -- opened via the same in-app-browser mechanism
+    // ExternalLink uses, since the URL is only known after that call
+    // resolves; see settings.tsx's Membership section for why mobile never
+    // charges a donation natively either way).
     donate_h: 'Support VoteRight further',
     donate_p: "Verification is $5 either way — this is optional, and separate from it. Handled entirely by Stripe; VoteRight never sees your card details.",
-    donate_more_btn: 'More',
+    donate_more_btn: 'Donate',
+    donate_more_placeholder: 'Custom amount',
+    donate_error: "Couldn't start checkout — try again.",
     backup_nudge_h: 'Back up your key now',
     backup_nudge_p: 'This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.',
     backup_nudge_btn: 'Back up now',
@@ -847,7 +850,9 @@ const DICT = {
     pay_confirming_slow: 'Todavía confirmando — tu tarjeta ya fue cobrada, así que esto se resolverá solo. Puedes salir de esta pantalla; se actualizará una vez confirmado.',
     donate_h: 'Apoya más a VoteRight',
     donate_p: 'La verificación cuesta $5 de cualquier forma — esto es opcional y aparte. Lo maneja Stripe por completo; VoteRight nunca ve los datos de tu tarjeta.',
-    donate_more_btn: 'Más',
+    donate_more_btn: 'Donar',
+    donate_more_placeholder: 'Monto personalizado',
+    donate_error: 'No se pudo iniciar el pago — inténtalo de nuevo.',
     backup_nudge_h: 'Respalda tu clave ahora',
     backup_nudge_p: 'Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.',
     backup_nudge_btn: 'Respaldar ahora',

@@ -1,10 +1,10 @@
 import { CardField, confirmPayment, initStripe, StripeProvider } from '@stripe/stripe-react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { openBrowserAsync, WebBrowserPresentationStyle } from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { BackupNudge } from '@/components/BackupNudge';
-import { ExternalLink } from '@/components/external-link';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
@@ -34,15 +34,6 @@ function formatFeeCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-interface DonationLinks {
-  d20: string | null;
-  d50: string | null;
-  d100: string | null;
-  d500: string | null;
-  d1000: string | null;
-  more: string | null;
-}
-
 interface PublicConfig {
   feeCents: number | null;
   activeGateway: 'stripe' | 'authorizenet' | null;
@@ -50,16 +41,17 @@ interface PublicConfig {
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
   stripePublishableKey: string | null;
-  donationLinks: DonationLinks;
+  donationsEnabled: boolean;
 }
 
-const DONATION_TIERS: { key: keyof Omit<DonationLinks, 'more'>; amount: string }[] = [
-  { key: 'd20', amount: '$20' },
-  { key: 'd50', amount: '$50' },
-  { key: 'd100', amount: '$100' },
-  { key: 'd500', amount: '$500' },
-  { key: 'd1000', amount: '$1,000' },
-];
+// Fixed donation tiers (2026-09-04, owner's own request: "$20, $50, $100,
+// $500, $1000") -- kept in dollars here, matching amount_dollars/lang the
+// /api/donate/checkout endpoint actually reads (see that route's own
+// comment on why dollars-over-the-wire, not cents). Mirrors web's
+// DONATION_TIERS_CENTS in app/src/lib/donations.ts -- not importable
+// across the Expo/Next.js boundary, so duplicated the same way every
+// other piece of parallel copy in this file already is.
+const DONATION_TIERS_DOLLARS = [20, 50, 100, 500, 1000] as const;
 
 interface StartResult {
   gateway: 'stripe' | 'authorizenet';
@@ -86,6 +78,9 @@ export default function VerifyPaymentScreen() {
   const [error, setError] = useState<string | null>(null);
   const [checkCode, setCheckCode] = useState<{ code: string; instructions: string | null } | null>(null);
   const [confirmTimedOut, setConfirmTimedOut] = useState(false);
+  const [donateBusy, setDonateBusy] = useState(false);
+  const [donateError, setDonateError] = useState<string | null>(null);
+  const [donateAmount, setDonateAmount] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -98,8 +93,8 @@ export default function VerifyPaymentScreen() {
         // used to return before setConfig() on the already-verified path,
         // since the pay form below has no use for it -- but the
         // already_verified screen's own donation tiles need
-        // config.donationLinks too, and that screen previously had no way
-        // to reach them on a fresh mount (only after a same-session
+        // config.donationsEnabled too, and that screen previously had no
+        // way to reach it on a fresh mount (only after a same-session
         // submitCard() poll, which does set config via beginCardPayment).
         setConfig(cfg);
         if (who.tier === 'payment_verified') {
@@ -210,6 +205,32 @@ export default function VerifyPaymentScreen() {
     }
   }
 
+  // Voluntary donation checkout (migration 099, dynamic Stripe Checkout
+  // Sessions -- see /api/donate/checkout's own comment for why this
+  // replaced admin-pasted Payment Links). The URL only exists after this
+  // call resolves, so it can't be a static ExternalLink href like
+  // Settings' Membership section uses -- opened the same way that
+  // component does internally (openBrowserAsync, in-app browser) once we
+  // have it.
+  async function startDonation(amountDollars: number) {
+    if (!Number.isFinite(amountDollars) || amountDollars < 0.5) {
+      setDonateError(d.donate_error);
+      return;
+    }
+    setDonateBusy(true);
+    setDonateError(null);
+    try {
+      const res = await post<{ url: string }>('/api/donate/checkout', { amountDollars, lang });
+      await openBrowserAsync(res.url, { presentationStyle: WebBrowserPresentationStyle.AUTOMATIC });
+      setDonateAmount('');
+    } catch (e) {
+      console.error('Donation checkout failed:', e);
+      setDonateError(d.donate_error);
+    } finally {
+      setDonateBusy(false);
+    }
+  }
+
   if (screen === 'loading') {
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
@@ -244,31 +265,49 @@ export default function VerifyPaymentScreen() {
   }
 
   if (screen === 'already_verified') {
-    const links = config?.donationLinks;
-    const anyDonationLink = links && (DONATION_TIERS.some((tier) => links[tier.key]) || links.more);
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="small">{d.pay_success}</ThemedText>
-        {anyDonationLink && links && (
+        {config?.donationsEnabled && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <ThemedText type="smallBold">{d.donate_h}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {d.donate_p}
             </ThemedText>
+            {donateError && (
+              <ThemedText type="small" style={styles.error}>
+                {donateError}
+              </ThemedText>
+            )}
             <View style={styles.pickerRow}>
-              {DONATION_TIERS.map(
-                (tier) =>
-                  links[tier.key] && (
-                    <ExternalLink key={tier.key} href={links[tier.key] as Href & string} style={[styles.pickerChip, { borderColor: colors.evidence }]}>
-                      <ThemedText type="small">{tier.amount}</ThemedText>
-                    </ExternalLink>
-                  ),
-              )}
-              {links.more && (
-                <ExternalLink href={links.more as Href & string} style={[styles.pickerChip, { borderColor: colors.evidence }]}>
-                  <ThemedText type="small">{d.donate_more_btn}</ThemedText>
-                </ExternalLink>
-              )}
+              {DONATION_TIERS_DOLLARS.map((amount) => (
+                <Pressable
+                  key={amount}
+                  disabled={donateBusy}
+                  onPress={() => startDonation(amount)}
+                  style={[styles.pickerChip, { borderColor: donateBusy ? colors.textSecondary : colors.evidence }]}
+                >
+                  <ThemedText type="small">${amount.toLocaleString('en-US')}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+            <View style={[styles.pickerRow, { alignItems: 'center' }]}>
+              <TextInput
+                value={donateAmount}
+                onChangeText={setDonateAmount}
+                placeholder={d.donate_more_placeholder}
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="decimal-pad"
+                editable={!donateBusy}
+                style={[styles.input, { borderColor: colors.textSecondary, color: colors.text, width: '55%' }]}
+              />
+              <Pressable
+                disabled={donateBusy || !donateAmount.trim()}
+                onPress={() => startDonation(Number(donateAmount))}
+                style={[styles.pickerChip, { borderColor: donateBusy || !donateAmount.trim() ? colors.textSecondary : colors.evidence }]}
+              >
+                <ThemedText type="small">{d.donate_more_btn}</ThemedText>
+              </Pressable>
             </View>
           </View>
         )}
@@ -409,4 +448,5 @@ const styles = StyleSheet.create({
   cardField: { height: 50 },
   pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.half },
   pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, fontSize: 15 },
 });

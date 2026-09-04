@@ -55,21 +55,6 @@ export async function POST(request: Request) {
       checkPaymentEnabled: form.has("check_payment_enabled"),
       checkInstructions: form.get("check_instructions") !== null ? String(form.get("check_instructions")) : undefined,
     });
-  } else if (section === "donations") {
-    // Unlike str() above (blank -> undefined -> "leave unchanged", for
-    // secrets where re-typing the current value isn't possible since it's
-    // masked), these fields are shown to the admin in full -- blank here is
-    // a deliberate "remove this link", read the same direct way
-    // check_instructions is above.
-    const link = (name: string) => (form.get(name) !== null ? String(form.get(name)).trim() : undefined);
-    await updatePaymentSettings({
-      donationLink20: link("donation_link_20"),
-      donationLink50: link("donation_link_50"),
-      donationLink100: link("donation_link_100"),
-      donationLink500: link("donation_link_500"),
-      donationLink1000: link("donation_link_1000"),
-      donationLinkMore: link("donation_link_more"),
-    });
   } else {
     return new Response("unknown section", { status: 400 });
   }

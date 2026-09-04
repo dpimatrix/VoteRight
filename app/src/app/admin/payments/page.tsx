@@ -129,33 +129,6 @@ export default async function PaymentSettingsPage() {
         </form>
       </div>
 
-      <div className="card">
-        <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem" }}>Donation tiles (optional)</h3>
-        <p className="nopos" style={{ marginTop: 0 }}>
-          Shown to a resident once they&apos;re payment_verified, as a way to give more if they&apos;d like. Each field
-          is a Stripe Payment Link — create these once in Stripe Dashboard → Payment Links (five fixed-amount links,
-          plus one &quot;customer enters their own amount&quot; link for &quot;More&quot;) and paste the URLs below.
-          Tapping a tile just opens that Stripe-hosted page; VoteRight keeps no record of who gives or how much —
-          Stripe&apos;s own dashboard is the ledger. Leave a field blank to hide that tile.
-        </p>
-        <form className="admform" method="post" action="/api/admin/payment-settings" style={{ display: "block" }}>
-          <input type="hidden" name="section" value="donations" />
-          <label className="nopos" style={{ display: "block", margin: "0.5rem 0 0.15rem" }}>$20</label>
-          <input type="url" name="donation_link_20" defaultValue={settings.donationLinks.d20 ?? ""} placeholder="https://buy.stripe.com/…" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$50</label>
-          <input type="url" name="donation_link_50" defaultValue={settings.donationLinks.d50 ?? ""} placeholder="https://buy.stripe.com/…" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$100</label>
-          <input type="url" name="donation_link_100" defaultValue={settings.donationLinks.d100 ?? ""} placeholder="https://buy.stripe.com/…" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$500</label>
-          <input type="url" name="donation_link_500" defaultValue={settings.donationLinks.d500 ?? ""} placeholder="https://buy.stripe.com/…" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$1,000</label>
-          <input type="url" name="donation_link_1000" defaultValue={settings.donationLinks.d1000 ?? ""} placeholder="https://buy.stripe.com/…" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>More (custom amount)</label>
-          <input type="url" name="donation_link_more" defaultValue={settings.donationLinks.more ?? ""} placeholder="https://buy.stripe.com/… (a customer-chooses-price link)" style={{ width: "100%" }} />
-          <button className="btn" type="submit" style={{ marginTop: "0.6rem" }}>Save donation links</button>
-        </form>
-      </div>
-
       <div className="grouph" style={{ marginTop: "1.2rem" }}>Pending checks — reconcile by hand</div>
       {queue.length === 0 && <p className="nopos">No checks awaiting reconciliation.</p>}
       {queue.map((q) => (

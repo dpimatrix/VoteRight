@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function PaymentVerifyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; checkCode?: string; submitted?: string }>;
+  searchParams: Promise<{ lang?: string; checkCode?: string; submitted?: string; donated?: string; error?: string }>;
 }) {
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
@@ -34,14 +34,16 @@ export default async function PaymentVerifyPage({
             const tier = await userTier(userId);
             // Moved above the tier branch (was previously only fetched in
             // the not-yet-verified path below) so the payment_verified
-            // branch can read settings.donationLinks too -- one settings
-            // row, one query, regardless of which branch needs it.
+            // branch can read settings.stripe too -- one settings row, one
+            // query, regardless of which branch needs it.
             const settings = await getPaymentSettings();
             if (tier === "payment_verified")
               return (
                 <>
                   <p className="pill kept">{d.pay_success}</p>
-                  <DonationTiles links={settings.donationLinks} d={d} />
+                  {sp.donated === "1" && <p className="pill kept">{d.donate_thanks}</p>}
+                  {sp.error && <p className="nopos">{d.donate_error}</p>}
+                  {settings.stripe && <DonationTiles lang={lang} d={d} />}
                   <BackupPrompt lang={lang} d={d} />
                 </>
               );
