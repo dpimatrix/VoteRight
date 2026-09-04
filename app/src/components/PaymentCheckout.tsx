@@ -49,7 +49,10 @@ declare global {
   interface Window {
     Stripe?: (key: string) => {
       elements: (opts: { clientSecret: string }) => {
-        create: (type: string) => { mount: (el: string | HTMLElement) => void };
+        create: (type: string) => {
+          mount: (el: string | HTMLElement) => void;
+          on: (event: "ready", handler: () => void) => void;
+        };
       };
       confirmPayment: (opts: { elements: unknown; confirmParams: { return_url: string } }) => Promise<{ error?: { message: string } }>;
     };
@@ -72,6 +75,23 @@ export function PaymentCheckout({
   const [status, setStatus] = useState<"idle" | "loading" | "form" | "processing" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [start, setStart] = useState<StartResult | null>(null);
+  // Real bug found live testing 2026-09-04, reproduced with Link disabled
+  // -- ruling out Link's own popup/iframe activity as the cause: the
+  // Payment Element's mount() call starts an async load (its own iframe,
+  // fetched over the network) and doesn't finish being usable the instant
+  // mount() returns -- Stripe's own elements.create("payment") emits a
+  // 'ready' event once it actually has usable data. The submit button was
+  // never gated on that, so clicking "Pay" before the iframe finished
+  // initializing hit exactly the error confirmPayment's own catch (below)
+  // now recovers from instead of hanging forever: "We could not retrieve
+  // data from the specified Element... make sure it is mounted and the
+  // ready event has been emitted." elementReady drives the button's
+  // disabled state (needs a re-render to reach the DOM); readyRef is the
+  // same fact read inside the submit handler's closure, which captured
+  // elementReady's value at mount time (always false) and would otherwise
+  // see a permanently stale "not ready" -- refs read live, state doesn't.
+  const [elementReady, setElementReady] = useState(false);
+  const readyRef = useRef(false);
   // Guards against double-mounting Elements into the same DOM node -- the
   // effect below re-runs if status/start ever change again (they don't in
   // practice once "form" is reached for a given start, but this makes that
@@ -118,10 +138,19 @@ export function PaymentCheckout({
     if (!window.Stripe) return;
     const stripe = window.Stripe(s.publishableKey);
     const elements = stripe.elements({ clientSecret: s.clientSecret });
-    elements.create("payment").mount("#payment-element");
+    const paymentElement = elements.create("payment");
+    paymentElement.mount("#payment-element");
+    paymentElement.on("ready", () => {
+      readyRef.current = true;
+      setElementReady(true);
+    });
     const form = document.getElementById("stripe-payment-form");
     form?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      // Defense in depth alongside the disabled button below -- a native
+      // form can still submit via Enter inside a non-Stripe field on the
+      // same form, bypassing a disabled submit button entirely.
+      if (!readyRef.current) return;
       setStatus("processing");
       try {
         const { error: confirmError } = await stripe.confirmPayment({
@@ -134,19 +163,20 @@ export function PaymentCheckout({
         }
         // On success Stripe redirects to return_url itself -- nothing else to do here.
       } catch (e) {
-        // Real bug found live testing 2026-09-04: confirmPayment() can
-        // REJECT rather than resolve with { error } -- observed with Link
-        // enrollment active, "IntegrationError: We could not retrieve data
-        // from the specified Element... make sure it is mounted and the
-        // ready event has been emitted" (Link's own auth popup/iframe
-        // activity appears to invalidate this component's Elements
-        // reference). With no catch here, that became an uncaught promise
-        // rejection and setStatus("processing") never got reset -- the
-        // resident was stuck on "Processing..." forever with no way to
-        // recover except reloading the page, and the charge never actually
-        // completed either way. Whatever the underlying trigger, any
-        // rejection here needs to land the resident back in a recoverable
-        // state, not a permanent spinner.
+        // Real bug found live testing 2026-09-04, reproduced with Link
+        // disabled (ruling that out as the cause): confirmPayment() can
+        // REJECT rather than resolve with { error } when the Payment
+        // Element hasn't actually finished initializing yet -- "IntegrationError:
+        // We could not retrieve data from the specified Element... make
+        // sure it is mounted and the ready event has been emitted." The
+        // readyRef guard above should prevent this from being reachable at
+        // all now; this catch stays as a safety net for whatever else
+        // could make confirmPayment reject rather than resolve. With no
+        // catch here, that became an uncaught promise rejection and
+        // setStatus("processing") never got reset -- the resident was
+        // stuck on "Processing..." forever with no way to recover except
+        // reloading the page, and the charge never actually completed
+        // either way.
         console.error("confirmPayment rejected:", e);
         setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
@@ -216,7 +246,9 @@ export function PaymentCheckout({
     return (
       <form id="stripe-payment-form">
         <div id="payment-element" />
-        <button className="btn" type="submit" style={{ marginTop: "0.7rem" }}>{labels.fee}</button>
+        <button className="btn" type="submit" disabled={!elementReady} style={{ marginTop: "0.7rem" }}>
+          {elementReady ? labels.fee : labels.processing}
+        </button>
       </form>
     );
   }
