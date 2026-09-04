@@ -55,6 +55,20 @@ export async function POST(request: Request) {
       checkPaymentEnabled: form.has("check_payment_enabled"),
       checkInstructions: form.get("check_instructions") !== null ? String(form.get("check_instructions")) : undefined,
     });
+  } else if (section === "donation_tiers") {
+    // Same direct-not-str() reading as check_instructions above: these
+    // Price IDs are shown to the admin in full (not masked like secrets),
+    // so blank here is a deliberate "clear this tier's Price" rather than
+    // "leave unchanged" -- str()'s blank-means-undefined would make that
+    // impossible.
+    const priceId = (name: string) => (form.get(name) !== null ? String(form.get(name)).trim() : undefined);
+    await updatePaymentSettings({
+      donationPriceId20: priceId("donation_price_id_20"),
+      donationPriceId50: priceId("donation_price_id_50"),
+      donationPriceId100: priceId("donation_price_id_100"),
+      donationPriceId500: priceId("donation_price_id_500"),
+      donationPriceId1000: priceId("donation_price_id_1000"),
+    });
   } else {
     return new Response("unknown section", { status: 400 });
   }

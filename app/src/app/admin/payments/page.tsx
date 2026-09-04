@@ -129,6 +129,33 @@ export default async function PaymentSettingsPage() {
         </form>
       </div>
 
+      <div className="card">
+        <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem" }}>Donation tiers (optional)</h3>
+        <p className="nopos" style={{ marginTop: 0 }}>
+          Shown to a resident once they&apos;re payment_verified, as a way to give more if they&apos;d like — separate
+          from the required fee above. Tapping a tile always creates a fresh Stripe Checkout Session (no admin action
+          needed to make a new tier work at all), but referencing a Price ID here groups those donations under one
+          real product in Stripe&apos;s reporting instead of a one-off line item every time. Create a Price for each
+          amount in Stripe Dashboard → Product catalog (same place the membership tiers live) and paste its ID
+          below — looks like <code>price_1AbCdE…</code>. Leave a tier blank and it still works when tapped, just
+          without that grouping; a &quot;More&quot; (custom amount) tile always shows regardless of anything here.
+        </p>
+        <form className="admform" method="post" action="/api/admin/payment-settings" style={{ display: "block" }}>
+          <input type="hidden" name="section" value="donation_tiers" />
+          <label className="nopos" style={{ display: "block", margin: "0.5rem 0 0.15rem" }}>$20 Price ID</label>
+          <input type="text" name="donation_price_id_20" defaultValue={settings.donationTierPriceIds.d20 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$50 Price ID</label>
+          <input type="text" name="donation_price_id_50" defaultValue={settings.donationTierPriceIds.d50 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$100 Price ID</label>
+          <input type="text" name="donation_price_id_100" defaultValue={settings.donationTierPriceIds.d100 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$500 Price ID</label>
+          <input type="text" name="donation_price_id_500" defaultValue={settings.donationTierPriceIds.d500 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$1,000 Price ID</label>
+          <input type="text" name="donation_price_id_1000" defaultValue={settings.donationTierPriceIds.d1000 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <button className="btn" type="submit" style={{ marginTop: "0.6rem" }}>Save donation tier prices</button>
+        </form>
+      </div>
+
       <div className="grouph" style={{ marginTop: "1.2rem" }}>Pending checks — reconcile by hand</div>
       {queue.length === 0 && <p className="nopos">No checks awaiting reconciliation.</p>}
       {queue.map((q) => (

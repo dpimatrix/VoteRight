@@ -25,6 +25,47 @@ import {
 
 export type Gateway = "stripe" | "authorizenet";
 
+// Fixed donation tiers (owner's own literal request: "$20, $50, $100,
+// $500, $1000"). Lives here rather than in donations.ts so
+// getPublicPaymentConfig() below can compute donationTierAmountsCents
+// without an import cycle (donations.ts already imports getPaymentSettings
+// from this file); donations.ts imports this constant + the lookup helper
+// FROM here instead of defining its own copy.
+export const DONATION_TIERS_CENTS = [2000, 5000, 10000, 50000, 100000] as const;
+
+/** Admin-created Stripe Price references for the fixed donation tiles
+    (migration 100) -- see createDonationCheckoutSession's own comment for
+    why: grouped, clean Stripe reporting instead of an ad-hoc price on
+    every tap. A tier left null here isn't broken -- donations.ts falls
+    back to an inline price for it, same as "More" always does. */
+export interface DonationTierPriceIds {
+  d20: string | null;
+  d50: string | null;
+  d100: string | null;
+  d500: string | null;
+  d1000: string | null;
+}
+
+/** Looks up the configured Stripe Price for one of the five fixed amounts
+    above, or null for "More"/an amount that isn't one of the five/a tier
+    the admin hasn't configured yet. */
+export function donationPriceIdFor(amountCents: number, ids: DonationTierPriceIds): string | null {
+  switch (amountCents) {
+    case 2000:
+      return ids.d20;
+    case 5000:
+      return ids.d50;
+    case 10000:
+      return ids.d100;
+    case 50000:
+      return ids.d500;
+    case 100000:
+      return ids.d1000;
+    default:
+      return null;
+  }
+}
+
 export interface PaymentSettings {
   feeCents: number | null;
   activeGateway: Gateway | null;
@@ -34,6 +75,7 @@ export interface PaymentSettings {
   authorizenetSignatureKey: string | null;
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
+  donationTierPriceIds: DonationTierPriceIds;
   updatedAt: string;
 }
 
@@ -43,7 +85,9 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
             stripe_secret_key, stripe_publishable_key, stripe_webhook_secret,
             authorizenet_api_login_id, authorizenet_transaction_key,
             authorizenet_public_client_key, authorizenet_signature_key, authorizenet_environment,
-            check_payment_enabled, check_instructions, updated_at
+            check_payment_enabled, check_instructions,
+            donation_price_id_20, donation_price_id_50, donation_price_id_100, donation_price_id_500, donation_price_id_1000,
+            updated_at
        FROM payment_settings WHERE id = 1`,
   );
   const r = rows[0];
@@ -62,6 +106,13 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     authorizenetSignatureKey: r.authorizenet_signature_key,
     checkPaymentEnabled: r.check_payment_enabled,
     checkInstructions: r.check_instructions,
+    donationTierPriceIds: {
+      d20: r.donation_price_id_20,
+      d50: r.donation_price_id_50,
+      d100: r.donation_price_id_100,
+      d500: r.donation_price_id_500,
+      d1000: r.donation_price_id_1000,
+    },
     updatedAt: r.updated_at,
   };
 }
@@ -84,6 +135,15 @@ export async function updatePaymentSettings(opts: {
   authorizenetEnvironment?: "sandbox" | "production";
   checkPaymentEnabled?: boolean;
   checkInstructions?: string;
+  // Donation tier Stripe Price IDs (migration 100) -- same "blank clears
+  // it" convention as checkInstructions: pass "" (not undefined) to
+  // actually remove one; the admin route reads submitted-but-empty form
+  // fields as "" for exactly this reason (see its own comment).
+  donationPriceId20?: string;
+  donationPriceId50?: string;
+  donationPriceId100?: string;
+  donationPriceId500?: string;
+  donationPriceId1000?: string;
 }): Promise<void> {
   await db().query(
     `UPDATE payment_settings SET
@@ -99,6 +159,11 @@ export async function updatePaymentSettings(opts: {
        authorizenet_environment = COALESCE($10, authorizenet_environment),
        check_payment_enabled = COALESCE($11, check_payment_enabled),
        check_instructions = COALESCE($12, check_instructions),
+       donation_price_id_20 = COALESCE($13, donation_price_id_20),
+       donation_price_id_50 = COALESCE($14, donation_price_id_50),
+       donation_price_id_100 = COALESCE($15, donation_price_id_100),
+       donation_price_id_500 = COALESCE($16, donation_price_id_500),
+       donation_price_id_1000 = COALESCE($17, donation_price_id_1000),
        updated_at = now()
      WHERE id = 1`,
     [
@@ -114,6 +179,11 @@ export async function updatePaymentSettings(opts: {
       opts.authorizenetEnvironment ?? null,
       opts.checkPaymentEnabled ?? null,
       opts.checkInstructions ?? null,
+      opts.donationPriceId20 ?? null,
+      opts.donationPriceId50 ?? null,
+      opts.donationPriceId100 ?? null,
+      opts.donationPriceId500 ?? null,
+      opts.donationPriceId1000 ?? null,
     ],
   );
 }
@@ -138,13 +208,19 @@ export interface PublicPaymentConfig {
   // secrets, Authorize.Net transaction key) stays server-only -- never add
   // a field here without checking it belongs on this allowlist.
   stripePublishableKey: string | null;
-  // Whether the voluntary donation tiles (migration 099, dynamic Stripe
-  // Checkout Sessions via /api/donate/checkout) should render at all --
-  // donations need Stripe specifically (Authorize.Net has no hosted-
-  // checkout equivalent here), independent of which gateway is active for
-  // the $5 fee. Just a boolean, not stripePublishableKey itself: the
-  // donation flow never touches Stripe.js/Elements client-side, so mobile
-  // and web both only need to know whether to show the tiles, not the key.
+  // Whether the voluntary donation tiles (/api/donate/checkout, dynamic
+  // Stripe Checkout Sessions) should render at all -- donations need
+  // Stripe specifically (Authorize.Net has no hosted-checkout equivalent
+  // here), independent of which gateway is active for the $5 fee.
+  //
+  // Deliberately NOT exposed here: which of the 5 fixed tiers has an
+  // admin-created Stripe Price (migration 100, donationPriceIdFor). Every
+  // tile always renders once donationsEnabled is true, regardless of
+  // Price-ID configuration -- a tier the admin hasn't gotten to yet still
+  // works when tapped (donations.ts falls back to an inline price), so
+  // there's no user-facing reason to hide it. Whether a Price ID exists is
+  // purely a Stripe-reporting-cleanliness detail, invisible to both
+  // platforms' UI on purpose.
   donationsEnabled: boolean;
 }
 
