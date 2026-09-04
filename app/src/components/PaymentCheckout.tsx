@@ -53,6 +53,7 @@ declare global {
           mount: (el: string | HTMLElement) => void;
           on: (event: "ready", handler: () => void) => void;
         };
+        submit: () => Promise<{ error?: { message: string } }>;
       };
       confirmPayment: (opts: { elements: unknown; confirmParams: { return_url: string } }) => Promise<{ error?: { message: string } }>;
     };
@@ -153,6 +154,26 @@ export function PaymentCheckout({
       if (!readyRef.current) return;
       setStatus("processing");
       try {
+        // Real root cause found live testing 2026-09-04, after the ready-
+        // event gating above turned out NOT to fix "IntegrationError: We
+        // could not retrieve data from the specified Element... make sure
+        // it is mounted and the ready event has been emitted" -- confirmed
+        // reproducible in a completely fresh incognito session (no
+        // extensions, no Link, no stale mount state) with the button
+        // genuinely showing as ready/clickable at the moment of the click.
+        // The actual issue: confirmPayment() needs elements.submit() called
+        // and AWAITED first -- that's the step that actually validates the
+        // form and collects the entered card data from the Element; ready
+        // only means the Element finished loading, not that its data has
+        // been collected. This code never called it at all. Per Stripe's
+        // own docs, omitting (or not awaiting) elements.submit() before
+        // confirmPayment is exactly what produces this error.
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+          setError(submitError.message);
+          setStatus("error");
+          return;
+        }
         const { error: confirmError } = await stripe.confirmPayment({
           elements,
           confirmParams: { return_url: `${window.location.origin}/verify/payment?lang=${lang}&submitted=1` },
@@ -163,21 +184,14 @@ export function PaymentCheckout({
         }
         // On success Stripe redirects to return_url itself -- nothing else to do here.
       } catch (e) {
-        // Real bug found live testing 2026-09-04, reproduced with Link
-        // disabled (ruling that out as the cause): confirmPayment() can
-        // REJECT rather than resolve with { error } when the Payment
-        // Element hasn't actually finished initializing yet -- "IntegrationError:
-        // We could not retrieve data from the specified Element... make
-        // sure it is mounted and the ready event has been emitted." The
-        // readyRef guard above should prevent this from being reachable at
-        // all now; this catch stays as a safety net for whatever else
-        // could make confirmPayment reject rather than resolve. With no
-        // catch here, that became an uncaught promise rejection and
-        // setStatus("processing") never got reset -- the resident was
-        // stuck on "Processing..." forever with no way to recover except
-        // reloading the page, and the charge never actually completed
-        // either way.
-        console.error("confirmPayment rejected:", e);
+        // Real bug found live testing 2026-09-04: confirmPayment() (or
+        // elements.submit() above) can REJECT rather than resolve with
+        // { error }. With no catch here, that became an uncaught promise
+        // rejection and setStatus("processing") never got reset -- the
+        // resident was stuck on "Processing..." forever with no way to
+        // recover except reloading the page, and the charge never actually
+        // completed either way.
+        console.error("Payment confirmation rejected:", e);
         setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
       }
