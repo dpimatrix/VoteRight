@@ -32,31 +32,40 @@ export async function createStripeIntent(
   return { clientSecret: intent.client_secret!, stripeIntentId: intent.id };
 }
 
-/** Voluntary donation checkout (migration 099, replacing the admin-pasted
-    Stripe Payment Links from 098 -- owner's explicit follow-up call: no
-    Dashboard pre-setup at all, not even for fixed tiers, so this creates a
-    Checkout Session for whatever amount was tapped at request time, the
-    same "call the API fresh each time" shape createStripeIntent above
-    already uses for the $5 fee, just Stripe-hosted instead of our own
-    native/Elements form. No metadata tying this to a user id -- unlike
-    payment verification, nothing in the app reads a donation's outcome,
-    so there's nothing here to look up later. */
+/** Voluntary donation checkout (migration 099, then 100 -- see donations.ts's
+    own comment for the two-step history: admin-pasted Payment Links ->
+    fully dynamic price_data -> this, referencing an admin-created Stripe
+    Price when one exists for the tapped amount, matching subscriptions.ts's
+    own stripePriceId pattern so donations show up as clean, grouped line
+    items in Stripe's reporting instead of a fresh ad-hoc "Donation to
+    VoteRight" product on every single tap. priceId is null for "More" (no
+    fixed amount to pre-create a Price for) or for a fixed tier the admin
+    hasn't configured a Price for yet -- either way this still creates a
+    session, just with an inline price instead of a reused one, so a
+    missing/not-yet-configured Price ID degrades gracefully rather than
+    blocking the donation entirely.
+
+    No metadata tying this to a user id -- unlike payment verification,
+    nothing in the app reads a donation's outcome, so there's nothing here
+    to look up later. */
 export async function createDonationCheckoutSession(
   creds: StripeCreds,
-  opts: { amountCents: number; successUrl: string; cancelUrl: string },
+  opts: { amountCents: number; priceId: string | null; successUrl: string; cancelUrl: string },
 ): Promise<{ url: string }> {
   const stripe = stripeClient(creds.secretKey);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: { name: "Donation to VoteRight" },
-          unit_amount: opts.amountCents,
-        },
-        quantity: 1,
-      },
+      opts.priceId
+        ? { price: opts.priceId, quantity: 1 }
+        : {
+            price_data: {
+              currency: "usd",
+              product_data: { name: "Donation to VoteRight" },
+              unit_amount: opts.amountCents,
+            },
+            quantity: 1,
+          },
     ],
     success_url: opts.successUrl,
     cancel_url: opts.cancelUrl,

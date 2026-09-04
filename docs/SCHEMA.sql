@@ -1205,6 +1205,15 @@ CREATE TABLE payment_settings (
     authorizenet_environment    TEXT NOT NULL DEFAULT 'sandbox' CHECK (authorizenet_environment IN ('sandbox', 'production')),
     check_payment_enabled       BOOLEAN NOT NULL DEFAULT true,
     check_instructions          TEXT,
+    -- Admin-created Stripe Price references for the fixed donation tiles
+    -- (migration 100) -- NULL means that tile falls back to an inline
+    -- price at request time rather than a reused, cleanly-reported one;
+    -- see createDonationCheckoutSession's own comment.
+    donation_price_id_20        TEXT,
+    donation_price_id_50        TEXT,
+    donation_price_id_100       TEXT,
+    donation_price_id_500       TEXT,
+    donation_price_id_1000      TEXT,
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
