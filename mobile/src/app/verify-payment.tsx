@@ -1,7 +1,8 @@
 import { CardField, confirmPayment, initStripe, StripeProvider } from '@stripe/stripe-react-native';
 import { useRouter } from 'expo-router';
+import { openBrowserAsync, WebBrowserPresentationStyle } from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { BackupNudge } from '@/components/BackupNudge';
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
@@ -40,7 +41,17 @@ interface PublicConfig {
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
   stripePublishableKey: string | null;
+  donationsEnabled: boolean;
 }
+
+// Fixed donation tiers (2026-09-04, owner's own request: "$20, $50, $100,
+// $500, $1000") -- kept in dollars here, matching amount_dollars/lang the
+// /api/donate/checkout endpoint actually reads (see that route's own
+// comment on why dollars-over-the-wire, not cents). Mirrors web's
+// DONATION_TIERS_CENTS in app/src/lib/donations.ts -- not importable
+// across the Expo/Next.js boundary, so duplicated the same way every
+// other piece of parallel copy in this file already is.
+const DONATION_TIERS_DOLLARS = [20, 50, 100, 500, 1000] as const;
 
 interface StartResult {
   gateway: 'stripe' | 'authorizenet';
@@ -50,7 +61,7 @@ interface StartResult {
   publishableKey?: string;
 }
 
-type Screen = 'loading' | 'already_verified' | 'not_configured' | 'need_address' | 'choose' | 'card_form' | 'check_code';
+type Screen = 'loading' | 'already_verified' | 'not_configured' | 'need_address' | 'choose' | 'card_form' | 'confirming' | 'check_code';
 
 export default function VerifyPaymentScreen() {
   const router = useRouter();
@@ -66,6 +77,10 @@ export default function VerifyPaymentScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkCode, setCheckCode] = useState<{ code: string; instructions: string | null } | null>(null);
+  const [confirmTimedOut, setConfirmTimedOut] = useState(false);
+  const [donateBusy, setDonateBusy] = useState(false);
+  const [donateError, setDonateError] = useState<string | null>(null);
+  const [donateAmount, setDonateAmount] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -74,11 +89,18 @@ export default function VerifyPaymentScreen() {
           get<{ tier: string }>('/api/whoami'),
           get<PublicConfig>('/api/payment-verification/config'),
         ]);
+        // Real gap found alongside the donation tiles (2026-09-03): this
+        // used to return before setConfig() on the already-verified path,
+        // since the pay form below has no use for it -- but the
+        // already_verified screen's own donation tiles need
+        // config.donationsEnabled too, and that screen previously had no
+        // way to reach it on a fresh mount (only after a same-session
+        // submitCard() poll, which does set config via beginCardPayment).
+        setConfig(cfg);
         if (who.tier === 'payment_verified') {
           setScreen('already_verified');
           return;
         }
-        setConfig(cfg);
         setScreen(cfg.configured ? 'choose' : 'not_configured');
       } catch (e) {
         if (errorCode(e) === 'verify') {
@@ -125,14 +147,25 @@ export default function VerifyPaymentScreen() {
       // Our own payment_verified promotion happens off Stripe's webhook
       // (async, same as web) -- confirmPayment succeeding here only means
       // Stripe accepted the charge, not that our server has caught up yet.
-      // A short poll makes the wait feel immediate instead of leaving the
-      // user to guess and re-check manually.
+      //
+      // Real bug found live testing 2026-09-03: this used to call
+      // router.back() unconditionally once the poll below finished --
+      // whether it actually found payment_verified or just gave up after
+      // ~7.5s -- landing the resident back on whatever screen pushed them
+      // here. If the webhook hadn't caught up by that exact refocus
+      // moment, that screen's own tier refetch (correct, on every focus --
+      // see debates.tsx) still read the OLD tier: same "Pay by Card still
+      // enabled" symptom the resident actually reported, just one screen
+      // removed from where the charge happened. Staying on THIS screen
+      // instead -- confirming, then already_verified in place -- means the
+      // success state is never rendered before it's actually true.
+      setScreen('confirming');
       for (let i = 0; i < 5; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         try {
           const who = await get<{ tier: string }>('/api/whoami');
           if (who.tier === 'payment_verified') {
-            router.back();
+            setScreen('already_verified');
             return;
           }
         } catch (e) {
@@ -140,9 +173,12 @@ export default function VerifyPaymentScreen() {
         }
       }
       // Still not promoted after ~7.5s -- the charge went through on
-      // Stripe's side either way, so send them back rather than block here;
-      // the next screen load will reflect the tier once the webhook lands.
-      router.back();
+      // Stripe's side either way. Say so plainly rather than silently
+      // reverting to the pay form (which would look like nothing happened)
+      // or blocking here indefinitely; the resident can leave whenever
+      // they're ready and the normal focus-refetch elsewhere in the app
+      // picks up the real tier once the webhook lands.
+      setConfirmTimedOut(true);
     } catch (e) {
       console.error('Card confirmation failed:', e);
       setError(d.pay_error);
@@ -169,6 +205,32 @@ export default function VerifyPaymentScreen() {
     }
   }
 
+  // Voluntary donation checkout (migration 099, dynamic Stripe Checkout
+  // Sessions -- see /api/donate/checkout's own comment for why this
+  // replaced admin-pasted Payment Links). The URL only exists after this
+  // call resolves, so it can't be a static ExternalLink href like
+  // Settings' Membership section uses -- opened the same way that
+  // component does internally (openBrowserAsync, in-app browser) once we
+  // have it.
+  async function startDonation(amountDollars: number) {
+    if (!Number.isFinite(amountDollars) || amountDollars < 0.5) {
+      setDonateError(d.donate_error);
+      return;
+    }
+    setDonateBusy(true);
+    setDonateError(null);
+    try {
+      const res = await post<{ url: string }>('/api/donate/checkout', { amountDollars, lang });
+      await openBrowserAsync(res.url, { presentationStyle: WebBrowserPresentationStyle.AUTOMATIC });
+      setDonateAmount('');
+    } catch (e) {
+      console.error('Donation checkout failed:', e);
+      setDonateError(d.donate_error);
+    } finally {
+      setDonateBusy(false);
+    }
+  }
+
   if (screen === 'loading') {
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
@@ -188,10 +250,67 @@ export default function VerifyPaymentScreen() {
     );
   }
 
+  if (screen === 'confirming') {
+    return (
+      <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+        {!confirmTimedOut && <ActivityIndicator style={styles.spinner} />}
+        <ThemedText type="small">{confirmTimedOut ? d.pay_confirming_slow : d.pay_confirming}</ThemedText>
+        {confirmTimedOut && (
+          <Pressable onPress={() => router.back()} style={[styles.btn, { backgroundColor: colors.evidence }]}>
+            <ThemedText type="smallBold">{d.continue_btn}</ThemedText>
+          </Pressable>
+        )}
+      </KeyboardAwareScreen>
+    );
+  }
+
   if (screen === 'already_verified') {
     return (
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="small">{d.pay_success}</ThemedText>
+        {config?.donationsEnabled && (
+          <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="smallBold">{d.donate_h}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {d.donate_p}
+            </ThemedText>
+            {donateError && (
+              <ThemedText type="small" style={styles.error}>
+                {donateError}
+              </ThemedText>
+            )}
+            <View style={styles.pickerRow}>
+              {DONATION_TIERS_DOLLARS.map((amount) => (
+                <Pressable
+                  key={amount}
+                  disabled={donateBusy}
+                  onPress={() => startDonation(amount)}
+                  style={[styles.pickerChip, { borderColor: donateBusy ? colors.textSecondary : colors.evidence }]}
+                >
+                  <ThemedText type="small">${amount.toLocaleString('en-US')}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+            <View style={[styles.pickerRow, { alignItems: 'center' }]}>
+              <TextInput
+                value={donateAmount}
+                onChangeText={setDonateAmount}
+                placeholder={d.donate_more_placeholder}
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="decimal-pad"
+                editable={!donateBusy}
+                style={[styles.input, { borderColor: colors.textSecondary, color: colors.text, width: '55%' }]}
+              />
+              <Pressable
+                disabled={donateBusy || !donateAmount.trim()}
+                onPress={() => startDonation(Number(donateAmount))}
+                style={[styles.pickerChip, { borderColor: donateBusy || !donateAmount.trim() ? colors.textSecondary : colors.evidence }]}
+              >
+                <ThemedText type="small">{d.donate_more_btn}</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        )}
         <BackupNudge d={d} />
       </KeyboardAwareScreen>
     );
@@ -327,4 +446,7 @@ const styles = StyleSheet.create({
   error: { color: '#C0392B' },
   code: { fontSize: 28, letterSpacing: 2 },
   cardField: { height: 50 },
+  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.half },
+  pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  input: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, fontSize: 15 },
 });

@@ -328,6 +328,16 @@ const DICT = {
     binding_chip: 'Binding',
     organizing_chip: 'Organizing',
     start_campaign_h: 'Start a campaign',
+    // Real gap found live testing 2026-09-03: outside the DC/Maryland/
+    // Virginia jurisdictions accountability_pathways has been curated for
+    // so far, officePathways and petitionPathway are BOTH empty, but this
+    // whole card rendered anyway with zero pathway chips to pick -- a dead
+    // end the resident could fill out but never submit. Same "absence of
+    // curated data must never be read as an affirmative absence of the
+    // mechanism itself" principle as web's acct_no_data_yet, just at the
+    // scope of "your whole area" instead of "this one office".
+    no_coverage_in_area:
+      "We haven't researched accountability mechanisms for your area yet — this isn't a claim that none exist for your representatives, only that we don't have any documented here yet. Coverage right now is strongest in the DC, Maryland, and Virginia region.",
     target_politician_h: 'Target a politician',
     // Real gap found live testing (2026-08-23): web's equivalent field
     // (acct_desc_ph) asks for both an outcome and a citation; this asked
@@ -425,6 +435,30 @@ const DICT = {
     pay_check_code_h: 'Your reference code',
     pay_check_code_note: 'Write this code on your check so it can be matched to you once received.',
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
+    // Real bug found live testing 2026-09-03: confirmPayment() succeeding
+    // only means Stripe accepted the charge -- our own payment_verified
+    // promotion happens off a separate, asynchronous webhook. submitCard()
+    // used to call router.back() unconditionally after its poll window
+    // (whether the poll found payment_verified or gave up after ~7.5s),
+    // landing the resident back on whatever screen pushed them here. If
+    // the webhook hadn't caught up by that exact refocus moment, that
+    // screen's own tier refetch (correctly on every focus, e.g. debates.tsx)
+    // still read the old tier -- same "Pay by Card still enabled" symptom,
+    // just one screen removed. Now this screen stays up and shows its own
+    // confirming state instead of leaving silently, matching web's
+    // PaymentConfirming.
+    pay_confirming: 'Confirming your payment — this takes a few seconds…',
+    pay_confirming_slow: 'Still confirming — your card was already charged, so this will resolve on its own. You can leave this screen; it will update once confirmed.',
+    // Donation tiles (migration 099, dynamic Stripe Checkout Sessions via
+    // /api/donate/checkout -- opened via the same in-app-browser mechanism
+    // ExternalLink uses, since the URL is only known after that call
+    // resolves; see settings.tsx's Membership section for why mobile never
+    // charges a donation natively either way).
+    donate_h: 'Support VoteRight further',
+    donate_p: "Verification is $5 either way — this is optional, and separate from it. Handled entirely by Stripe; VoteRight never sees your card details.",
+    donate_more_btn: 'Donate',
+    donate_more_placeholder: 'Custom amount',
+    donate_error: "Couldn't start checkout — try again.",
     backup_nudge_h: 'Back up your key now',
     backup_nudge_p: 'This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.',
     backup_nudge_btn: 'Back up now',
@@ -727,6 +761,8 @@ const DICT = {
     binding_chip: 'Vinculante',
     organizing_chip: 'Organizativo',
     start_campaign_h: 'Iniciar una campaña',
+    no_coverage_in_area:
+      'Todavía no hemos investigado los mecanismos de rendición de cuentas para tu área — esto no es una afirmación de que no existan para tus representantes, solo que aún no los tenemos documentados aquí. La cobertura actual es más completa en la región de DC, Maryland y Virginia.',
     target_politician_h: 'Dirigirse a un funcionario',
     why_campaign_placeholder: '¿Qué debería pasar, y por qué? Cita el historial.',
     start_campaign_politician_btn: 'Iniciar campaña contra funcionario',
@@ -810,6 +846,13 @@ const DICT = {
     pay_check_code_h: 'Tu código de referencia',
     pay_check_code_note: 'Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.',
     pay_success: '✓ Pago recibido — estás verificado y ya puedes participar en los debates.',
+    pay_confirming: 'Confirmando tu pago — esto tarda unos segundos…',
+    pay_confirming_slow: 'Todavía confirmando — tu tarjeta ya fue cobrada, así que esto se resolverá solo. Puedes salir de esta pantalla; se actualizará una vez confirmado.',
+    donate_h: 'Apoya más a VoteRight',
+    donate_p: 'La verificación cuesta $5 de cualquier forma — esto es opcional y aparte. Lo maneja Stripe por completo; VoteRight nunca ve los datos de tu tarjeta.',
+    donate_more_btn: 'Donar',
+    donate_more_placeholder: 'Monto personalizado',
+    donate_error: 'No se pudo iniciar el pago — inténtalo de nuevo.',
     backup_nudge_h: 'Respalda tu clave ahora',
     backup_nudge_p: 'Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.',
     backup_nudge_btn: 'Respaldar ahora',

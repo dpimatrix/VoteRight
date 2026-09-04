@@ -138,6 +138,14 @@ export interface PublicPaymentConfig {
   // secrets, Authorize.Net transaction key) stays server-only -- never add
   // a field here without checking it belongs on this allowlist.
   stripePublishableKey: string | null;
+  // Whether the voluntary donation tiles (migration 099, dynamic Stripe
+  // Checkout Sessions via /api/donate/checkout) should render at all --
+  // donations need Stripe specifically (Authorize.Net has no hosted-
+  // checkout equivalent here), independent of which gateway is active for
+  // the $5 fee. Just a boolean, not stripePublishableKey itself: the
+  // donation flow never touches Stripe.js/Elements client-side, so mobile
+  // and web both only need to know whether to show the tiles, not the key.
+  donationsEnabled: boolean;
 }
 
 /** The subset of getPaymentSettings() safe to hand to an unauthenticated-
@@ -161,6 +169,7 @@ export async function getPublicPaymentConfig(): Promise<PublicPaymentConfig> {
     checkPaymentEnabled: settings.checkPaymentEnabled,
     checkInstructions: settings.checkInstructions,
     stripePublishableKey: settings.activeGateway === "stripe" ? (settings.stripe?.publishableKey ?? null) : null,
+    donationsEnabled: Boolean(settings.stripe),
   };
 }
 

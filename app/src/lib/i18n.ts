@@ -288,6 +288,29 @@ const DICT = {
     // as prio_priv above, no account exists to match this to.
     pay_check_code_note: "Write this code on your check so it can be matched to you once received.",
     pay_success: "✓ Payment received — you're verified and can now participate in debates.",
+    // Real bug found live testing 2026-09-03: Stripe's confirmPayment()
+    // redirects the browser back to this page (?submitted=1) the instant
+    // the CHARGE succeeds -- our own payment_verified promotion happens off
+    // a separate, asynchronous Stripe webhook that can take a few seconds
+    // longer to arrive. Landing back here before it does used to just
+    // re-render the untouched "Pay to verify" form, as if nothing had
+    // happened, with zero indication a charge had already gone through.
+    // pay_confirming covers that gap while PaymentConfirming polls; if the
+    // webhook is unusually slow, pay_confirming_slow replaces it rather
+    // than polling forever silently.
+    pay_confirming: "Confirming your payment — this takes a few seconds…",
+    pay_confirming_slow: "Still confirming — your card was already charged, so this will resolve on its own. Refresh in a moment, or check back shortly.",
+    // Donation tiles (migration 098, admin-configured Stripe Payment Links
+    // -- see that migration's own comment for why this isn't a second
+    // in-app checkout). Shown only once payment_verified, so this never
+    // competes with or gets confused for the required $5 verification fee
+    // above.
+    donate_h: "Support VoteRight further",
+    donate_p: "Verification is $5 either way — this is optional, and separate from it. Handled entirely by Stripe; VoteRight never sees your card details.",
+    donate_more_btn: "Donate",
+    donate_more_placeholder: "Custom amount",
+    donate_thanks: "✓ Thank you for your donation!",
+    donate_error: "Couldn't start checkout — try again.",
     backup_nudge_h: "Back up your key now",
     backup_nudge_p: "This payment, and everything tied to your identity here — priorities, debate history — only exists on this device unless you back up your signing key. Takes a minute.",
     backup_nudge_btn: "Back up now",
@@ -450,6 +473,17 @@ const DICT = {
     acct_not_signature: "In-app support is not a petition signature and has no legal effect.",
     acct_supporters: "supporters",
     acct_start_h: "Start a campaign",
+    // Real gap found live testing 2026-09-03: outside the DC/Maryland/
+    // Virginia jurisdictions accountability_pathways has been curated for
+    // so far, officePathways and petitionPathway are BOTH empty, but the
+    // campaign-creation forms below rendered anyway -- a <select> with zero
+    // <option>s (web) / zero pathway chips to pick (mobile), a dead end the
+    // resident could fill out but never submit. Same "absence of curated
+    // data must never be read as an affirmative absence of the mechanism
+    // itself" principle as acct_no_data_yet above, just at the scope of
+    // "your whole area" instead of "this one office".
+    acct_no_coverage:
+      "We haven't researched accountability mechanisms for your area yet — this isn't a claim that none exist for your representatives, only that we don't have any documented here yet. Coverage right now is strongest in the DC, Maryland, and Virginia region.",
     acct_target_pol: "Hold an officeholder accountable",
     acct_target_reform: "Change the law or charter",
     acct_desc_ph: "What should happen, and why? Cite the record.",
@@ -740,6 +774,14 @@ const DICT = {
     pay_check_code_h: "Tu código de referencia",
     pay_check_code_note: "Escribe este código en tu cheque para poder relacionarlo contigo al recibirlo.",
     pay_success: "✓ Pago recibido — estás verificado y ya puedes participar en los debates.",
+    pay_confirming: "Confirmando tu pago — esto tarda unos segundos…",
+    pay_confirming_slow: "Todavía confirmando — tu tarjeta ya fue cobrada, así que esto se resolverá solo. Actualiza en un momento, o vuelve a revisar en breve.",
+    donate_h: "Apoya más a VoteRight",
+    donate_p: "La verificación cuesta $5 de cualquier forma — esto es opcional y aparte. Lo maneja Stripe por completo; VoteRight nunca ve los datos de tu tarjeta.",
+    donate_more_btn: "Donar",
+    donate_more_placeholder: "Monto personalizado",
+    donate_thanks: "✓ ¡Gracias por tu donación!",
+    donate_error: "No se pudo iniciar el pago — inténtalo de nuevo.",
     backup_nudge_h: "Respalda tu clave ahora",
     backup_nudge_p: "Este pago, y todo lo vinculado a tu identidad aquí — prioridades, historial de debate — solo existe en este dispositivo a menos que respaldes tu clave de firma. Toma un minuto.",
     backup_nudge_btn: "Respaldar ahora",
@@ -877,6 +919,8 @@ const DICT = {
     acct_not_signature: "El apoyo en la app no es una firma de petición y no tiene efecto legal.",
     acct_supporters: "apoyos",
     acct_start_h: "Iniciar una campaña",
+    acct_no_coverage:
+      "Todavía no hemos investigado los mecanismos de rendición de cuentas para tu área — esto no es una afirmación de que no existan para tus representantes, solo que aún no los tenemos documentados aquí. La cobertura actual es más completa en la región de DC, Maryland y Virginia.",
     acct_target_pol: "Pedir cuentas a un funcionario",
     acct_target_reform: "Cambiar la ley o la carta del condado",
     acct_desc_ph: "¿Qué debería pasar, y por qué? Cita el historial.",

@@ -1,5 +1,7 @@
 import { BackupPrompt } from "@/components/BackupPrompt";
+import { DonationTiles } from "@/components/DonationTiles";
 import { PaymentCheckout } from "@/components/PaymentCheckout";
+import { PaymentConfirming } from "@/components/PaymentConfirming";
 import { SiteHeader } from "@/components/SiteHeader";
 import { verifiedUserId } from "@/lib/anon";
 import { userTier } from "@/lib/debates";
@@ -11,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function PaymentVerifyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string; checkCode?: string; submitted?: string }>;
+  searchParams: Promise<{ lang?: string; checkCode?: string; submitted?: string; donated?: string; error?: string }>;
 }) {
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
@@ -30,15 +32,32 @@ export default async function PaymentVerifyPage({
         ) : (
           await (async () => {
             const tier = await userTier(userId);
+            // Moved above the tier branch (was previously only fetched in
+            // the not-yet-verified path below) so the payment_verified
+            // branch can read settings.stripe too -- one settings row, one
+            // query, regardless of which branch needs it.
+            const settings = await getPaymentSettings();
             if (tier === "payment_verified")
               return (
                 <>
                   <p className="pill kept">{d.pay_success}</p>
+                  {sp.donated === "1" && <p className="pill kept">{d.donate_thanks}</p>}
+                  {sp.error && <p className="nopos">{d.donate_error}</p>}
+                  {settings.stripe && <DonationTiles lang={lang} d={d} />}
                   <BackupPrompt lang={lang} d={d} />
                 </>
               );
 
-            const settings = await getPaymentSettings();
+            // Real bug found live testing 2026-09-03: Stripe's confirmPayment()
+            // redirects back here (?submitted=1) the instant the CHARGE
+            // succeeds -- our own payment_verified promotion happens off a
+            // separate, asynchronous webhook that can take a few seconds
+            // longer. Landing here before it lands used to just re-render
+            // the untouched pay form below, as if the charge never
+            // happened. See PaymentConfirming's own comment for how this
+            // resolves itself once the webhook catches up.
+            if (sp.submitted === "1") return <PaymentConfirming label={d.pay_confirming} stillLabel={d.pay_confirming_slow} />;
+
             const configured =
               settings.feeCents && settings.activeGateway && ((settings.activeGateway === "stripe" && settings.stripe) || (settings.activeGateway === "authorizenet" && settings.authorizenet));
             if (!configured) return <p className="nopos">{d.pay_not_configured}</p>;
