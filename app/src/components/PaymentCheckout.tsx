@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* Payment-as-verification checkout (2026-08-19). Loads whichever gateway's
    JS is actually active via a plain <script> tag rather than an npm client
@@ -11,8 +11,24 @@ import { useState } from "react";
    VoteRight's own server or client bundle -- only the token each vendor's
    script hands back.
 
-   NOT YET TESTED against real gateway credentials -- verify end-to-end
-   once real (even sandbox) keys are configured in /admin/payments. */
+   Real bug found live testing 2026-09-04 (first real end-to-end test this
+   flow ever got -- see the removed "NOT YET TESTED" note this comment used
+   to end with): mountStripe() used to be invoked via
+   setTimeout(() => mountStripe(data), 0) right after setStatus("form"),
+   on the theory that a 0ms timeout would fire after React re-rendered and
+   the #payment-element div existed in the DOM. That's not a guarantee --
+   under React 19's scheduler, a macrotask can fire before the commit that
+   creates the div, and Stripe's own elements.create().mount("#payment-
+   element") throws when the selector matches nothing: "Uncaught
+   IntegrationError: The selector you specified (#payment-element) applies
+   to no DOM elements that are currently on the page." Uncaught, so it
+   never even reached this component's own catch/setStatus("error") --
+   from the resident's side, clicking "Pay to verify" just silently did
+   nothing (server-side PaymentIntent creation had already succeeded by
+   this point, confirmed against Stripe's own dashboard -- Payment method:
+   None, Incomplete -- the resident just never saw a card form to fill in
+   at all). useEffect is the actual guarantee here: React only runs effects
+   after the DOM has committed for that render, unlike a raw timeout. */
 
 type StartResult =
   | { gateway: "stripe"; recordId: string; feeCents: number; clientSecret: string; publishableKey: string }
@@ -56,6 +72,12 @@ export function PaymentCheckout({
   const [status, setStatus] = useState<"idle" | "loading" | "form" | "processing" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [start, setStart] = useState<StartResult | null>(null);
+  // Guards against double-mounting Elements into the same DOM node -- the
+  // effect below re-runs if status/start ever change again (they don't in
+  // practice once "form" is reached for a given start, but this makes that
+  // an explicit guarantee rather than an assumption), and React's own
+  // StrictMode double-invokes effects once in dev.
+  const mountedRef = useRef(false);
 
   async function begin() {
     setStatus("loading");
@@ -68,7 +90,9 @@ export function PaymentCheckout({
       if (data.gateway === "stripe") {
         await loadScript("https://js.stripe.com/v3/");
         setStatus("form");
-        setTimeout(() => mountStripe(data), 0);
+        // mountStripe() itself runs from the effect below, once the
+        // #payment-element div this status transition renders actually
+        // exists in the DOM -- see this file's own header comment.
       } else {
         await loadScript(
           data.environment === "production" ? "https://js.authorize.net/v1/Accept.js" : "https://jstest.authorize.net/v1/Accept.js",
@@ -80,6 +104,15 @@ export function PaymentCheckout({
       setStatus("error");
     }
   }
+
+  useEffect(() => {
+    if (status !== "form" || !start || start.gateway !== "stripe" || mountedRef.current) return;
+    mountedRef.current = true;
+    mountStripe(start);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mountStripe closes
+    // over lang (stable prop) and setStatus/setError (stable setters); listing it
+    // would need wrapping in useCallback for no behavioral benefit here.
+  }, [status, start]);
 
   function mountStripe(s: Extract<StartResult, { gateway: "stripe" }>) {
     if (!window.Stripe) return;
