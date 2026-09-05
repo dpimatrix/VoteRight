@@ -42,20 +42,53 @@ const MAX_DONATION_CENTS = 100_000_00; // $100,000
 export async function startDonationCheckout(
   amountCents: number,
   opts: { successUrl: string; cancelUrl: string },
-): Promise<{ ok: true; url: string } | { ok: false; reason: "not_configured" | "bad_amount" }> {
+): Promise<{ ok: true; url: string } | { ok: false; reason: "not_configured" | "bad_amount" | "gateway_error" }> {
   if (!Number.isInteger(amountCents) || amountCents < MIN_DONATION_CENTS || amountCents > MAX_DONATION_CENTS) {
     return { ok: false, reason: "bad_amount" };
   }
   const settings = await getPaymentSettings();
   if (!settings.stripe) return { ok: false, reason: "not_configured" };
   const priceId = donationPriceIdFor(amountCents, settings.donationTierPriceIds);
-  const { url } = await createDonationCheckoutSession(settings.stripe, {
-    amountCents,
-    priceId,
-    successUrl: opts.successUrl,
-    cancelUrl: opts.cancelUrl,
-  });
-  return { ok: true, url };
+  try {
+    const { url } = await createDonationCheckoutSession(settings.stripe, {
+      amountCents,
+      priceId,
+      successUrl: opts.successUrl,
+      cancelUrl: opts.cancelUrl,
+    });
+    return { ok: true, url };
+  } catch (e) {
+    // Real bug found live testing 2026-09-05: this had no error handling
+    // at all, so a Stripe API rejection (observed cause: a Price ID saved
+    // while the account was still in live mode no longer resolves once
+    // the account's keys are switched to test mode -- Stripe scopes every
+    // object, Price IDs included, to the mode it was created in) crashed
+    // the whole route with a raw 500 instead of the donation just working
+    // anyway. Since a configured Price ID is a reporting nicety, never a
+    // requirement (donationPriceIdFor's own comment), a bad one should
+    // degrade to the same inline-price fallback an unconfigured tier
+    // already uses -- not take the whole donation down with it. Only
+    // retry once, and only if a priceId was actually the thing that might
+    // be at fault; if it fails again (or there was no priceId to blame in
+    // the first place), that's a real gateway problem worth surfacing.
+    if (priceId) {
+      console.error(`Donation Checkout Session failed with priceId ${priceId}, retrying with inline pricing:`, e);
+      try {
+        const { url } = await createDonationCheckoutSession(settings.stripe, {
+          amountCents,
+          priceId: null,
+          successUrl: opts.successUrl,
+          cancelUrl: opts.cancelUrl,
+        });
+        return { ok: true, url };
+      } catch (e2) {
+        console.error("Donation Checkout Session failed again with inline pricing:", e2);
+        return { ok: false, reason: "gateway_error" };
+      }
+    }
+    console.error("Donation Checkout Session failed:", e);
+    return { ok: false, reason: "gateway_error" };
+  }
 }
 
 // Re-exported so callers that only care about "what are the possible
