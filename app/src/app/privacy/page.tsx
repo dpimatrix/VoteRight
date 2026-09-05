@@ -6,9 +6,14 @@ import { langFrom, t } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 /* MODPA privacy notice (Md. Code, Com. Law §14-4601 et seq.). Long-form legal
-   copy lives here rather than in the i18n dict. DRAFT pending counsel review
-   (COUNSEL-REVIEW.md category C) — the banner below says so until that gate
-   clears. English controls; Spanish is a convenience translation. */
+   copy lives here rather than in the i18n dict. Cleared counsel review
+   2026-09-05 (COUNSEL-REVIEW.md category C) -- the draft banner that used to
+   sit here is gone now that review is done; see this file's own commit
+   history for the pre-review text if it's ever needed again. Note: C4
+   (Virginia/D.C. rights coverage, a narrower, separately-tracked open
+   question) is independent of that category-C clearance -- section 1's own
+   caveat about it stays regardless of the general draft status. English
+   controls; Spanish is a convenience translation. */
 
 function H({ children }: { children: React.ReactNode }) {
   return <div className="grouph" style={{ marginTop: "1.1rem" }}>{children}</div>;
@@ -152,7 +157,7 @@ function EnglishNotice({ lang }: { lang: string }) {
         fictional), the practices described above are already in force for the data of real
         visitors. English controls; the Spanish version is provided for convenience.
       </P>
-      <P>Version: draft v0.2 · September 5, 2026</P>
+      <P>Version: v1.0 · September 5, 2026</P>
     </>
   );
 }
@@ -293,7 +298,7 @@ function SpanishNotice({ lang }: { lang: string }) {
         ficticios), las prácticas descritas ya rigen para los datos de visitantes reales. La
         versión en inglés prevalece; esta traducción se ofrece por conveniencia.
       </P>
-      <P>Versión: borrador v0.2 · 5 de septiembre de 2026</P>
+      <P>Versión: v1.0 · 5 de septiembre de 2026</P>
     </>
   );
 }
@@ -312,10 +317,6 @@ export default async function PrivacyPage({
       <div className="pagepad">
         <div className="pagetitle">{d.priv_h}</div>
         {sp.recovered === "1" && <p className="pill kept">{d.key_import_recovered_ok}</p>}
-        <div className="disclosure">
-          <span className="tag">{lang === "es" ? "Borrador" : "Draft"}</span>
-          <span>{d.priv_draft_note}</span>
-        </div>
         {lang === "es" ? <SpanishNotice lang={lang} /> : <EnglishNotice lang={lang} />}
         <Link className="btn" href={`/privacy/request?lang=${lang}`} style={{ marginTop: "1rem" }}>
           {d.priv_request_btn}

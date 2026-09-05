@@ -64,7 +64,7 @@ mitigations are already designed and, where noted, demonstrable in a working pro
 | Database schema (constraints are load-bearing) | `docs/SCHEMA.sql` — validated on PostgreSQL 16 |
 | Scoring methodology | `docs/SCORING.md` |
 | Country expansion tiers (pilot → multi-country) | `docs/EXPANSION-READINESS.md` — rule-based market inclusion; per-country gates in its §3/§5 |
-| MODPA privacy notice + rights mechanism (DRAFT for category C review) | `/privacy` and `/privacy/request` in the app; queue with statutory clock in the admin console; deletion executes ARCHITECTURE.md §10 pseudonymization |
+| MODPA privacy notice + rights mechanism (C1 CLEARED 2026-09-05; C2–C4 still open, see below) | `/privacy` and `/privacy/request` in the app; queue with statutory clock in the admin console; deletion executes ARCHITECTURE.md §10 pseudonymization |
 | Candidate questionnaire instrument (DRAFT for item F2 — §6 of the doc lists the specific questions for counsel) | `docs/QUESTIONNAIRE.md` |
 | Working prototype (voter app + admin console) | prototype artifact — **Admin console tab demonstrates the dispute/right-of-reply workflow and the human-confirmation gate on scoring inputs** |
 | **Live production app (real data, access-protected)** | https://voteright-dpimatrix.vercel.app — sign in with a Vercel account to view; **the codebase behind it is public** at github.com/dpimatrix/VoteRight if counsel prefers to read source directly |
@@ -176,6 +176,11 @@ requirements before status changes take effect.
 ## C. Privacy & data
 
 **C1. MODPA compliance** *(item 12 — baseline before Phase 1; full review before Phase 3)*
+**CLEARED (2026-09-05, owner confirmation)** — the `/privacy` notice's draft banner has
+been removed and the page republished as v1.0 on that basis. Same caveat as B2: no
+written opinion has been separately confirmed as existing or unnecessary for the record;
+worth checking before treating this as fully closed for that purpose. The text below is
+kept as the original scope of what was asked, for reference.
 Maryland's privacy statute is in force and its 35,000-consumer threshold likely covers a
 county-scale app. Designed: data minimization (no raw gov-ID storage; hashed email
 treated as personal data, not anonymized); designed account deletion (pseudonymize public
