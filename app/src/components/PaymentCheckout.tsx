@@ -109,12 +109,26 @@ export function PaymentCheckout({
   // validly filled in and settled, not just present.
   const [elementComplete, setElementComplete] = useState(false);
   const completeRef = useRef(false);
-  // Guards against double-mounting Elements into the same DOM node -- the
-  // effect below re-runs if status/start ever change again (they don't in
-  // practice once "form" is reached for a given start, but this makes that
-  // an explicit guarantee rather than an assumption), and React's own
-  // StrictMode double-invokes effects once in dev.
-  const mountedRef = useRef(false);
+  // Real bug found live testing 2026-09-04, after ready-gating,
+  // elements.submit(), and completeness-gating (PRs #56-58) ALL turned out
+  // insufficient on their own, with the identical error persisting across
+  // every single retry regardless: this was a stale-mount bug, not a
+  // confirmation-step bug at all, which is why nothing done inside the
+  // submit handler ever fixed it. Retrying after an error calls begin()
+  // again in the SAME component instance (onClick={begin} on both the
+  // idle AND error-state buttons -- neither reloads the page), fetching a
+  // genuinely new clientSecret each time. But a plain useRef(false) guard
+  // only tracks "has mountStripe ever run", not "for which start" -- once
+  // true, it stayed true forever, so every retry after the very first
+  // attempt silently kept reusing attempt #1's already-exhausted Stripe
+  // Elements instance (tied to attempt #1's now-stale clientSecret)
+  // instead of ever mounting a fresh one for the new PaymentIntent --
+  // exactly matching why the error was 100% identical and 100% persistent
+  // across dozens of retries no matter what changed inside mountStripe
+  // itself. Tracking WHICH start object was mounted (object identity,
+  // not a boolean) means a genuinely new start from a fresh begin() call
+  // always triggers a fresh mount.
+  const mountedForRef = useRef<StartResult | null>(null);
 
   async function begin() {
     setStatus("loading");
@@ -143,8 +157,12 @@ export function PaymentCheckout({
   }
 
   useEffect(() => {
-    if (status !== "form" || !start || start.gateway !== "stripe" || mountedRef.current) return;
-    mountedRef.current = true;
+    if (status !== "form" || !start || start.gateway !== "stripe" || mountedForRef.current === start) return;
+    mountedForRef.current = start;
+    readyRef.current = false;
+    completeRef.current = false;
+    setElementReady(false);
+    setElementComplete(false);
     mountStripe(start);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mountStripe closes
     // over lang (stable prop) and setStatus/setError (stable setters); listing it
@@ -166,7 +184,17 @@ export function PaymentCheckout({
       setElementComplete(e.complete);
     });
     const form = document.getElementById("stripe-payment-form");
-    form?.addEventListener("submit", async (ev) => {
+    // Assigning .onsubmit rather than addEventListener("submit", ...) is
+    // deliberate: mountStripe() now genuinely runs again on every retry
+    // (see mountedForRef's own comment), and this <form> DOM node is
+    // REUSED across retries (same position in the same conditional branch,
+    // so React never actually recreates it). addEventListener would have
+    // stacked a second listener on top of the first retry's, leaving BOTH
+    // the old (closed over the now-stale, already-exhausted first
+    // clientSecret/elements) and new listeners firing on a single submit
+    // -- itself a very plausible contributor to this exact class of
+    // error. Assigning .onsubmit replaces any previous handler outright.
+    if (form) form.onsubmit = async (ev) => {
       ev.preventDefault();
       // Defense in depth alongside the disabled button below -- a native
       // form can still submit via Enter inside a non-Stripe field on the
@@ -215,7 +243,7 @@ export function PaymentCheckout({
         setError(e instanceof Error ? e.message : String(e));
         setStatus("error");
       }
-    });
+    };
   }
 
   async function submitAuthorizeNetCard(ev: React.FormEvent<HTMLFormElement>) {
