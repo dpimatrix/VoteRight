@@ -1188,21 +1188,18 @@ CREATE TABLE anomaly_flags (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Payment-as-verification (migration 085, 2026-08-19). Multi-gateway from
--- the start (Stripe + Authorize.Net) -- see that migration's header comment
--- for the full reasoning and ARCHITECTURE.md §9.2.
+-- Payment-as-verification (migration 085, 2026-08-19). Originally
+-- multi-gateway (Stripe + Authorize.Net) -- see that migration's header
+-- comment and ARCHITECTURE.md §9.2 for that history. Authorize.Net (and
+-- the active_gateway selector between it and Stripe) removed entirely via
+-- migration 102 (2026-09-05): never configured or tested against a real
+-- account, and VoteRight fully committed to Stripe as the sole gateway.
 CREATE TABLE payment_settings (
     id                          INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     fee_cents                   INT,
-    active_gateway              TEXT CHECK (active_gateway IN ('stripe', 'authorizenet')),
     stripe_secret_key           TEXT,
     stripe_publishable_key      TEXT,
     stripe_webhook_secret       TEXT,
-    authorizenet_api_login_id   TEXT,
-    authorizenet_transaction_key TEXT,
-    authorizenet_public_client_key TEXT,
-    authorizenet_signature_key  TEXT,
-    authorizenet_environment    TEXT NOT NULL DEFAULT 'sandbox' CHECK (authorizenet_environment IN ('sandbox', 'production')),
     check_payment_enabled       BOOLEAN NOT NULL DEFAULT true,
     check_instructions          TEXT,
     -- Admin-created Stripe Price references for the fixed donation tiles
@@ -1239,15 +1236,17 @@ CREATE TABLE payment_verifications (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                 UUID NOT NULL REFERENCES users(id),
     method                  TEXT NOT NULL CHECK (method IN ('card', 'ach', 'check')),
-    gateway                 TEXT CHECK (gateway IN ('stripe', 'authorizenet')),
+    gateway                 TEXT CHECK (gateway IN ('stripe')), -- narrowed from ('stripe', 'authorizenet') by migration 102
     amount_cents            INT NOT NULL,
     currency                TEXT NOT NULL DEFAULT 'usd',
     gateway_transaction_id  TEXT,
     status                  TEXT NOT NULL DEFAULT 'pending'
                               -- 'processing' (migration 095): an atomically-claimed
-                              -- in-flight Authorize.Net charge, between the claim and
-                              -- the external gateway call returning -- see that
-                              -- migration's own comment for the idempotency gap it closes.
+                              -- in-flight charge, between the claim and the external
+                              -- gateway call returning -- see that migration's own
+                              -- comment for the idempotency gap it closes (written
+                              -- while Authorize.Net was still a live code path; the
+                              -- same claim/idempotency shape still applies to Stripe).
                               CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'refunded')),
     check_reference_code    TEXT,
     reconciled_by           TEXT,

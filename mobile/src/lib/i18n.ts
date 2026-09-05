@@ -213,7 +213,7 @@ const DICT = {
     // ---- DebateComposer.tsx ----
     side_option_for: 'For',
     side_option_against: 'Against',
-    side_option_neutral: 'Neutral info',
+    side_option_neutral: 'Neutral',
     pending_moderation_full: '⟳ Pending moderation review before it appears publicly.',
     post_another_argument: 'Post another argument',
     add_your_argument: 'Add your argument',
@@ -428,8 +428,6 @@ const DICT = {
     pay_processing: 'Processing…',
     pay_error: 'Something went wrong — try again.',
     pay_not_configured: "Payment verification isn't set up yet — check back soon.",
-    pay_gateway_unsupported:
-      "Card payment isn't available in the app yet — visit voteright.dpimatrix.com to pay by card, or use the mail-in check option below.",
     pay_check_h: 'Prefer to pay by check?',
     pay_check_btn: 'Get mailing instructions',
     pay_check_code_h: 'Your reference code',
@@ -646,7 +644,7 @@ const DICT = {
     // ---- DebateComposer.tsx ----
     side_option_for: 'A favor',
     side_option_against: 'En contra',
-    side_option_neutral: 'Información neutral',
+    side_option_neutral: 'Neutral',
     pending_moderation_full: '⟳ Revisión de moderación pendiente antes de aparecer públicamente.',
     post_another_argument: 'Publicar otro argumento',
     add_your_argument: 'Añade tu argumento',
@@ -839,8 +837,6 @@ const DICT = {
     pay_processing: 'Procesando…',
     pay_error: 'Algo salió mal — inténtalo de nuevo.',
     pay_not_configured: 'La verificación por pago aún no está configurada — vuelve pronto.',
-    pay_gateway_unsupported:
-      'El pago con tarjeta aún no está disponible en la app — visita voteright.dpimatrix.com para pagar con tarjeta, o usa la opción de pago por cheque a continuación.',
     pay_check_h: '¿Prefieres pagar con cheque?',
     pay_check_btn: 'Obtener instrucciones de envío',
     pay_check_code_h: 'Tu código de referencia',

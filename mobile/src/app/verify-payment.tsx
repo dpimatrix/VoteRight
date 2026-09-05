@@ -24,11 +24,14 @@ import { t } from '@/lib/i18n';
    /api/payment-verification/start, exactly like the web page does.
 
    Card-only for now (no Apple Pay / Google Pay, no ACH/bank-account
-   collection -- both are separate, larger native integrations). If
-   Authorize.Net is the active gateway, there's no native SDK path at all
-   (Accept.js is web-only) -- shown as an honest "not available in the app
-   yet" state, not a silent dead end. Mail-in check payment needs no
-   payment SDK at all and works regardless of which gateway is active. */
+   collection -- both are separate, larger native integrations). Mail-in
+   check payment needs no payment SDK at all.
+
+   Used to also handle Authorize.Net as the active gateway -- there was no
+   native SDK path for it at all (Accept.js is web-only), shown as an
+   honest "not available in the app yet" state. Removed along with the
+   rest of Authorize.Net support (2026-09-05, migration 102); Stripe is now
+   the only gateway, so that fallback state can no longer occur. */
 
 function formatFeeCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -36,7 +39,6 @@ function formatFeeCents(cents: number): string {
 
 interface PublicConfig {
   feeCents: number | null;
-  activeGateway: 'stripe' | 'authorizenet' | null;
   configured: boolean;
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
@@ -54,7 +56,6 @@ interface PublicConfig {
 const DONATION_TIERS_DOLLARS = [20, 50, 100, 500, 1000] as const;
 
 interface StartResult {
-  gateway: 'stripe' | 'authorizenet';
   recordId: string;
   feeCents: number;
   clientSecret?: string;
@@ -119,8 +120,8 @@ export default function VerifyPaymentScreen() {
     setError(null);
     try {
       const res = await post<StartResult>('/api/payment-verification/start', {});
-      if (res.gateway !== 'stripe' || !res.clientSecret || !res.publishableKey) {
-        setError(d.pay_gateway_unsupported);
+      if (!res.clientSecret || !res.publishableKey) {
+        setError(d.pay_error);
         return;
       }
       await initStripe({ publishableKey: res.publishableKey });
@@ -354,19 +355,13 @@ export default function VerifyPaymentScreen() {
             </ThemedText>
 
             {screen === 'choose' && (
-              <>
-                {config.activeGateway === 'stripe' ? (
-                  <Pressable
-                    disabled={busy}
-                    onPress={beginCardPayment}
-                    style={[styles.btn, { backgroundColor: busy ? colors.backgroundSelected : colors.evidence }]}
-                  >
-                    <ThemedText type="smallBold">{d.pay_pay_by_card_btn}</ThemedText>
-                  </Pressable>
-                ) : (
-                  <ThemedText type="small">{d.pay_gateway_unsupported}</ThemedText>
-                )}
-              </>
+              <Pressable
+                disabled={busy}
+                onPress={beginCardPayment}
+                style={[styles.btn, { backgroundColor: busy ? colors.backgroundSelected : colors.evidence }]}
+              >
+                <ThemedText type="smallBold">{d.pay_pay_by_card_btn}</ThemedText>
+              </Pressable>
             )}
 
             {screen === 'card_form' && (

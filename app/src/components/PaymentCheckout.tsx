@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/* Payment-as-verification checkout (2026-08-19). Loads whichever gateway's
-   JS is actually active via a plain <script> tag rather than an npm client
-   SDK -- both Stripe.js and Authorize.Net's Accept.js are meant to be
-   loaded straight from the vendor's own CDN (not bundled) so their
-   tokenization code is always the vendor's current, unmodified version.
-   Neither a raw card number nor a bank account number ever reaches
-   VoteRight's own server or client bundle -- only the token each vendor's
-   script hands back.
+/* Payment-as-verification checkout (2026-08-19). Loads Stripe.js via a
+   plain <script> tag rather than an npm client SDK -- Stripe.js is meant to
+   be loaded straight from Stripe's own CDN (not bundled) so its
+   tokenization code is always Stripe's current, unmodified version. A raw
+   card number never reaches VoteRight's own server or client bundle --
+   only the token Stripe's script hands back.
+
+   Used to also support Authorize.Net (Accept.js, loaded the same way, plus
+   its own card-form JSX and submitAuthorizeNetCard()) -- removed along
+   with the rest of Authorize.Net support (2026-09-05, migration 102); see
+   paymentVerification.ts's own header comment for why.
 
    Real bug found live testing 2026-09-04 (first real end-to-end test this
    flow ever got -- see the removed "NOT YET TESTED" note this comment used
@@ -30,9 +33,7 @@ import { useEffect, useRef, useState } from "react";
    at all). useEffect is the actual guarantee here: React only runs effects
    after the DOM has committed for that render, unlike a raw timeout. */
 
-type StartResult =
-  | { gateway: "stripe"; recordId: string; feeCents: number; clientSecret: string; publishableKey: string }
-  | { gateway: "authorizenet"; recordId: string; feeCents: number; apiLoginId: string; publicClientKey: string; environment: "sandbox" | "production" };
+type StartResult = { recordId: string; feeCents: number; clientSecret: string; publishableKey: string };
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -57,12 +58,6 @@ declare global {
         submit: () => Promise<{ error?: { message: string } }>;
       };
       confirmPayment: (opts: { elements: unknown; confirmParams: { return_url: string } }) => Promise<{ error?: { message: string } }>;
-    };
-    Accept?: {
-      dispatchData: (
-        req: { authData: { clientKey: string; apiLoginID: string }; cardData?: unknown; bankData?: unknown },
-        cb: (res: { messages: { resultCode: string; message: { text: string }[] }; opaqueData: { dataDescriptor: string; dataValue: string } }) => void,
-      ) => void;
     };
   }
 }
@@ -138,18 +133,11 @@ export function PaymentCheckout({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "error");
       setStart(data as StartResult);
-      if (data.gateway === "stripe") {
-        await loadScript("https://js.stripe.com/v3/");
-        setStatus("form");
-        // mountStripe() itself runs from the effect below, once the
-        // #payment-element div this status transition renders actually
-        // exists in the DOM -- see this file's own header comment.
-      } else {
-        await loadScript(
-          data.environment === "production" ? "https://js.authorize.net/v1/Accept.js" : "https://jstest.authorize.net/v1/Accept.js",
-        );
-        setStatus("form");
-      }
+      await loadScript("https://js.stripe.com/v3/");
+      setStatus("form");
+      // mountStripe() itself runs from the effect below, once the
+      // #payment-element div this status transition renders actually
+      // exists in the DOM -- see this file's own header comment.
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setStatus("error");
@@ -157,7 +145,7 @@ export function PaymentCheckout({
   }
 
   useEffect(() => {
-    if (status !== "form" || !start || start.gateway !== "stripe" || mountedForRef.current === start) return;
+    if (status !== "form" || !start || mountedForRef.current === start) return;
     mountedForRef.current = start;
     readyRef.current = false;
     completeRef.current = false;
@@ -169,7 +157,7 @@ export function PaymentCheckout({
     // would need wrapping in useCallback for no behavioral benefit here.
   }, [status, start]);
 
-  function mountStripe(s: Extract<StartResult, { gateway: "stripe" }>) {
+  function mountStripe(s: StartResult) {
     if (!window.Stripe) return;
     const stripe = window.Stripe(s.publishableKey);
     const elements = stripe.elements({ clientSecret: s.clientSecret });
@@ -246,46 +234,6 @@ export function PaymentCheckout({
     };
   }
 
-  async function submitAuthorizeNetCard(ev: React.FormEvent<HTMLFormElement>) {
-    ev.preventDefault();
-    if (!start || start.gateway !== "authorizenet" || !window.Accept) return;
-    setStatus("processing");
-    const form = ev.currentTarget;
-    const cardNumber = (form.elements.namedItem("cardNumber") as HTMLInputElement).value;
-    const month = (form.elements.namedItem("month") as HTMLInputElement).value;
-    const year = (form.elements.namedItem("year") as HTMLInputElement).value;
-    const cardCode = (form.elements.namedItem("cardCode") as HTMLInputElement).value;
-    window.Accept.dispatchData(
-      {
-        authData: { clientKey: start.publicClientKey, apiLoginID: start.apiLoginId },
-        cardData: { cardNumber, month, year, cardCode },
-      },
-      async (response) => {
-        if (response.messages.resultCode !== "Ok") {
-          setError(response.messages.message.map((m) => m.text).join(" "));
-          setStatus("error");
-          return;
-        }
-        const res = await fetch("/api/payment-verification/charge-authorizenet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recordId: start.recordId,
-            dataDescriptor: response.opaqueData.dataDescriptor,
-            dataValue: response.opaqueData.dataValue,
-          }),
-        });
-        const result = await res.json();
-        if (result.status === "succeeded") {
-          window.location.href = `/verify/payment?lang=${lang}&submitted=1`;
-        } else {
-          setError(result.message ?? labels.error);
-          setStatus("error");
-        }
-      },
-    );
-  }
-
   if (status === "idle") {
     return (
       <button className="btn" onClick={begin}>
@@ -304,26 +252,13 @@ export function PaymentCheckout({
   }
   if (status === "processing") return <p className="nopos">{labels.processing}</p>;
 
-  if (start?.gateway === "stripe") {
+  if (start) {
     return (
       <form id="stripe-payment-form">
         <div id="payment-element" />
         <button className="btn" type="submit" disabled={!elementReady || !elementComplete} style={{ marginTop: "0.7rem" }}>
           {elementReady ? labels.fee : labels.processing}
         </button>
-      </form>
-    );
-  }
-  if (start?.gateway === "authorizenet") {
-    return (
-      <form onSubmit={submitAuthorizeNetCard}>
-        <input name="cardNumber" placeholder="Card number" inputMode="numeric" style={{ width: "100%", margin: "0.3rem 0" }} />
-        <div style={{ display: "flex", gap: "0.4rem" }}>
-          <input name="month" placeholder="MM" inputMode="numeric" style={{ width: "33%" }} />
-          <input name="year" placeholder="YYYY" inputMode="numeric" style={{ width: "33%" }} />
-          <input name="cardCode" placeholder="CVC" inputMode="numeric" style={{ width: "33%" }} />
-        </div>
-        <button className="btn" type="submit" style={{ marginTop: "0.7rem" }}>{labels.fee}</button>
       </form>
     );
   }

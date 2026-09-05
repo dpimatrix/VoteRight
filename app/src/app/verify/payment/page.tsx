@@ -58,8 +58,7 @@ export default async function PaymentVerifyPage({
             // resolves itself once the webhook catches up.
             if (sp.submitted === "1") return <PaymentConfirming label={d.pay_confirming} stillLabel={d.pay_confirming_slow} />;
 
-            const configured =
-              settings.feeCents && settings.activeGateway && ((settings.activeGateway === "stripe" && settings.stripe) || (settings.activeGateway === "authorizenet" && settings.authorizenet));
+            const configured = Boolean(settings.feeCents && settings.stripe);
             if (!configured) return <p className="nopos">{d.pay_not_configured}</p>;
 
             if (sp.checkCode) {
