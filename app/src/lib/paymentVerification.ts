@@ -76,6 +76,12 @@ export interface PaymentSettings {
   checkPaymentEnabled: boolean;
   checkInstructions: string | null;
   donationTierPriceIds: DonationTierPriceIds;
+  // Dedicated webhook secret for donation Checkout Sessions (migration
+  // 101) -- its own destination, separate from this file's own fee
+  // webhook secret above and from subscription_settings' own, same
+  // "deliberately separate Stripe surface" pattern subscriptions.ts
+  // already documents for itself.
+  donationWebhookSecret: string | null;
   updatedAt: string;
 }
 
@@ -87,6 +93,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
             authorizenet_public_client_key, authorizenet_signature_key, authorizenet_environment,
             check_payment_enabled, check_instructions,
             donation_price_id_20, donation_price_id_50, donation_price_id_100, donation_price_id_500, donation_price_id_1000,
+            donation_webhook_secret,
             updated_at
        FROM payment_settings WHERE id = 1`,
   );
@@ -113,6 +120,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
       d500: r.donation_price_id_500,
       d1000: r.donation_price_id_1000,
     },
+    donationWebhookSecret: r.donation_webhook_secret,
     updatedAt: r.updated_at,
   };
 }
@@ -144,6 +152,9 @@ export async function updatePaymentSettings(opts: {
   donationPriceId100?: string;
   donationPriceId500?: string;
   donationPriceId1000?: string;
+  // Donation webhook secret (migration 101) -- same "blank clears it"
+  // convention as the fields above.
+  donationWebhookSecret?: string;
 }): Promise<void> {
   await db().query(
     `UPDATE payment_settings SET
@@ -164,6 +175,7 @@ export async function updatePaymentSettings(opts: {
        donation_price_id_100 = COALESCE($15, donation_price_id_100),
        donation_price_id_500 = COALESCE($16, donation_price_id_500),
        donation_price_id_1000 = COALESCE($17, donation_price_id_1000),
+       donation_webhook_secret = COALESCE($18, donation_webhook_secret),
        updated_at = now()
      WHERE id = 1`,
     [
@@ -184,6 +196,7 @@ export async function updatePaymentSettings(opts: {
       opts.donationPriceId100 ?? null,
       opts.donationPriceId500 ?? null,
       opts.donationPriceId1000 ?? null,
+      opts.donationWebhookSecret ?? null,
     ],
   );
 }

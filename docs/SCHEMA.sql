@@ -1214,7 +1214,25 @@ CREATE TABLE payment_settings (
     donation_price_id_100       TEXT,
     donation_price_id_500       TEXT,
     donation_price_id_1000      TEXT,
+    -- Dedicated webhook secret for donation Checkout Sessions (migration
+    -- 101) -- own destination, separate from the fee webhook secret
+    -- above and from subscription_settings' own.
+    donation_webhook_secret     TEXT,
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Donor record-keeping (migration 101) -- see that migration's own
+-- comment for why this exists despite the donation checkout flow itself
+-- being deliberately built to keep no local record: defensive, in case
+-- VoteRight's eventual 501(c)(3) determination applies retroactively.
+CREATE TABLE donation_records (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stripe_checkout_session_id  TEXT NOT NULL UNIQUE,
+    donor_name                  TEXT,
+    donor_email                 TEXT,
+    amount_cents                INT NOT NULL,
+    currency                    TEXT NOT NULL DEFAULT 'usd',
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE payment_verifications (
