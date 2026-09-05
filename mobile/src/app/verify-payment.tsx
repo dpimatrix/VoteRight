@@ -1,4 +1,5 @@
-import { CardField, confirmPayment, initStripe, StripeProvider } from '@stripe/stripe-react-native';
+import { CardField, confirmPayment, handleURLCallback, initStripe, StripeProvider } from '@stripe/stripe-react-native';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { openBrowserAsync, WebBrowserPresentationStyle } from 'expo-web-browser';
 import { useEffect, useState } from 'react';
@@ -31,11 +32,32 @@ import { t } from '@/lib/i18n';
    native SDK path for it at all (Accept.js is web-only), shown as an
    honest "not available in the app yet" state. Removed along with the
    rest of Authorize.Net support (2026-09-05, migration 102); Stripe is now
-   the only gateway, so that fallback state can no longer occur. */
+   the only gateway, so that fallback state can no longer occur.
+
+   Real bug found live testing 2026-09-05: "Pay to Second" completed a real
+   charge (confirmable via Stripe's own dashboard) but the screen just
+   silently landed back wherever the navigation stack put it -- no error,
+   no confirming spinner, no success state. Root cause: neither
+   <StripeProvider> nor the imperative initStripe() call below ever set
+   urlScheme/setReturnUrlSchemeOnAndroid, and nothing in the app ever wired
+   up Stripe's handleURLCallback to this app's own registered "voteright"
+   scheme (app.json). Only matters for a PaymentIntent that actually needs
+   3D Secure/SCA authentication -- most test cards skip it, which is why
+   this went unnoticed through everything tested so far -- but without a
+   configured return URL, confirmPayment() has no way to get the OS back
+   into this app once that challenge's own browser session finishes: the
+   promise this function is awaiting on just never resolves, and the user
+   backing out of a stuck external auth screen is exactly what looks like
+   "nothing happened, back to wherever I was." */
 
 function formatFeeCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+// Matches app.json's own "scheme" -- must be the SAME string Stripe uses to
+// build the return URL for a 3D Secure/SCA challenge, or the OS has no way
+// to route the post-authentication redirect back into this app at all.
+const STRIPE_URL_SCHEME = 'voteright';
 
 interface PublicConfig {
   feeCents: number | null;
@@ -115,6 +137,23 @@ export default function VerifyPaymentScreen() {
     })();
   }, [d.pay_error]);
 
+  // Completes the loop the header comment describes: once a 3D
+  // Secure/SCA challenge finishes in its own external browser session, the
+  // OS reopens this app via the voteright:// scheme -- Stripe's own
+  // handleURLCallback is what actually resolves confirmPayment()'s
+  // pending promise once that redirect lands, both for the cold-start case
+  // (app was fully backgrounded/killed during the challenge) and the
+  // warm case (app was merely suspended).
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleURLCallback(url);
+    });
+    Linking.getInitialURL().then((url) => {
+      if (url) handleURLCallback(url);
+    });
+    return () => sub.remove();
+  }, []);
+
   async function beginCardPayment() {
     setBusy(true);
     setError(null);
@@ -124,7 +163,7 @@ export default function VerifyPaymentScreen() {
         setError(d.pay_error);
         return;
       }
-      await initStripe({ publishableKey: res.publishableKey });
+      await initStripe({ publishableKey: res.publishableKey, urlScheme: STRIPE_URL_SCHEME, setReturnUrlSchemeOnAndroid: true });
       setStart(res);
       setScreen('card_form');
     } catch (e) {
@@ -318,7 +357,11 @@ export default function VerifyPaymentScreen() {
   }
 
   return (
-    <StripeProvider publishableKey={config?.stripePublishableKey ?? ''}>
+    <StripeProvider
+      publishableKey={config?.stripePublishableKey ?? ''}
+      urlScheme={STRIPE_URL_SCHEME}
+      setReturnUrlSchemeOnAndroid
+    >
       <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
           {d.pay_h}
