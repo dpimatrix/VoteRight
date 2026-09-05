@@ -51,7 +51,8 @@ declare global {
       elements: (opts: { clientSecret: string }) => {
         create: (type: string) => {
           mount: (el: string | HTMLElement) => void;
-          on: (event: "ready", handler: () => void) => void;
+          on(event: "ready", handler: () => void): void;
+          on(event: "change", handler: (e: { complete: boolean }) => void): void;
         };
         submit: () => Promise<{ error?: { message: string } }>;
       };
@@ -93,6 +94,21 @@ export function PaymentCheckout({
   // see a permanently stale "not ready" -- refs read live, state doesn't.
   const [elementReady, setElementReady] = useState(false);
   const readyRef = useRef(false);
+  // Real gap found live testing 2026-09-04, after the ready-gating above
+  // and elements.submit() both turned out insufficient on their own: the
+  // resident's own PaymentIntent showed only its creation event, nothing
+  // else, on every single failed attempt -- confirming the failure never
+  // even reached Stripe's servers, a purely client-side collection
+  // failure. 'ready' only means the Element finished loading its shell;
+  // it says nothing about whether the currently-entered card data is
+  // actually valid and internally settled yet. Mobile's native CardField
+  // already tracks this correctly via its own onCardChange's `complete`
+  // flag (see verify-payment.tsx) -- ported the same idea to web via the
+  // Payment Element's 'change' event, which is Stripe's own documented
+  // way to know the currently-selected payment method's fields are fully,
+  // validly filled in and settled, not just present.
+  const [elementComplete, setElementComplete] = useState(false);
+  const completeRef = useRef(false);
   // Guards against double-mounting Elements into the same DOM node -- the
   // effect below re-runs if status/start ever change again (they don't in
   // practice once "form" is reached for a given start, but this makes that
@@ -145,13 +161,17 @@ export function PaymentCheckout({
       readyRef.current = true;
       setElementReady(true);
     });
+    paymentElement.on("change", (e) => {
+      completeRef.current = e.complete;
+      setElementComplete(e.complete);
+    });
     const form = document.getElementById("stripe-payment-form");
     form?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       // Defense in depth alongside the disabled button below -- a native
       // form can still submit via Enter inside a non-Stripe field on the
       // same form, bypassing a disabled submit button entirely.
-      if (!readyRef.current) return;
+      if (!readyRef.current || !completeRef.current) return;
       setStatus("processing");
       try {
         // Real root cause found live testing 2026-09-04, after the ready-
@@ -260,7 +280,7 @@ export function PaymentCheckout({
     return (
       <form id="stripe-payment-form">
         <div id="payment-element" />
-        <button className="btn" type="submit" disabled={!elementReady} style={{ marginTop: "0.7rem" }}>
+        <button className="btn" type="submit" disabled={!elementReady || !elementComplete} style={{ marginTop: "0.7rem" }}>
           {elementReady ? labels.fee : labels.processing}
         </button>
       </form>
