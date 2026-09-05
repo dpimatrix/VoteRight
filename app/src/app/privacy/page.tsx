@@ -44,11 +44,25 @@ function EnglishNotice({ lang }: { lang: string }) {
       </P>
       <P>
         We deliberately do not collect: your name (unless you set one), phone number, or
-        precise location. <strong>Email is the one exception, and it's entirely optional</strong> —
+        precise location. <strong>Email is one exception, and it's entirely optional</strong> —
         if you choose to add one under Notifications, it's used only to email you when a
         debate you're part of closes or can be called to a close; it's never used for
         identity, verification, marketing, or anything else, and you can remove it at any
-        time. <strong>Your street address is never stored</strong> — at
+        time.
+      </P>
+      <P>
+        <strong>Donations are a second, separate exception.</strong> The required $5
+        identity-verification payment never asks us for your name or email. But if you
+        choose to give more than that, our payment processor's own checkout page collects
+        your name and email, and we retain them in our own records — solely so we can
+        properly credit your gift and, if applicable, issue tax documentation, including
+        retroactively if VoteRight's tax-exempt status is later granted covering an earlier
+        date. This is never used for marketing or for anything related to your civic
+        participation, and it's kept entirely separate from your anonymous VoteRight
+        identity.
+      </P>
+      <P>
+        <strong>Your street address is never stored</strong> — at
         verification it is format-checked, resolved to a jurisdiction (e.g., “Montgomery
         County” or “City of Rockville”), and discarded; only the jurisdiction identifier is
         kept. It is never matched against any voter file. There are no third-party trackers,
@@ -79,11 +93,15 @@ function EnglishNotice({ lang }: { lang: string }) {
 
       <H>5 · Who processes data for us</H>
       <P>
-        Two infrastructure processors, both in the United States: Vercel, Inc. (application
-        hosting) and Neon, Inc. (database, US East region). No other party receives personal
-        data. We disclose data only if legally compelled — and the ballot-secrecy design in
-        section 4 means even a compelled disclosure of the database cannot reconstruct who
-        voted which way after certification.
+        Three processors: Vercel, Inc. (application hosting) and Neon, Inc. (database, US
+        East region), both in the United States, and Stripe, Inc. (payment processing) for
+        the identity-verification fee and any donations. Stripe receives whatever billing
+        information a payment method requires — and, for donations, your name and email as
+        described in section 2 — directly from its own checkout page; we never receive or
+        store your raw card details ourselves. No other party receives personal data. We
+        disclose data only if legally compelled — and the ballot-secrecy design in section 4
+        means even a compelled disclosure of the database cannot reconstruct who voted which
+        way after certification.
       </P>
 
       <H>6 · Sensitive data</H>
@@ -134,7 +152,7 @@ function EnglishNotice({ lang }: { lang: string }) {
         fictional), the practices described above are already in force for the data of real
         visitors. English controls; the Spanish version is provided for convenience.
       </P>
-      <P>Version: draft v0.1 · July 18, 2026</P>
+      <P>Version: draft v0.2 · September 5, 2026</P>
     </>
   );
 }
@@ -168,11 +186,25 @@ function SpanishNotice({ lang }: { lang: string }) {
       </P>
       <P>
         Deliberadamente no recopilamos: tu nombre (salvo que lo configures), teléfono ni
-        ubicación precisa. <strong>El correo electrónico es la única excepción, y es
+        ubicación precisa. <strong>El correo electrónico es una excepción, y es
         totalmente opcional</strong> — si eliges añadir uno en Notificaciones, se usa solo
         para avisarte por correo cuando un debate en el que participas cierre o se pueda
         pedir la votación; nunca se usa para identidad, verificación, marketing ni ninguna
-        otra cosa, y puedes eliminarlo cuando quieras. <strong>Tu dirección nunca se
+        otra cosa, y puedes eliminarlo cuando quieras.
+      </P>
+      <P>
+        <strong>Las donaciones son una segunda excepción, independiente.</strong> El pago
+        obligatorio de $5 para verificar tu identidad nunca nos pide tu nombre ni tu correo.
+        Pero si decides dar más que eso, la página de pago de nuestro procesador recopila tu
+        nombre y correo, y los conservamos en nuestros propios registros — únicamente para
+        poder acreditar tu donación y, si corresponde, emitir documentación fiscal, incluso
+        de forma retroactiva si el estatus de exención de impuestos de VoteRight se otorga
+        después cubriendo una fecha anterior. Esto nunca se usa para marketing ni para nada
+        relacionado con tu participación cívica, y se mantiene completamente separado de tu
+        identidad anónima en VoteRight.
+      </P>
+      <P>
+        <strong>Tu dirección nunca se
         almacena</strong> — al verificar, se comprueba su formato, se resuelve a una
         jurisdicción (p. ej., “Condado de Montgomery” o “Ciudad de Rockville”) y se
         descarta; solo se conserva el identificador de la jurisdicción. Nunca se compara con
@@ -203,11 +235,16 @@ function SpanishNotice({ lang }: { lang: string }) {
 
       <H>5 · Quién procesa datos por nosotros</H>
       <P>
-        Dos procesadores de infraestructura, ambos en Estados Unidos: Vercel, Inc.
-        (alojamiento) y Neon, Inc. (base de datos, región US East). Ninguna otra parte
-        recibe datos personales. Solo divulgamos datos si la ley nos obliga — y el diseño de
-        secreto de papeleta de la sección 4 hace que ni una divulgación forzada de la base
-        de datos pueda reconstruir quién votó qué tras la certificación.
+        Tres procesadores: Vercel, Inc. (alojamiento) y Neon, Inc. (base de datos, región US
+        East), ambos en Estados Unidos, y Stripe, Inc. (procesamiento de pagos) para la
+        cuota de verificación de identidad y cualquier donación. Stripe recibe la
+        información de facturación que requiera cada método de pago — y, en el caso de las
+        donaciones, tu nombre y correo como se describe en la sección 2 — directamente desde
+        su propia página de pago; nosotros nunca recibimos ni almacenamos los datos de tu
+        tarjeta. Ninguna otra parte recibe datos personales. Solo divulgamos datos si la ley
+        nos obliga — y el diseño de secreto de papeleta de la sección 4 hace que ni una
+        divulgación forzada de la base de datos pueda reconstruir quién votó qué tras la
+        certificación.
       </P>
 
       <H>6 · Datos sensibles</H>
@@ -256,7 +293,7 @@ function SpanishNotice({ lang }: { lang: string }) {
         ficticios), las prácticas descritas ya rigen para los datos de visitantes reales. La
         versión en inglés prevalece; esta traducción se ofrece por conveniencia.
       </P>
-      <P>Versión: borrador v0.1 · 18 de julio de 2026</P>
+      <P>Versión: borrador v0.2 · 5 de septiembre de 2026</P>
     </>
   );
 }
