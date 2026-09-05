@@ -376,8 +376,6 @@ const DICT = {
     deb_ref_live: "The debate closed and this proposal went to an advisory referendum.",
     priv_h: "Privacy notice",
     priv_link: "Privacy & your data",
-    priv_draft_note:
-      "Draft pending counsel review (COUNSEL-REVIEW.md, category C). The practices described are already in force; the text becomes final after that review.",
     priv_request_btn: "Make a privacy request",
     priv_request_h: "Privacy request",
     priv_request_p:
@@ -847,8 +845,6 @@ const DICT = {
     deb_ref_live: "El debate cerró y esta propuesta pasó a un referendo consultivo.",
     priv_h: "Aviso de privacidad",
     priv_link: "Privacidad y tus datos",
-    priv_draft_note:
-      "Borrador pendiente de revisión legal (COUNSEL-REVIEW.md, categoría C). Las prácticas descritas ya rigen; el texto será definitivo tras esa revisión.",
     priv_request_btn: "Hacer una solicitud de privacidad",
     priv_request_h: "Solicitud de privacidad",
     priv_request_p:
