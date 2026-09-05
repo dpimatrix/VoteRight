@@ -82,11 +82,13 @@ preferred consolidating onto it.
   `ADMIN_SESSION_SECRET` copied over from Vercel's values (so the owner's already-
   enrolled authenticator keeps working) plus the new local `DATABASE_URL`.
 - **Payment verification (added 2026-08-19)**: unlike every other vendor
-  integration in this project, Stripe/Authorize.Net credentials are NOT
-  `.env.production` values — they're set at runtime from `/admin/payments`
-  and stored in `payment_settings` (migration 085). Nothing to add to
-  `.env.production` for this feature; `npm install` picks up the new
-  `stripe` package dependency on the next deploy that includes it.
+  integration in this project, Stripe credentials are NOT `.env.production`
+  values — they're set at runtime from `/admin/payments` and stored in
+  `payment_settings` (migration 085). Nothing to add to `.env.production`
+  for this feature; `npm install` picks up the new `stripe` package
+  dependency on the next deploy that includes it. (Originally Stripe +
+  Authorize.Net — Authorize.Net removed entirely 2026-09-05, migration 102;
+  see ARCHITECTURE.md §9.2.)
 - **Admin accounts (added 2026-08-19, migration 086) — CRITICAL deploy-order
   step, do not skip**: this replaces the single shared `ADMIN_TOTP_SECRET`
   admin login with per-admin accounts in the database. The rewritten

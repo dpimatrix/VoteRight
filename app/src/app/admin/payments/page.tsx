@@ -13,8 +13,7 @@ export default async function PaymentSettingsPage() {
   if (!(await hasAdminAccess("payments"))) return <AdminAccessDenied screen="payments" />;
   const settings = await getPaymentSettings();
   const queue = await adminPendingCheckQueue();
-  const ready =
-    settings.feeCents && settings.activeGateway && ((settings.activeGateway === "stripe" && settings.stripe) || (settings.activeGateway === "authorizenet" && settings.authorizenet));
+  const ready = Boolean(settings.feeCents && settings.stripe);
 
   return (
     <>
@@ -27,15 +26,15 @@ export default async function PaymentSettingsPage() {
       </p>
 
       <div className="card">
-        <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem" }}>Fee &amp; active gateway</h3>
+        <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem" }}>Fee</h3>
         {!ready ? (
           <p className="nopos" style={{ marginTop: 0 }}>
-            Not fully configured yet — checkout refuses to run until a fee is set, a gateway is chosen below, and
-            that gateway's keys are filled in.
+            Not fully configured yet — checkout refuses to run until a fee is set and Stripe's keys are filled in
+            below.
           </p>
         ) : (
           <p className="cover" style={{ marginTop: 0 }}>
-            Fee: {formatFeeCents(settings.feeCents!)} · active gateway: {settings.activeGateway}
+            Fee: {formatFeeCents(settings.feeCents!)}
           </p>
         )}
         <form className="admform" method="post" action="/api/admin/payment-settings" style={{ display: "block" }}>
@@ -46,12 +45,6 @@ export default async function PaymentSettingsPage() {
             defaultValue={settings.feeCents ? (settings.feeCents / 100).toFixed(2) : ""}
             placeholder="5.00" style={{ width: "100%" }}
           />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>Active gateway</label>
-          <select name="active_gateway" defaultValue={settings.activeGateway ?? ""} style={{ width: "100%" }}>
-            <option value="" disabled>Choose one…</option>
-            <option value="stripe">Stripe</option>
-            <option value="authorizenet">Authorize.Net</option>
-          </select>
           <button className="btn" type="submit" style={{ marginTop: "0.6rem" }}>Save</button>
         </form>
       </div>
@@ -78,38 +71,6 @@ export default async function PaymentSettingsPage() {
             <code>payment_intent.payment_failed</code>.
           </p>
           <button className="btn" type="submit" style={{ marginTop: "0.5rem" }}>Save Stripe keys</button>
-        </form>
-      </div>
-
-      <div className="card">
-        <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.95rem" }}>Authorize.Net</h3>
-        <form className="admform" method="post" action="/api/admin/payment-settings" style={{ display: "block" }}>
-          <input type="hidden" name="section" value="authorizenet" />
-          <label className="nopos" style={{ display: "block", margin: "0.15rem 0" }}>
-            API Login ID {settings.authorizenet && <span className="mono">(currently {mask(settings.authorizenet.apiLoginId)})</span>}
-          </label>
-          <input type="text" name="authorizenet_api_login_id" placeholder="leave blank to keep current" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>
-            Transaction Key {settings.authorizenet && <span className="mono">(currently {mask(settings.authorizenet.transactionKey)})</span>}
-          </label>
-          <input type="password" name="authorizenet_transaction_key" placeholder="leave blank to keep current" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>
-            Public Client Key (for Accept.js) {settings.authorizenetPublicClientKey && <span className="mono">(currently {mask(settings.authorizenetPublicClientKey)})</span>}
-          </label>
-          <input type="text" name="authorizenet_public_client_key" placeholder="leave blank to keep current" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>
-            Signature Key (webhooks) {settings.authorizenetSignatureKey && <span className="mono">(currently {mask(settings.authorizenetSignatureKey)})</span>}
-          </label>
-          <input type="password" name="authorizenet_signature_key" placeholder="leave blank to keep current" style={{ width: "100%" }} />
-          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>Environment</label>
-          <select name="authorizenet_environment" defaultValue={settings.authorizenet?.environment ?? "sandbox"} style={{ width: "100%" }}>
-            <option value="sandbox">Sandbox (testing)</option>
-            <option value="production">Production</option>
-          </select>
-          <p className="nopos" style={{ margin: "0.4rem 0" }}>
-            Account → Settings → Webhooks, endpoint <code>/api/payment-verification/webhook</code>.
-          </p>
-          <button className="btn" type="submit" style={{ marginTop: "0.5rem" }}>Save Authorize.Net keys</button>
         </form>
       </div>
 

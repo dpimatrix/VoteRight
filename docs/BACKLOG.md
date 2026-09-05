@@ -99,6 +99,16 @@ rather than letting this drift out of sync with reality.
   production as of this note** — the only remaining item is the mobile gap
   directly below, and Authorize.Net remaining untested against any live
   account (not the near-term priority per the owner's gateway choice).
+- ~~Authorize.Net remaining untested against any live account~~ **RESOLVED
+  BY REMOVAL (2026-09-05)** — rather than ever testing it, the owner chose
+  to remove Authorize.Net entirely (migration 102) and fully commit to
+  Stripe as the sole gateway: the admin credentials card and the
+  `active_gateway` gateway-choice dropdown are gone from `/admin/payments`
+  (nothing left to choose between with one gateway), the Accept.js
+  card-form path is gone from web checkout, the dedicated charge route and
+  webhook-dispatch branch are gone, and mobile's "not available in the app
+  yet" fallback state is unreachable now. See ARCHITECTURE.md §9.2 for the
+  full account.
 - ~~Mobile app not updated for payment_verified gating~~ **DONE (2026-08-19,
   commits `12dac58`/`5464102`)** — mobile's `post()`/`get()` now expose the
   parsed JSON error body (`errorCode()` helper) instead of swallowing it;
@@ -107,9 +117,10 @@ rather than letting this drift out of sync with reality.
   `/verify` or the new native `/verify-payment` screen based on tier,
   matching web's `verifiedUserId()`/`paymentVerifiedUserId()` split exactly.
   `/verify-payment` does real in-app card payment via
-  `@stripe/stripe-react-native` (a new native dependency — Authorize.Net has
+  `@stripe/stripe-react-native` (a new native dependency — Authorize.Net had
   no native SDK path, shown as an honest "not available in the app yet"
-  state) plus mail-in check (no payment SDK needed). New backend pieces:
+  state, since removed — see below) plus mail-in check (no payment SDK
+  needed). New backend pieces:
   `GET /api/payment-verification/config` (public-safe fee/gateway
   allowlist) and JSON mode on `/api/payment-verification/check`. Verified
   live against a real running dev server. **Not yet in a shipped build** —

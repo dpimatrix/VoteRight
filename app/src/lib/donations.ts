@@ -25,13 +25,14 @@ import { donationPriceIdFor, getPaymentSettings, DONATION_TIERS_CENTS } from "./
    comment); nothing here ever blocks a donation for lack of a pre-created
    Price.
 
-   Donations require Stripe specifically -- Authorize.Net has no hosted-
-   checkout equivalent in this codebase (Accept.js is a native card-form
-   flow, not a redirect target), so this is independent of activeGateway;
-   an admin running Authorize.Net for the $5 fee simply sees no donation
-   tiles at all rather than a broken "not available" state, same as
-   PaymentCheckout.tsx's honest not-yet-supported message for the
-   opposite mismatch. */
+   Donations require Stripe specifically -- gated on settings.stripe below,
+   same as the $5 fee itself now that Authorize.Net has been removed
+   entirely (2026-09-05, migration 102; see paymentVerification.ts's own
+   header comment). Before that removal this used to be a genuinely
+   separate condition from the fee's own gateway choice, since Authorize.Net
+   had no hosted-checkout equivalent (Accept.js is a native card-form flow,
+   not a redirect target) -- that distinction no longer applies with only
+   one gateway left. */
 
 // Stripe's own minimum for a USD charge; a fat-finger guard above that,
 // not a business rule -- there's no real reason to cap a genuine donation,
