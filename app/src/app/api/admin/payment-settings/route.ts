@@ -68,6 +68,10 @@ export async function POST(request: Request) {
       donationPriceId100: priceId("donation_price_id_100"),
       donationPriceId500: priceId("donation_price_id_500"),
       donationPriceId1000: priceId("donation_price_id_1000"),
+      // Unlike the Price IDs above, this one IS a secret (masked on the
+      // page like stripe_webhook_secret is) -- str()'s blank-means-
+      // unchanged convention, not direct-read.
+      donationWebhookSecret: str(form, "donation_webhook_secret"),
     });
   } else {
     return new Response("unknown section", { status: 400 });

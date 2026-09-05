@@ -1,4 +1,5 @@
-import { createDonationCheckoutSession } from "./paymentGateways/stripe";
+import { db } from "./db";
+import { createDonationCheckoutSession, handleDonationCheckoutWebhook } from "./paymentGateways/stripe";
 import { donationPriceIdFor, getPaymentSettings, DONATION_TIERS_CENTS } from "./paymentVerification";
 
 /* Voluntary donation checkout. Three iterations, in order, on this exact
@@ -89,6 +90,34 @@ export async function startDonationCheckout(
     console.error("Donation Checkout Session failed:", e);
     return { ok: false, reason: "gateway_error" };
   }
+}
+
+/** Donor record-keeping (migration 101, owner's explicit request 2026-09-05).
+    VoteRight isn't a determined 501(c)(3) yet -- nothing here issues a tax
+    receipt or claims deductibility, and no user-facing behavior changes at
+    all. Purely defensive: if VoteRight's eventual IRS determination ends up
+    retroactive to before it was granted (confirm the specifics with
+    counsel/an accountant), this is what makes it possible to go back and
+    properly acknowledge whoever donated in the meantime -- the checkout
+    flow itself (migrations 099/100) was deliberately built to keep zero
+    local donor record otherwise, relying entirely on Stripe's own
+    dashboard.
+
+    ON CONFLICT DO NOTHING on the unique session id makes a redelivered
+    webhook (Stripe retries on anything other than a 2xx) a no-op rather
+    than a duplicate row. */
+export async function handleDonationWebhook(rawBody: string, signatureHeader: string): Promise<void> {
+  const settings = await getPaymentSettings();
+  if (!settings.stripe) throw new Error("Stripe not configured");
+  if (!settings.donationWebhookSecret) throw new Error("Donation webhook secret not configured");
+  const result = await handleDonationCheckoutWebhook(settings.stripe.secretKey, settings.donationWebhookSecret, rawBody, signatureHeader);
+  if (!result) return;
+  await db().query(
+    `INSERT INTO donation_records (stripe_checkout_session_id, donor_name, donor_email, amount_cents, currency)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (stripe_checkout_session_id) DO NOTHING`,
+    [result.stripeCheckoutSessionId, result.donorName, result.donorEmail, result.amountCents, result.currency],
+  );
 }
 
 // Re-exported so callers that only care about "what are the possible

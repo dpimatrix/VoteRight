@@ -152,6 +152,18 @@ export default async function PaymentSettingsPage() {
           <input type="text" name="donation_price_id_500" defaultValue={settings.donationTierPriceIds.d500 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
           <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>$1,000 Price ID</label>
           <input type="text" name="donation_price_id_1000" defaultValue={settings.donationTierPriceIds.d1000 ?? ""} placeholder="price_…" className="mono" style={{ width: "100%" }} />
+          <label className="nopos" style={{ display: "block", margin: "0.6rem 0 0.15rem" }}>
+            Donation webhook signing secret (optional — for donor record-keeping){" "}
+            {settings.donationWebhookSecret && <span className="mono">(currently {mask(settings.donationWebhookSecret)})</span>}
+          </label>
+          <input type="password" name="donation_webhook_secret" placeholder="whsec_… (leave blank to keep current)" style={{ width: "100%" }} />
+          <p className="nopos" style={{ margin: "0.4rem 0" }}>
+            A SEPARATE endpoint from the fee webhook above — Dashboard → Developers → Webhooks, endpoint{" "}
+            <code>/api/donate/webhook</code>, event <code>checkout.session.completed</code>. Without this configured,
+            donations still work exactly the same — this only records the donor&apos;s name/email (from Stripe&apos;s
+            own checkout page) for VoteRight&apos;s own records, e.g. in case a future tax-exempt determination ends
+            up retroactive and receipts need to be issued for donations made before it was granted.
+          </p>
           <button className="btn" type="submit" style={{ marginTop: "0.6rem" }}>Save donation tier prices</button>
         </form>
       </div>

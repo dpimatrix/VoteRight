@@ -80,6 +80,44 @@ export interface StripeWebhookResult {
   status: "succeeded" | "pending" | "failed";
 }
 
+export interface DonationCheckoutResult {
+  stripeCheckoutSessionId: string;
+  amountCents: number;
+  currency: string;
+  donorName: string | null;
+  donorEmail: string | null;
+}
+
+/** Verifies a donation Checkout Session webhook -- a SEPARATE signing
+    secret from handleStripeWebhook's own (own destination in the Stripe
+    Dashboard, migration 101), so a donation event is never mistaken for
+    a verification-fee PaymentIntent event or vice versa. donorName/
+    donorEmail come from Stripe's own customer_details on the Checkout
+    Session -- whatever the donor typed on Stripe's hosted page;
+    VoteRight's own UI never asks for either. mode check is defense in
+    depth against ever processing a subscription Checkout Session here
+    even if the same endpoint were ever accidentally subscribed to that
+    event type too. */
+export async function handleDonationCheckoutWebhook(
+  secretKey: string,
+  donationWebhookSecret: string,
+  rawBody: string,
+  signatureHeader: string,
+): Promise<DonationCheckoutResult | null> {
+  const stripe = stripeClient(secretKey);
+  const event = stripe.webhooks.constructEvent(rawBody, signatureHeader, donationWebhookSecret);
+  if (event.type !== "checkout.session.completed") return null;
+  const session = event.data.object as Stripe.Checkout.Session;
+  if (session.mode !== "payment") return null;
+  return {
+    stripeCheckoutSessionId: session.id,
+    amountCents: session.amount_total ?? 0,
+    currency: session.currency ?? "usd",
+    donorName: session.customer_details?.name ?? null,
+    donorEmail: session.customer_details?.email ?? null,
+  };
+}
+
 /** Verifies the Stripe-Signature header and returns the outcome, or null
     for an event type this app doesn't act on. Never trust a webhook body
     without this -- an unverified webhook is an open door to mint
