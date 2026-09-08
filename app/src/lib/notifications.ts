@@ -67,10 +67,14 @@ function pushCopy(type: NotificationType, proposalTitle: string | null, detail: 
     };
   }
   // Demand-driven jurisdiction provisioning (2026-09-08) -- no proposalId
-  // either, same reasoning as the priority-wish pair above.
+  // either, same reasoning as the priority-wish pair above. `detail` here
+  // is the jurisdiction's own proper name (jurisdictionDemand.ts's
+  // adminMarkJurisdictionProvisioned), not freeform prose -- interpolated
+  // into a real sentence here, same pattern as the reviewer's-note pair
+  // above, rather than shown bare.
   return {
     title: "Your area is now covered",
-    body: detail ?? "VoteRight now has local ballot detail for your area.",
+    body: detail ? `VoteRight now has local ballot detail for ${detail}.` : "VoteRight now has local ballot detail for your area.",
   };
 }
 

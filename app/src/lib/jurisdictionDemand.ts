@@ -161,9 +161,25 @@ export async function adminMarkJurisdictionProvisioned(stateFips: string, county
   );
   if (rows.length === 0) return;
   const userIds = rows.map((r) => r.user_id as string);
-  await notifyUsers(userIds, "jurisdiction_provisioned", {
-    detail: "Your area now has its own local ballot detail — check back on your ballot to see it.",
-  });
+  // Real bug found on self-review (2026-09-08): this used to be a
+  // hardcoded English sentence in `detail`, which notifications/page.tsx
+  // (both platforms) renders verbatim with NO i18n pass -- unlike the
+  // headline above it (notif_jurisdiction_provisioned), which IS
+  // translated per notifications.ts's own established convention. A
+  // Spanish-reading resident would see the correctly-translated headline
+  // immediately followed by an untranslated English sentence, breaking
+  // the bilingual consistency this app maintains everywhere else. Fixed
+  // by using the jurisdiction's own proper name instead of a boilerplate
+  // sentence -- a place name doesn't need translating either way, the
+  // same reasoning notifyUsers' existing detail usage for a reviewer's
+  // freeform note already relies on (that one truly can't be translated;
+  // this one just never should have been English prose in the first
+  // place). Falls back to the bare FIPS pair only if this ever runs
+  // before the jurisdiction row actually exists (a misclick -- provisioned
+  // clicked before the real seeding finished) -- also language-neutral.
+  const jur = await db().query(`SELECT name FROM jurisdictions WHERE level = 'county' AND state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
+  const label = (jur.rows[0]?.name as string | undefined) ?? `FIPS ${stateFips}${countyFips}`;
+  await notifyUsers(userIds, "jurisdiction_provisioned", { detail: label });
   await db().query(`DELETE FROM jurisdiction_demand_signals WHERE state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
   // Also clears the admin-alert claim (see recordJurisdictionDemandSignal's
   // own comment) -- without this, a county that somehow needs re-tracking
