@@ -799,6 +799,17 @@ CREATE TABLE jurisdiction_demand_signals (
 );
 CREATE INDEX jurisdiction_demand_signals_locality_idx ON jurisdiction_demand_signals (state_fips, county_fips);
 
+-- Race-free "has admin already been alerted for this county" gate --
+-- see migration 103's own comment and jurisdictionDemand.ts's
+-- recordJurisdictionDemandSignal for why a plain count threshold isn't
+-- enough on its own.
+CREATE TABLE jurisdiction_demand_alerts_sent (
+    state_fips  TEXT NOT NULL,
+    county_fips TEXT NOT NULL,
+    alerted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (state_fips, county_fips)
+);
+
 -- Opt-in notification email (2026-08-24, owner's vendor choice: Resend) --
 -- deliberately separate from verification/identity: users.email_hash above
 -- is a hashed, format-checked signal for a tier that was never actually

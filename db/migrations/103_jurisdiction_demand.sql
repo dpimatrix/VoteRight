@@ -22,6 +22,24 @@ CREATE TABLE jurisdiction_demand_signals (
 
 CREATE INDEX jurisdiction_demand_signals_locality_idx ON jurisdiction_demand_signals (state_fips, county_fips);
 
+-- Race-free "has admin already been alerted for this county" gate (found
+-- on self-review, same day, before this migration ever shipped). A plain
+-- COUNT(*) >= threshold check has no way to fire exactly once: two
+-- verifications for the same county landing close together can each
+-- commit their own INSERT before either re-reads the count, so the total
+-- can jump straight past the threshold without any single caller ever
+-- observing the crossing -- and a bare >= re-alerts on every subsequent
+-- signal instead. The PRIMARY KEY here is the actual fix: only one
+-- concurrent INSERT for a given (state, county) pair can ever succeed,
+-- so that INSERT succeeding IS the "you're the one who sends the alert"
+-- signal, race-free by construction rather than by careful timing.
+CREATE TABLE jurisdiction_demand_alerts_sent (
+    state_fips  TEXT NOT NULL,
+    county_fips TEXT NOT NULL,
+    alerted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (state_fips, county_fips)
+);
+
 -- New notification type for the "your area is now covered" alert
 -- (notifications.ts's own pushCopy). notifications_type_check already
 -- exists from migration 094 -- widened rather than dropped, same as

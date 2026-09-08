@@ -64,18 +64,45 @@ export async function recordJurisdictionDemandSignal(userId: string, locality: L
       [locality.stateFips, locality.countyFips],
     );
     const n = rows[0].n as number;
-    // Fires exactly once per county, at the moment it crosses the
-    // threshold -- not >= on every subsequent signal, which would re-alert
-    // admin every single time someone new verifies in an already-flagged,
-    // still-unprovisioned county.
-    if (n === DEMAND_THRESHOLD) {
-      const label = locality.placeName ? `${locality.placeName} (county FIPS ${locality.stateFips}${locality.countyFips})` : `county FIPS ${locality.stateFips}${locality.countyFips}`;
-      await notifyAdmins(
-        "jurisdiction_demand",
-        "A county just crossed the provisioning-demand threshold",
-        `${DEMAND_THRESHOLD} distinct residents have now verified an address in ${label}, which VoteRight hasn't seeded local jurisdiction detail for yet. Review it in /admin/jurisdiction-demand.`,
-      );
-    }
+    if (n < DEMAND_THRESHOLD) return;
+    // Real bug found on self-review (2026-09-08): this used to check
+    // n === DEMAND_THRESHOLD, on the theory that a county crosses the line
+    // exactly once and this fires exactly then. True under sequential
+    // execution, but this function isn't -- two verifications for the SAME
+    // still-unseeded county landing close together (two separate,
+    // un-transactioned INSERT-then-SELECT round trips) can both commit
+    // their INSERT before either SELECT runs, so the count can jump
+    // straight from 11 to 13 without either caller ever observing exactly
+    // 12 -- silently skipping the one alert this whole feature exists to
+    // send, with no way to recover short of a 13th signal arriving to
+    // trigger it by coincidence.
+    //
+    // Switching the comparison to >= alone would trade that bug for a
+    // worse one: EVERY subsequent signal for an already-flagged,
+    // still-unprovisioned county would re-alert admin forever, not just
+    // once in a rare race window. Neither a bare === nor a bare >= is
+    // actually correct here.
+    //
+    // The real fix is a dedicated, race-free "have we alerted admin for
+    // this county yet" gate, not a fancier read of the count: attempt to
+    // claim it via a PRIMARY KEY insert. Postgres guarantees at most one
+    // concurrent caller ever wins that INSERT for a given (state, county)
+    // pair -- that's the one, and only, call that sends the alert, no
+    // matter how many callers observe n >= threshold at once or how many
+    // more arrive after it's already claimed.
+    const claim = await db().query(
+      `INSERT INTO jurisdiction_demand_alerts_sent (state_fips, county_fips) VALUES ($1, $2)
+       ON CONFLICT (state_fips, county_fips) DO NOTHING
+       RETURNING state_fips`,
+      [locality.stateFips, locality.countyFips],
+    );
+    if (claim.rowCount === 0) return; // already alerted for this county -- not this call's job
+    const label = locality.placeName ? `${locality.placeName} (county FIPS ${locality.stateFips}${locality.countyFips})` : `county FIPS ${locality.stateFips}${locality.countyFips}`;
+    await notifyAdmins(
+      "jurisdiction_demand",
+      "A county just crossed the provisioning-demand threshold",
+      `${DEMAND_THRESHOLD} distinct residents have now verified an address in ${label}, which VoteRight hasn't seeded local jurisdiction detail for yet. Review it in /admin/jurisdiction-demand.`,
+    );
   } catch (e) {
     console.error(`jurisdiction demand signal failed for county ${locality.stateFips}${locality.countyFips}: ${(e as Error).message}`);
   }
@@ -138,4 +165,11 @@ export async function adminMarkJurisdictionProvisioned(stateFips: string, county
     detail: "Your area now has its own local ballot detail — check back on your ballot to see it.",
   });
   await db().query(`DELETE FROM jurisdiction_demand_signals WHERE state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
+  // Also clears the admin-alert claim (see recordJurisdictionDemandSignal's
+  // own comment) -- without this, a county that somehow needs re-tracking
+  // later (data correction, a jurisdiction row removed by mistake and
+  // re-added) would silently never re-alert admin even after 12 fresh
+  // signals, since the claim row from this round would still be sitting
+  // there from before.
+  await db().query(`DELETE FROM jurisdiction_demand_alerts_sent WHERE state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
 }
