@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
-import type { Dict, Lang } from "@/lib/i18n";
+import { tf, type Dict, type Lang } from "@/lib/i18n";
 
 /* Client component (2026-08-24) -- was a plain <form method="post"
    action="/api/verify">, which meant a full page navigation on submit and
@@ -49,6 +49,10 @@ export function AddressForm({
   // comment. Just a UI flag, never persisted; the actual demand-signal
   // write already happened server-side by the time this response lands.
   const [countyNotSeeded, setCountyNotSeeded] = useState(false);
+  // Real threshold from the server response (2026-09-08 fix, see
+  // api/verify/route.ts's own comment) -- was hardcoded "12" in the i18n
+  // string itself before this.
+  const [demandThreshold, setDemandThreshold] = useState<number | null>(null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,9 +67,11 @@ export function AddressForm({
       });
       const data = (await res.json()) as {
         outcome: "ok" | "ok_county_not_seeded" | "bad_format" | "no_match" | "outside" | "resolver_unavailable";
+        demandThreshold?: number;
       };
       if (data.outcome === "ok" || data.outcome === "ok_county_not_seeded") {
         setCountyNotSeeded(data.outcome === "ok_county_not_seeded");
+        setDemandThreshold(data.demandThreshold ?? null);
         setJustVerified(address);
       } else if (data.outcome === "outside") {
         setError(d.verify_outside);
@@ -94,7 +100,11 @@ export function AddressForm({
       <div className="card">
         <span className="pill kept">{d.verify_done}</span>
         <p className="nopos" style={{ marginTop: "0.5rem" }}>{justVerified}</p>
-        {countyNotSeeded && <p className="nopos" style={{ marginTop: "0.5rem" }}>{d.verify_county_not_seeded}</p>}
+        {countyNotSeeded && (
+          <p className="nopos" style={{ marginTop: "0.5rem" }}>
+            {tf(d.verify_county_not_seeded, { n: demandThreshold ?? "" })}
+          </p>
+        )}
         <button className="btn" style={{ marginTop: "0.5rem" }} onClick={() => router.push(`/debates?lang=${lang}`)}>
           {d.continue_btn}
         </button>

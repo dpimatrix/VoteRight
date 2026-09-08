@@ -274,8 +274,12 @@ const DICT = {
     // address" reads as if their verification failed or didn't save.
     pay_need: "Address verified — pay to complete verification and participate in debates.",
     verify_done: "✓ Address verified — you can now vote on referenda and mandates.",
+    // {n} interpolated from the real DEMAND_THRESHOLD constant at the call
+    // site (found hardcoded as "12" on regression review, 2026-09-08) --
+    // would otherwise silently go stale the moment that pilot-scale number
+    // is ever retuned.
     verify_county_not_seeded:
-      "✓ Address verified — you can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
+      "✓ Address verified — you can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once {n} residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     verify_pay_next: "Debate participation (proposing, seconding, arguing, calling the question) needs one more step — a payment, which is the identity verification for that part of the platform.",
     verify_pay_link: "Verify with a payment →",
     verify_current: "Currently verified as",
@@ -765,7 +769,7 @@ const DICT = {
     pay_need: "Dirección verificada — paga para completar la verificación y participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes votar en referendos y mandatos.",
     verify_county_not_seeded:
-      "✓ Dirección verificada — ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.",
+      "✓ Dirección verificada — ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto {n} residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.",
     verify_current: "Actualmente verificado como",
     verify_since: "verificado",
     verify_change_btn: "Cambiar dirección",
