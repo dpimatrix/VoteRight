@@ -44,6 +44,11 @@ export function AddressForm({
   // jurisdiction + verified date, by design (owner's own call,
   // 2026-08-24, over storing the address durably).
   const [justVerified, setJustVerified] = useState<string | null>(null);
+  // Set alongside justVerified when the resolved county has no local ballot
+  // detail seeded yet (2026-09-08) -- see debates.ts verifyAddress's own
+  // comment. Just a UI flag, never persisted; the actual demand-signal
+  // write already happened server-side by the time this response lands.
+  const [countyNotSeeded, setCountyNotSeeded] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,9 +62,10 @@ export function AddressForm({
         body: JSON.stringify({ address }),
       });
       const data = (await res.json()) as {
-        outcome: "ok" | "bad_format" | "no_match" | "outside" | "resolver_unavailable";
+        outcome: "ok" | "ok_county_not_seeded" | "bad_format" | "no_match" | "outside" | "resolver_unavailable";
       };
-      if (data.outcome === "ok") {
+      if (data.outcome === "ok" || data.outcome === "ok_county_not_seeded") {
+        setCountyNotSeeded(data.outcome === "ok_county_not_seeded");
         setJustVerified(address);
       } else if (data.outcome === "outside") {
         setError(d.verify_outside);
@@ -83,6 +89,7 @@ export function AddressForm({
       <div className="card">
         <span className="pill kept">{d.verify_done}</span>
         <p className="nopos" style={{ marginTop: "0.5rem" }}>{justVerified}</p>
+        {countyNotSeeded && <p className="nopos" style={{ marginTop: "0.5rem" }}>{d.verify_county_not_seeded}</p>}
         <button className="btn" style={{ marginTop: "0.5rem" }} onClick={() => router.push(`/debates?lang=${lang}`)}>
           {d.continue_btn}
         </button>

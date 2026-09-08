@@ -195,6 +195,7 @@ const DICT = {
     notif_ctq_eligible: 'Calling the question is now available: {title}',
     notif_priority_wish_approved: 'Your priority suggestion was approved',
     notif_priority_wish_rejected: "Your priority suggestion wasn't approved",
+    notif_jurisdiction_provisioned: "Your area is now covered",
     notif_view_debate: 'View debate',
     notif_email_h: 'Email notifications',
     notif_email_note: "Optional — get an email when a debate you're part of closes or can be called to a close. Never used for anything else.",
@@ -417,6 +418,8 @@ const DICT = {
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
     verify_success_h: 'Verified',
+    verify_county_not_seeded:
+      "You can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     continue_btn: 'Continue',
 
     // ---- verify-payment.tsx ----
@@ -626,6 +629,7 @@ const DICT = {
     notif_ctq_eligible: 'Ya se puede pedir la votación: {title}',
     notif_priority_wish_approved: 'Tu sugerencia de prioridad fue aprobada',
     notif_priority_wish_rejected: 'Tu sugerencia de prioridad no fue aprobada',
+    notif_jurisdiction_provisioned: 'Tu área ya está cubierta',
     notif_view_debate: 'Ver debate',
     notif_email_h: 'Notificaciones por correo',
     notif_email_note: 'Opcional — recibe un correo cuando un debate en el que participas cierre o se pueda pedir la votación. Nunca se usa para otra cosa.',
@@ -826,6 +830,8 @@ const DICT = {
     generic_error: 'Algo salió mal. Intenta de nuevo.',
     verify_btn: 'Verificar',
     verify_success_h: 'Verificado',
+    verify_county_not_seeded:
+      'Ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.',
     continue_btn: 'Continuar',
 
     // ---- verify-payment.tsx ----

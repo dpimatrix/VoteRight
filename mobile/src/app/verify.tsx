@@ -31,16 +31,22 @@ export default function VerifyScreen() {
   // persistent label only ever shows the jurisdiction + verified date,
   // by design (owner's own call, 2026-08-24, over storing it durably).
   const [justVerified, setJustVerified] = useState<string | null>(null);
+  // Set alongside justVerified when the resolved county has no local ballot
+  // detail seeded yet (2026-09-08) -- see debates.ts verifyAddress's own
+  // comment. Just a UI flag, never persisted; the actual demand-signal
+  // write already happened server-side by the time this response lands.
+  const [countyNotSeeded, setCountyNotSeeded] = useState(false);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      const res = await post<{ outcome: 'ok' | 'bad_format' | 'no_match' | 'outside' | 'resolver_unavailable' }>(
+      const res = await post<{ outcome: 'ok' | 'ok_county_not_seeded' | 'bad_format' | 'no_match' | 'outside' | 'resolver_unavailable' }>(
         '/api/verify',
         { address },
       );
-      if (res.outcome === 'ok') {
+      if (res.outcome === 'ok' || res.outcome === 'ok_county_not_seeded') {
+        setCountyNotSeeded(res.outcome === 'ok_county_not_seeded');
         setJustVerified(address);
       } else if (res.outcome === 'outside') {
         setError(d.outside_error);
@@ -66,6 +72,11 @@ export default function VerifyScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           {justVerified}
         </ThemedText>
+        {countyNotSeeded && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {d.verify_county_not_seeded}
+          </ThemedText>
+        )}
         <Pressable onPress={() => router.back()} style={[styles.submitBtn, { backgroundColor: colors.evidence }]}>
           <ThemedText type="smallBold">{d.continue_btn}</ThemedText>
         </Pressable>

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const lang = String(form.get("lang") ?? "en");
   const outcome = await verifyAddress(userId, String(form.get("address") ?? ""), requestContext);
   const dest =
-    outcome === "ok"
+    outcome === "ok" || outcome === "ok_county_not_seeded"
       ? `/debates?lang=${lang}`
       : outcome === "outside"
         ? `/verify?bad=outside&lang=${lang}`

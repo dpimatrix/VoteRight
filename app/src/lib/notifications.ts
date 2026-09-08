@@ -30,7 +30,7 @@ import { db } from "./db";
    adding a real users.lang_preference column and UI to set it, deliberately
    out of scope here rather than guessed at. */
 
-export type NotificationType = "thread_closed" | "ctq_eligible" | "priority_wish_approved" | "priority_wish_rejected";
+export type NotificationType = "thread_closed" | "ctq_eligible" | "priority_wish_approved" | "priority_wish_rejected" | "jurisdiction_provisioned";
 
 interface NotifyOpts {
   proposalId?: string;
@@ -60,9 +60,21 @@ function pushCopy(type: NotificationType, proposalTitle: string | null, detail: 
       body: detail ? `It's being added as a real priority axis. Note from the reviewer: ${detail}` : "It's being added as a real priority axis.",
     };
   }
+  if (type === "priority_wish_rejected") {
+    return {
+      title: "Your priority suggestion wasn't approved",
+      body: detail ? `Reviewer's note: ${detail}` : "No reason was given.",
+    };
+  }
+  // Demand-driven jurisdiction provisioning (2026-09-08) -- no proposalId
+  // either, same reasoning as the priority-wish pair above. `detail` here
+  // is the jurisdiction's own proper name (jurisdictionDemand.ts's
+  // adminMarkJurisdictionProvisioned), not freeform prose -- interpolated
+  // into a real sentence here, same pattern as the reviewer's-note pair
+  // above, rather than shown bare.
   return {
-    title: "Your priority suggestion wasn't approved",
-    body: detail ? `Reviewer's note: ${detail}` : "No reason was given.",
+    title: "Your area is now covered",
+    body: detail ? `VoteRight now has local ballot detail for ${detail}.` : "VoteRight now has local ballot detail for your area.",
   };
 }
 
