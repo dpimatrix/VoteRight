@@ -36,17 +36,22 @@ export default function VerifyScreen() {
   // comment. Just a UI flag, never persisted; the actual demand-signal
   // write already happened server-side by the time this response lands.
   const [countyNotSeeded, setCountyNotSeeded] = useState(false);
+  // Real threshold from the server response (2026-09-08 fix, see web's
+  // api/verify/route.ts for the same fix) -- was hardcoded "12" in the
+  // i18n string itself before this.
+  const [demandThreshold, setDemandThreshold] = useState<number | null>(null);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      const res = await post<{ outcome: 'ok' | 'ok_county_not_seeded' | 'bad_format' | 'no_match' | 'outside' | 'resolver_unavailable' }>(
-        '/api/verify',
-        { address },
-      );
+      const res = await post<{
+        outcome: 'ok' | 'ok_county_not_seeded' | 'bad_format' | 'no_match' | 'outside' | 'resolver_unavailable';
+        demandThreshold?: number;
+      }>('/api/verify', { address });
       if (res.outcome === 'ok' || res.outcome === 'ok_county_not_seeded') {
         setCountyNotSeeded(res.outcome === 'ok_county_not_seeded');
+        setDemandThreshold(res.demandThreshold ?? null);
         setJustVerified(address);
       } else if (res.outcome === 'outside') {
         setError(d.outside_error);
@@ -79,7 +84,7 @@ export default function VerifyScreen() {
         </ThemedText>
         {countyNotSeeded && (
           <ThemedText type="small" themeColor="textSecondary">
-            {d.verify_county_not_seeded}
+            {tf(d.verify_county_not_seeded, { n: demandThreshold ?? '' })}
           </ThemedText>
         )}
         <Pressable onPress={() => router.back()} style={[styles.submitBtn, { backgroundColor: colors.evidence }]}>

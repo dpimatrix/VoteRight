@@ -146,6 +146,16 @@ export async function executeDeletion(userId: string, requestId: string) {
     // users row itself, above.
     await client.query(`DELETE FROM push_tokens WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+    // jurisdiction_demand_signals (2026-09-08, migration 103) -- same
+    // private-signal treatment: a FIPS pair tied to this user_id is a
+    // geographic-participation record even though it's never a raw
+    // address (jurisdictionDemand.ts's own header explains why the FIPS
+    // pair itself isn't personal data on its own terms), and it survives
+    // being provisioned/cleared by an admin for however long a county
+    // stays below the demand threshold. Found on regression review --
+    // every other private-signal table added since this function was
+    // written got a matching DELETE here; this one didn't.
+    await client.query(`DELETE FROM jurisdiction_demand_signals WHERE user_id = $1`, [userId]);
     // Real gap found live 2026-08-31: ARCHITECTURE.md §10 (this function's
     // own documented design, not an inference) explicitly promises "the
     // row is pseudonymized (auth_id tombstoned, display_name and

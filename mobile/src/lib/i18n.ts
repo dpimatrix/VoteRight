@@ -424,8 +424,11 @@ const DICT = {
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
     verify_success_h: 'Verified',
+    // {n} interpolated from the real server-side DEMAND_THRESHOLD (found
+    // hardcoded as "12" on regression review, 2026-09-08) -- see web's
+    // AddressForm.tsx / api/verify/route.ts for the same fix.
     verify_county_not_seeded:
-      "You can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
+      "You can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once {n} residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     continue_btn: 'Continue',
 
     // ---- verify-payment.tsx ----
@@ -838,7 +841,7 @@ const DICT = {
     verify_btn: 'Verificar',
     verify_success_h: 'Verificado',
     verify_county_not_seeded:
-      'Ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.',
+      'Ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto {n} residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.',
     continue_btn: 'Continuar',
 
     // ---- verify-payment.tsx ----
