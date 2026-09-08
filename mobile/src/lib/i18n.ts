@@ -415,6 +415,12 @@ const DICT = {
     outside_error: "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     resolver_unavailable_error: 'Address verification is temporarily unavailable — please try again in a few minutes.',
     no_match_error: 'Could not match that address — check the street number, name, and state.',
+    // Split out (2026-09-08, found live testing a real address the Census
+    // geocoder couldn't confirm) -- bad_format used to fall into
+    // no_match_error above too, which reads oddly for a genuinely malformed
+    // string (missing a street number/city/state entirely) rather than a
+    // well-formed address Census just couldn't match.
+    bad_format_error: "That doesn't look like a street address — include a street number, street, city, and state.",
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
     verify_success_h: 'Verified',
@@ -827,6 +833,7 @@ const DICT = {
     outside_error: 'No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.',
     resolver_unavailable_error: 'La verificación de dirección no está disponible temporalmente — inténtalo de nuevo en unos minutos.',
     no_match_error: 'No se pudo encontrar esa dirección — revisa el número, el nombre de la calle y el estado.',
+    bad_format_error: 'No parece una dirección postal — incluye número, calle, ciudad y estado.',
     generic_error: 'Algo salió mal. Intenta de nuevo.',
     verify_btn: 'Verificar',
     verify_success_h: 'Verificado',
