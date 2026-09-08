@@ -71,10 +71,15 @@ export function AddressForm({
         setError(d.verify_outside);
       } else if (data.outcome === "resolver_unavailable") {
         setError(d.verify_unavailable);
-      } else {
-        // bad_format and no_match share the same "check the address"
-        // message, same as the old server-redirect path did.
+      } else if (data.outcome === "bad_format") {
         setError(d.verify_bad);
+      } else {
+        // no_match (2026-09-08 split, found live testing a real address the
+        // Census geocoder couldn't confirm) -- distinct from bad_format:
+        // the string IS address-shaped, Census just couldn't match it.
+        // Telling someone their well-formed address "doesn't look like a
+        // street address" is actively wrong, not just imprecise.
+        setError(d.verify_no_match);
       }
     } catch (err) {
       console.error("Verify failed:", err);

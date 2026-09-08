@@ -223,6 +223,14 @@ const DICT = {
     verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verify address",
     verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
+    // Split from verify_bad (2026-09-08, found live testing a real address
+    // the Census geocoder couldn't confirm) -- bad_format and no_match used
+    // to share verify_bad's wording, which is actively wrong for no_match:
+    // it tells someone whose address is genuinely well-formed that it
+    // "doesn't look like a street address." Now nationwide (nudged past the
+    // original DMV pilot's mostly-well-mapped areas), a real address the
+    // Census geocoder just can't confirm is a normal outcome, not a typo.
+    verify_no_match: "We couldn't verify that specific address against Census records — double-check it for typos, or try a slightly different form (e.g. spelling out the street type).",
     verify_outside:
       "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     verify_unavailable: "Address verification is temporarily unavailable — please try again in a few minutes.",
@@ -719,6 +727,7 @@ const DICT = {
     verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verificar dirección",
     verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
+    verify_no_match: "No pudimos verificar esa dirección específica contra los registros del Censo — revisa si tiene errores de escritura, o intenta una forma ligeramente distinta (por ejemplo, escribiendo el tipo de calle completo).",
     verify_outside:
       "No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.",
     verify_unavailable: "La verificación de direcciones no está disponible en este momento — inténtalo de nuevo en unos minutos.",

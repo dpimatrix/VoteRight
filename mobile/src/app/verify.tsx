@@ -52,7 +52,12 @@ export default function VerifyScreen() {
         setError(d.outside_error);
       } else if (res.outcome === 'resolver_unavailable') {
         setError(d.resolver_unavailable_error);
+      } else if (res.outcome === 'bad_format') {
+        setError(d.bad_format_error);
       } else {
+        // no_match (2026-09-08 split, found live testing a real address the
+        // Census geocoder couldn't confirm) -- distinct from bad_format:
+        // the string IS address-shaped, Census just couldn't match it.
         setError(d.no_match_error);
       }
     } catch (e) {
