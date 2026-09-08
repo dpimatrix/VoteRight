@@ -62,7 +62,7 @@ export async function verifyAddress(
   userId: string,
   address: string,
   requestContext?: { ip: string | null; contextHash: string | null },
-): Promise<"ok" | "bad_format" | "no_match" | "outside" | "resolver_unavailable"> {
+): Promise<"ok" | "ok_county_not_seeded" | "bad_format" | "no_match" | "outside" | "resolver_unavailable"> {
   if (!addressLooksValid(address)) return "bad_format";
   const { resolveJurisdiction } = await import("./jurisdictions");
   const res = await resolveJurisdiction(address);
@@ -116,6 +116,19 @@ export async function verifyAddress(
       });
     }
     await client.query("COMMIT");
+    // Demand-provisioning signal (2026-09-08) -- deliberately AFTER commit,
+    // outside the transaction: it's a nice-to-have side signal, never a
+    // reason to roll back a real address verification if it fails. See
+    // jurisdictionDemand.ts's own header for why this is privacy-safe (only
+    // the Census FIPS pair already computed for routing, never the raw
+    // address, keyed to the same pseudonymous user_id as everything else).
+    if (res.countyNotYetSeeded) {
+      const { recordJurisdictionDemandSignal } = await import("./jurisdictionDemand");
+      await recordJurisdictionDemandSignal(userId, res.countyNotYetSeeded).catch((e) =>
+        console.error(`jurisdiction demand signal failed after verification for user ${userId}: ${(e as Error).message}`),
+      );
+      return "ok_county_not_seeded";
+    }
     return "ok";
   } catch (e) {
     await client.query("ROLLBACK");

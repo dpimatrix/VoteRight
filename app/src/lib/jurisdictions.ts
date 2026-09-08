@@ -26,7 +26,19 @@ export const CENSUS_RESOLVER = "census-geocoder-v1";
 export const FALLBACK_RESOLVER = "address-city-match-v0.1-fallback";
 
 export type Resolution =
-  | { outcome: "ok"; jurisdiction: string; method: string; districts: ExtractedDistricts }
+  | {
+      outcome: "ok";
+      jurisdiction: string;
+      method: string;
+      districts: ExtractedDistricts;
+      // Demand-provisioning signal (2026-09-08) -- set when this address
+      // resolved to a real county the geocoder recognizes, but VoteRight
+      // hasn't seeded local detail for it yet (jurisdictionForGeography's
+      // state-level fallback). Never the raw address -- just the Census
+      // FIPS pair already computed for routing, plus the incorporated
+      // place name if there was one. null for every other "ok" resolution.
+      countyNotYetSeeded: { stateFips: string; countyFips: string; placeName: string | null } | null;
+    }
   | { outcome: "outside"; method: string } // real address, wrong county — not eligible
   | { outcome: "no_match"; method: string } // geocoder couldn't find the address
   | { outcome: "resolver_unavailable"; method: string }; // geocoder unreachable — never guess a jurisdiction
@@ -336,7 +348,7 @@ export async function fairfaxLocalDistricts(lon: number, lat: number): Promise<{
     returned level ('state' vs 'county'/'municipal') to disclose the difference --
     see ballot_state_only_note in i18n.ts -- never silently upgrade a partial
     ballot to look complete. */
-async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outside" | string> {
+async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outside" | { ocdId: string; countyNotYetSeeded: boolean }> {
   const county = await db().query(
     `SELECT ocd_id FROM jurisdictions WHERE level = 'county' AND state_fips = $1 AND county_fips = $2`,
     [geo.stateFips, geo.countyFips],
@@ -346,7 +358,12 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
       `SELECT ocd_id FROM jurisdictions WHERE level = 'state' AND state_fips = $1`,
       [geo.stateFips],
     );
-    return state.rowCount ? (state.rows[0].ocd_id as string) : "outside";
+    // countyNotYetSeeded=true is the demand-provisioning signal (2026-09-08,
+    // owner's idea; see jurisdictionDemand.ts) -- this exact fallback is what
+    // resolveJurisdiction's caller (debates.ts verifyAddress) uses to know a
+    // resident's county has no local detail yet, without ever touching their
+    // raw address (state/countyFips are the only thing threaded back out).
+    return state.rowCount ? { ocdId: state.rows[0].ocd_id as string, countyNotYetSeeded: true } : "outside";
   }
   const countyOcdId = county.rows[0].ocd_id as string;
 
@@ -387,9 +404,9 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
         LIMIT 1`,
       [countyOcdId, bareName],
     );
-    if ((muni.rowCount ?? 0) > 0) return muni.rows[0].ocd_id as string;
+    if ((muni.rowCount ?? 0) > 0) return { ocdId: muni.rows[0].ocd_id as string, countyNotYetSeeded: false };
   }
-  return countyOcdId;
+  return { ocdId: countyOcdId, countyNotYetSeeded: false };
 }
 
 // Congress renumbers every 2 years and states redistrict on their own
@@ -463,7 +480,13 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
         districts.countyCouncil = local.countyCouncil;
       }
     }
-    return { outcome: "ok", jurisdiction: mapped, method: CENSUS_RESOLVER, districts };
+    return {
+      outcome: "ok",
+      jurisdiction: mapped.ocdId,
+      method: CENSUS_RESOLVER,
+      districts,
+      countyNotYetSeeded: mapped.countyNotYetSeeded ? { stateFips: geo.stateFips, countyFips: geo.countyFips, placeName: geo.placeName } : null,
+    };
   } catch {
     // Local dev only: the crude Rockville/Montgomery regex matcher keeps
     // development working without network. In production this must NEVER
@@ -482,6 +505,9 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
         jurisdiction: resolveJurisdictionFromAddress(address),
         method: FALLBACK_RESOLVER,
         districts: { congressional: null, stateSenate: null, stateHouse: null, countyCouncil: null, boardOfEducation: null, appellateCircuit: null },
+        // The dev fallback has no real geocoder response to check seeded
+        // status against -- never guessed, same discipline as districts above.
+        countyNotYetSeeded: null,
       };
     }
     return { outcome: "resolver_unavailable", method: FALLBACK_RESOLVER };

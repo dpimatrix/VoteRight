@@ -13,7 +13,7 @@ import { t, tf } from '@/lib/i18n';
 
 interface NotificationRow {
   id: string;
-  type: 'thread_closed' | 'ctq_eligible' | 'priority_wish_approved' | 'priority_wish_rejected';
+  type: 'thread_closed' | 'ctq_eligible' | 'priority_wish_approved' | 'priority_wish_rejected' | 'jurisdiction_provisioned';
   proposal_id: string | null;
   proposal_title: string | null;
   thread_id: string | null;
@@ -145,7 +145,9 @@ export default function NotificationsScreen() {
                 ? tf(d.notif_ctq_eligible, { title: n.proposal_title ?? '' })
                 : n.type === 'priority_wish_approved'
                   ? d.notif_priority_wish_approved
-                  : d.notif_priority_wish_rejected}
+                  : n.type === 'priority_wish_rejected'
+                    ? d.notif_priority_wish_rejected
+                    : d.notif_jurisdiction_provisioned}
           </ThemedText>
           {n.detail && (
             <ThemedText type="small" themeColor="textSecondary">

@@ -180,6 +180,7 @@ const DICT = {
     notif_ctq_eligible: "Calling the question is now available: {title}",
     notif_priority_wish_approved: "Your priority suggestion was approved",
     notif_priority_wish_rejected: "Your priority suggestion wasn't approved",
+    notif_jurisdiction_provisioned: "Your area is now covered",
     notif_email_h: "Email notifications",
     notif_email_note: "Optional — get an email when a debate you're part of closes or can be called to a close. Never used for anything else.",
     notif_email_ph: "you@example.com",
@@ -265,6 +266,8 @@ const DICT = {
     // address" reads as if their verification failed or didn't save.
     pay_need: "Address verified — pay to complete verification and participate in debates.",
     verify_done: "✓ Address verified — you can now vote on referenda and mandates.",
+    verify_county_not_seeded:
+      "✓ Address verified — you can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     verify_pay_next: "Debate participation (proposing, seconding, arguing, calling the question) needs one more step — a payment, which is the identity verification for that part of the platform.",
     verify_pay_link: "Verify with a payment →",
     verify_current: "Currently verified as",
@@ -673,6 +676,7 @@ const DICT = {
     notif_ctq_eligible: "Ya se puede pedir la votación: {title}",
     notif_priority_wish_approved: "Tu sugerencia de prioridad fue aprobada",
     notif_priority_wish_rejected: "Tu sugerencia de prioridad no fue aprobada",
+    notif_jurisdiction_provisioned: "Tu área ya está cubierta",
     notif_email_h: "Notificaciones por correo",
     notif_email_note: "Opcional — recibe un correo cuando un debate en el que participas cierre o se pueda pedir la votación. Nunca se usa para otra cosa.",
     notif_email_ph: "tu@ejemplo.com",
@@ -751,6 +755,8 @@ const DICT = {
     verify_need: "Verifica tu dirección para participar en los debates.",
     pay_need: "Dirección verificada — paga para completar la verificación y participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes votar en referendos y mandatos.",
+    verify_county_not_seeded:
+      "✓ Dirección verificada — ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.",
     verify_current: "Actualmente verificado como",
     verify_since: "verificado",
     verify_change_btn: "Cambiar dirección",

@@ -759,7 +759,7 @@ CREATE INDEX idx_thread_reports_thread ON thread_reports (thread_id, created_at)
 CREATE TABLE notifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id),
-    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible', 'priority_wish_approved', 'priority_wish_rejected')),
+    type        TEXT NOT NULL CHECK (type IN ('thread_closed', 'ctq_eligible', 'priority_wish_approved', 'priority_wish_rejected', 'jurisdiction_provisioned')),
     proposal_id UUID REFERENCES issue_proposals(id),
     thread_id   UUID REFERENCES forum_threads(id),
     detail      TEXT,                      -- e.g. an admin's closed_reason, when relevant
@@ -782,6 +782,22 @@ CREATE TABLE push_tokens (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_push_tokens_user ON push_tokens (user_id);
+
+-- Demand-driven jurisdiction provisioning (migration 103, 2026-09-08) --
+-- see jurisdictionDemand.ts's own comment for the full reasoning. Only
+-- Census FIPS (never a raw address) + the resident's existing pseudonymous
+-- user_id; same "one signal per verified user" shape as
+-- accountability_campaign_supports.
+CREATE TABLE jurisdiction_demand_signals (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    state_fips    TEXT NOT NULL,
+    county_fips   TEXT NOT NULL,
+    place_name    TEXT,
+    user_id       UUID NOT NULL REFERENCES users(id),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (state_fips, county_fips, user_id)
+);
+CREATE INDEX jurisdiction_demand_signals_locality_idx ON jurisdiction_demand_signals (state_fips, county_fips);
 
 -- Opt-in notification email (2026-08-24, owner's vendor choice: Resend) --
 -- deliberately separate from verification/identity: users.email_hash above
