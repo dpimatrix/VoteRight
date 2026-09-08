@@ -116,26 +116,34 @@ export async function verifyAddress(
       });
     }
     await client.query("COMMIT");
-    // Demand-provisioning signal (2026-09-08) -- deliberately AFTER commit,
-    // outside the transaction: it's a nice-to-have side signal, never a
-    // reason to roll back a real address verification if it fails. See
-    // jurisdictionDemand.ts's own header for why this is privacy-safe (only
-    // the Census FIPS pair already computed for routing, never the raw
-    // address, keyed to the same pseudonymous user_id as everything else).
-    if (res.countyNotYetSeeded) {
-      const { recordJurisdictionDemandSignal } = await import("./jurisdictionDemand");
-      await recordJurisdictionDemandSignal(userId, res.countyNotYetSeeded).catch((e) =>
-        console.error(`jurisdiction demand signal failed after verification for user ${userId}: ${(e as Error).message}`),
-      );
-      return "ok_county_not_seeded";
-    }
-    return "ok";
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
   } finally {
     client.release();
   }
+  // Demand-provisioning signal (2026-09-08) -- deliberately OUTSIDE the
+  // transaction's own try/catch above, not just "after COMMIT" within it:
+  // this is a nice-to-have side signal that must never be able to turn an
+  // already-successfully-committed verification into a thrown error for
+  // the caller, even in a freak failure mode (e.g. the dynamic import
+  // itself failing) that recordJurisdictionDemandSignal's own internal
+  // try/catch wouldn't reach. Structurally impossible to trigger the
+  // rollback above from here -- this code only runs once that block has
+  // already returned normally. See jurisdictionDemand.ts's own header for
+  // why this is privacy-safe (only the Census FIPS pair already computed
+  // for routing, never the raw address, keyed to the same pseudonymous
+  // user_id as everything else).
+  if (res.countyNotYetSeeded) {
+    try {
+      const { recordJurisdictionDemandSignal } = await import("./jurisdictionDemand");
+      await recordJurisdictionDemandSignal(userId, res.countyNotYetSeeded);
+    } catch (e) {
+      console.error(`jurisdiction demand signal failed after verification for user ${userId}: ${(e as Error).message}`);
+    }
+    return "ok_county_not_seeded";
+  }
+  return "ok";
 }
 
 /* ── proposals ── */
