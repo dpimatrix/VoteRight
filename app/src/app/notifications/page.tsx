@@ -73,7 +73,9 @@ export default async function NotificationsPage({
                   ? tf(d.notif_ctq_eligible, { title: n.proposal_title ?? "" })
                   : n.type === "priority_wish_approved"
                     ? d.notif_priority_wish_approved
-                    : d.notif_priority_wish_rejected}
+                    : n.type === "priority_wish_rejected"
+                      ? d.notif_priority_wish_rejected
+                      : d.notif_jurisdiction_provisioned}
             </p>
             {n.detail && <p className="nopos" style={{ margin: "0.3rem 0 0" }}>{n.detail}</p>}
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>

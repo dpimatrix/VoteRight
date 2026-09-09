@@ -4,6 +4,7 @@ import { adminAnomalyQueue } from "@/lib/anomalyDetection";
 import { pendingCoverageGaps } from "@/lib/coverage";
 import { listAxesForAdmin } from "@/lib/priorityAxes";
 import { listPendingPriorityWishes } from "@/lib/priorityWishes";
+import { adminJurisdictionDemandQueue, DEMAND_THRESHOLD } from "@/lib/jurisdictionDemand";
 import { moderationQueue, reportedThreadsQueue } from "@/lib/debates";
 import { adminCodingQueue, adminFlags } from "@/lib/queries";
 import { adminCampaigns } from "@/lib/accountability";
@@ -266,6 +267,23 @@ export default async function AdminHome() {
                 <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish, plus resident wishes</span>
               </span>
               <span className={`chip band ${needsAttention > 0 ? "b1" : "b0"}`}>{needsAttention} pending</span>
+            </Link>
+          );
+        })())}
+      {has("jurisdiction_demand") &&
+        (await (async () => {
+          const queue = await adminJurisdictionDemandQueue();
+          const crossed = queue.filter((q) => q.signalCount >= DEMAND_THRESHOLD).length;
+          return (
+            <Link className="seat" href="/admin/jurisdiction-demand">
+              <span className="seat-ic">JD</span>
+              <span className="sname">
+                Jurisdiction demand
+                <span className="smeta">counties residents keep verifying in that VoteRight hasn&apos;t seeded local detail for yet</span>
+              </span>
+              <span className={`chip band ${crossed > 0 ? "b1" : queue.length > 0 ? "b0" : "b0"}`}>
+                {crossed} at threshold · {queue.length} tracked
+              </span>
             </Link>
           );
         })())}

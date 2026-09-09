@@ -39,6 +39,7 @@ export const SCREEN_KEYS = [
   "admin_accounts",
   "race_coverage",
   "priority_axes",
+  "jurisdiction_demand",
 ] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 export const SCREEN_LABEL: Record<ScreenKey, string> = {
@@ -56,6 +57,7 @@ export const SCREEN_LABEL: Record<ScreenKey, string> = {
   admin_accounts: "Admin accounts",
   race_coverage: "Race coverage",
   priority_axes: "Priority topics & axes",
+  jurisdiction_demand: "Jurisdiction demand",
 };
 
 /* ── base32 (RFC 4648, padding optional) ── */
