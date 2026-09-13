@@ -62,6 +62,50 @@ const withTimeout = (ms: number) => {
   return { signal: controller.signal, clear: () => clearTimeout(timeoutId) };
 };
 
+export class TimeoutError extends Error {
+  constructor(label: string, ms: number) {
+    super(`${label} timed out after ${ms}ms`);
+  }
+}
+
+/** Real bug found live (2026-09-13): the Matches screen hung indefinitely on
+ *  every device tested, mobile-only -- the identical /api/matches request
+ *  from the web app never hangs, and the backend itself has no loop/external
+ *  call that could explain an unbounded wait, so this isn't a slow query.
+ *  Root cause: fetch has two distinct await points -- headers arriving vs.
+ *  the body being read/parsed -- and calling AbortController.abort() only
+ *  reliably rejects the FIRST one. Aborting while res.json() is still
+ *  reading the body is a documented gap in fetch polyfills that aren't
+ *  fully spec-compliant, and expo/fetch (the global fetch this project is
+ *  already on, and already known to have its own quirks -- see the
+ *  FormData comment on uploadMedia below) is a strong candidate: withTimeout
+ *  above calls controller.abort() at 15s regardless of which phase the
+ *  request is in, and /api/matches (four DB queries, more data than
+ *  /api/races) is realistically the one likely to still be mid-body-read
+ *  right when that timer fires -- landing exactly in the gap where the
+ *  abort neither cancels the request nor rejects the promise, so the
+ *  caller waits forever either way. This doesn't depend on abort() actually
+ *  working: the timer here is independent of the request promise, so the
+ *  caller's own promise is guaranteed to settle within `ms` regardless of
+ *  what the underlying fetch call ends up doing (which keeps running
+ *  unawaited in the background -- harmless, since it has no UI still
+ *  listening for it). */
+function raceTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TimeoutError(label, ms)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 // carries the parsed JSON error body (2026-08-19) -- routes across this app
 // return typed codes on failure (e.g. {error: "pay"} vs {error: "verify"},
 // see app/src/app/api/debates/[id]/second/route.ts and siblings), and until
@@ -94,30 +138,36 @@ async function parseBodyBestEffort(res: Response): Promise<unknown> {
 export const get = async <T = unknown>(path: string): Promise<T> => {
   await sessionReady;
   const { signal, clear } = withTimeout(15000);
-  try {
-    const res = await fetch(`${API_URL}${path}`, { method: "GET", headers: getHeaders(), signal });
-    if (!res.ok) throw new ApiError("GET", path, res.status, await parseBodyBestEffort(res));
-    return (await res.json()) as T;
-  } finally {
-    clear();
-  }
+  const request = (async () => {
+    try {
+      const res = await fetch(`${API_URL}${path}`, { method: "GET", headers: getHeaders(), signal });
+      if (!res.ok) throw new ApiError("GET", path, res.status, await parseBodyBestEffort(res));
+      return (await res.json()) as T;
+    } finally {
+      clear();
+    }
+  })();
+  return raceTimeout(request, 15000, `GET ${path}`);
 };
 
 export const post = async <T = unknown>(path: string, body?: unknown): Promise<T> => {
   await sessionReady;
   const { signal, clear } = withTimeout(15000);
-  try {
-    const res = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers: { ...getHeaders(), "Content-Type": "application/json" },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    });
-    if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));
-    return (await res.json()) as T;
-  } finally {
-    clear();
-  }
+  const request = (async () => {
+    try {
+      const res = await fetch(`${API_URL}${path}`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal,
+      });
+      if (!res.ok) throw new ApiError("POST", path, res.status, await parseBodyBestEffort(res));
+      return (await res.json()) as T;
+    } finally {
+      clear();
+    }
+  })();
+  return raceTimeout(request, 15000, `POST ${path}`);
 };
 
 // Audio/video debate arguments (2026-08-24) -- NOT built on fetch()/FormData
