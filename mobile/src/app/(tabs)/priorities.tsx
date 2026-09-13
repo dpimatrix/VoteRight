@@ -1,8 +1,8 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { ensureSession, get, hasSession, post } from '@/services/api';
@@ -144,144 +144,147 @@ export default function PrioritiesScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          {d.priorities_title}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {d.priorities_sub}
-        </ThemedText>
+    // Real bug found live (2026-09-13): the "Don't see your priority?" text
+    // input sits at the very bottom of this screen, and this screen was
+    // built on raw SafeAreaView + ScrollView instead of KeyboardAwareScreen
+    // -- every other screen with a TextInput already uses it (see that
+    // component's own comment: "without it, the keyboard covers whatever
+    // field you're typing into"). This one was just missed.
+    <KeyboardAwareScreen backgroundColor={colors.background} contentContainerStyle={styles.content}>
+      <ThemedText type="title" style={styles.title}>
+        {d.priorities_title}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        {d.priorities_sub}
+      </ThemedText>
 
-        {!topics && !error && <ActivityIndicator style={styles.spinner} />}
-        {error && (
-          <View style={styles.rowWrap}>
-            <ThemedText type="small">{error}</ThemedText>
-            {error === d.topics_load_error && (
-              <Pressable onPress={loadTopics}>
-                <ThemedText type="small" style={{ color: colors.evidence }}>
-                  {d.try_again}
-                </ThemedText>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {topics?.map((tp) => {
-          const s = sel[tp.axis_id];
-          return (
-            <View key={tp.axis_id} style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-              <ThemedText type="smallBold">{tp.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.question}>
-                {tp.question}
+      {!topics && !error && <ActivityIndicator style={styles.spinner} />}
+      {error && (
+        <View style={styles.rowWrap}>
+          <ThemedText type="small">{error}</ThemedText>
+          {error === d.topics_load_error && (
+            <Pressable onPress={loadTopics}>
+              <ThemedText type="small" style={{ color: colors.evidence }}>
+                {d.try_again}
               </ThemedText>
-              <View style={styles.poles}>
-                <Pressable
-                  onPress={() => pick(tp.axis_id, -1, tp.negative_pole)}
-                  style={[
-                    styles.poleBtn,
-                    {
-                      borderColor: s?.direction === -1 ? colors.evidence : colors.textSecondary,
-                      backgroundColor: s?.direction === -1 ? colors.backgroundSelected : 'transparent',
-                    },
-                  ]}
-                >
-                  <ThemedText type="small">{tp.negative_pole}</ThemedText>
-                </Pressable>
-                <Pressable
-                  onPress={() => pick(tp.axis_id, 1, tp.positive_pole)}
-                  style={[
-                    styles.poleBtn,
-                    {
-                      borderColor: s?.direction === 1 ? colors.evidence : colors.textSecondary,
-                      backgroundColor: s?.direction === 1 ? colors.backgroundSelected : 'transparent',
-                    },
-                  ]}
-                >
-                  <ThemedText type="small">{tp.positive_pole}</ThemedText>
-                </Pressable>
-              </View>
-              {s && (
-                <View style={styles.weightRow}>
-                  <Pressable
-                    onPress={() =>
-                      setSel((x) => ({ ...x, [tp.axis_id]: { ...s, weight: Math.max(1, s.weight - 1) } }))
-                    }
-                  >
-                    <ThemedText type="smallBold">−</ThemedText>
-                  </Pressable>
-                  <ThemedText type="small">
-                    {'●'.repeat(s.weight)}
-                    {'○'.repeat(5 - s.weight)}
-                  </ThemedText>
-                  <Pressable
-                    onPress={() =>
-                      setSel((x) => ({ ...x, [tp.axis_id]: { ...s, weight: Math.min(5, s.weight + 1) } }))
-                    }
-                  >
-                    <ThemedText type="smallBold">+</ThemedText>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          );
-        })}
-
-        <Pressable
-          disabled={count < 3 || busy}
-          onPress={submit}
-          style={[
-            styles.submitBtn,
-            { backgroundColor: count < 3 || busy ? colors.backgroundElement : colors.evidence },
-          ]}
-        >
-          <ThemedText type="smallBold" themeColor={count < 3 || busy ? 'textSecondary' : undefined}>
-            {count >= 3 ? d.see_matches : tf(d.pick_more, { n: 3 - count })}
-          </ThemedText>
-        </Pressable>
-
-        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <ThemedText type="smallBold">{d.priority_wish_h}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {d.priority_wish_sub}
-          </ThemedText>
-          {wishSent ? (
-            <ThemedText type="small" style={{ color: colors.evidence }}>
-              {d.priority_wish_sent}
-            </ThemedText>
-          ) : (
-            <>
-              <TextInput
-                value={wishText}
-                onChangeText={setWishText}
-                placeholder={d.priority_wish_ph}
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                style={[styles.wishInput, { borderColor: colors.textSecondary, color: colors.text }]}
-              />
-              {wishError && <ThemedText type="small">{d.priority_wish_error}</ThemedText>}
-              <Pressable
-                disabled={!wishText.trim() || wishBusy}
-                onPress={submitWish}
-                style={[
-                  styles.wishSubmitBtn,
-                  { borderColor: !wishText.trim() || wishBusy ? colors.textSecondary : colors.evidence },
-                ]}
-              >
-                <ThemedText type="small" themeColor={!wishText.trim() || wishBusy ? 'textSecondary' : undefined}>
-                  {d.priority_wish_submit}
-                </ThemedText>
-              </Pressable>
-            </>
+            </Pressable>
           )}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      )}
+
+      {topics?.map((tp) => {
+        const s = sel[tp.axis_id];
+        return (
+          <View key={tp.axis_id} style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+            <ThemedText type="smallBold">{tp.name}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.question}>
+              {tp.question}
+            </ThemedText>
+            <View style={styles.poles}>
+              <Pressable
+                onPress={() => pick(tp.axis_id, -1, tp.negative_pole)}
+                style={[
+                  styles.poleBtn,
+                  {
+                    borderColor: s?.direction === -1 ? colors.evidence : colors.textSecondary,
+                    backgroundColor: s?.direction === -1 ? colors.backgroundSelected : 'transparent',
+                  },
+                ]}
+              >
+                <ThemedText type="small">{tp.negative_pole}</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => pick(tp.axis_id, 1, tp.positive_pole)}
+                style={[
+                  styles.poleBtn,
+                  {
+                    borderColor: s?.direction === 1 ? colors.evidence : colors.textSecondary,
+                    backgroundColor: s?.direction === 1 ? colors.backgroundSelected : 'transparent',
+                  },
+                ]}
+              >
+                <ThemedText type="small">{tp.positive_pole}</ThemedText>
+              </Pressable>
+            </View>
+            {s && (
+              <View style={styles.weightRow}>
+                <Pressable
+                  onPress={() =>
+                    setSel((x) => ({ ...x, [tp.axis_id]: { ...s, weight: Math.max(1, s.weight - 1) } }))
+                  }
+                >
+                  <ThemedText type="smallBold">−</ThemedText>
+                </Pressable>
+                <ThemedText type="small">
+                  {'●'.repeat(s.weight)}
+                  {'○'.repeat(5 - s.weight)}
+                </ThemedText>
+                <Pressable
+                  onPress={() =>
+                    setSel((x) => ({ ...x, [tp.axis_id]: { ...s, weight: Math.min(5, s.weight + 1) } }))
+                  }
+                >
+                  <ThemedText type="smallBold">+</ThemedText>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      <Pressable
+        disabled={count < 3 || busy}
+        onPress={submit}
+        style={[
+          styles.submitBtn,
+          { backgroundColor: count < 3 || busy ? colors.backgroundElement : colors.evidence },
+        ]}
+      >
+        <ThemedText type="smallBold" themeColor={count < 3 || busy ? 'textSecondary' : undefined}>
+          {count >= 3 ? d.see_matches : tf(d.pick_more, { n: 3 - count })}
+        </ThemedText>
+      </Pressable>
+
+      <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+        <ThemedText type="smallBold">{d.priority_wish_h}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {d.priority_wish_sub}
+        </ThemedText>
+        {wishSent ? (
+          <ThemedText type="small" style={{ color: colors.evidence }}>
+            {d.priority_wish_sent}
+          </ThemedText>
+        ) : (
+          <>
+            <TextInput
+              value={wishText}
+              onChangeText={setWishText}
+              placeholder={d.priority_wish_ph}
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              style={[styles.wishInput, { borderColor: colors.textSecondary, color: colors.text }]}
+            />
+            {wishError && <ThemedText type="small">{d.priority_wish_error}</ThemedText>}
+            <Pressable
+              disabled={!wishText.trim() || wishBusy}
+              onPress={submitWish}
+              style={[
+                styles.wishSubmitBtn,
+                { borderColor: !wishText.trim() || wishBusy ? colors.textSecondary : colors.evidence },
+              ]}
+            >
+              <ThemedText type="small" themeColor={!wishText.trim() || wishBusy ? 'textSecondary' : undefined}>
+                {d.priority_wish_submit}
+              </ThemedText>
+            </Pressable>
+          </>
+        )}
+      </View>
+    </KeyboardAwareScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   content: { padding: Spacing.four, gap: Spacing.three },
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
