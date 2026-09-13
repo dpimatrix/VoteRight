@@ -110,6 +110,24 @@ export default function MatchesScreen() {
   // tap superseded moments later by a focus-triggered reload) clobbering a
   // fresher one.
   const loadGeneration = useRef(0);
+  // Real bug found live (2026-09-13): the Matches screen hung forever on
+  // mobile, every race, every time -- traced via live console logging (not
+  // guessed) to this ref's absence. The focus effect below used to read the
+  // "currently selected race" by smuggling a side effect out of a
+  // setRaceId() functional updater (`setRaceId((cur) => { nextId = ...;
+  // return nextId; })`), which assumes React invokes that updater
+  // synchronously before the very next line. It doesn't reliably: live
+  // logging showed /api/races succeeding every time (races state populated
+  // correctly, chips rendered fine) while `loadMatches` was NEVER called --
+  // `nextId` was still null when `if (nextId)` ran, so the effect always
+  // took the "no races" branch and explicitly set matches to null, which is
+  // what actually produced the infinite spinner (raceId && !matches &&
+  // !error). Nothing to do with the fetch/timeout layer at all -- loadMatches
+  // was simply never invoked. Fixed by tracking the current raceId in a
+  // plain ref, updated synchronously at both write sites (here and the chip
+  // tap below), so the focus effect can read the previous selection without
+  // depending on setState-updater timing.
+  const raceIdRef = useRef<string | null>(null);
 
   // Takes the race id explicitly rather than closing over `raceId` state --
   // see the useFocusEffect below for why: that was the actual root cause of
@@ -209,14 +227,15 @@ export default function MatchesScreen() {
           // the previously selected race dropped out of a newly-narrowed
           // list. Otherwise every tab-switch-and-back would yank the user
           // back to the first chip even when nothing about their own
-          // ballot changed. Read via the functional setState form rather
-          // than closing over `raceId` state, so this effect's own
-          // identity doesn't depend on it either (same reasoning as above).
-          let nextId: string | null = null;
-          setRaceId((cur) => {
-            nextId = cur && res.races.some((r) => r.id === cur) ? cur : (res.races[0]?.id ?? null);
-            return nextId;
-          });
+          // ballot changed. Read via raceIdRef rather than closing over
+          // `raceId` state, so this effect's own identity doesn't depend on
+          // it either (same reasoning as above) -- see raceIdRef's own
+          // comment for why this used to be a setRaceId() functional-updater
+          // side effect instead, and why that was the actual bug.
+          const cur = raceIdRef.current;
+          const nextId = cur && res.races.some((r) => r.id === cur) ? cur : (res.races[0]?.id ?? null);
+          raceIdRef.current = nextId;
+          setRaceId(nextId);
           if (nextId) {
             loadMatches(nextId);
           } else {
@@ -259,6 +278,7 @@ export default function MatchesScreen() {
               <Pressable
                 key={r.id}
                 onPress={() => {
+                  raceIdRef.current = r.id;
                   setRaceId(r.id);
                   loadMatches(r.id);
                 }}
