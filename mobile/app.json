@@ -3,7 +3,10 @@
     "name": "VoteRight",
     "slug": "voteright",
     "version": "2.0.0",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "voteright",
@@ -15,7 +18,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "VoteRight may use your camera to scan your payment card details during payment verification, instead of typing them in by hand."
       },
-      "buildNumber": "12"
+      "buildNumber": "13"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +29,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.dpimatrix.voteright.mobile",
-      "versionCode": 9
+      "versionCode": 10
     },
     "web": {
       "output": "static",

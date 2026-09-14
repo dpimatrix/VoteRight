@@ -1,6 +1,7 @@
 import { redirectTo } from "@/lib/redirect";
 import { currentOrNewUserId } from "@/lib/anon";
 import { verifyAddress } from "@/lib/debates";
+import { DEMAND_THRESHOLD } from "@/lib/jurisdictionDemand";
 import { hashContext } from "@/lib/signing";
 
 export async function POST(request: Request) {
@@ -12,7 +13,14 @@ export async function POST(request: Request) {
   if (isJson) {
     const { address } = (await request.json()) as { address?: string };
     const outcome = await verifyAddress(userId, address ?? "", requestContext);
-    return Response.json({ outcome });
+    // demandThreshold rides along on this one outcome only (found on
+    // regression review, 2026-09-08) -- the client copy used to hardcode
+    // "12" in four places (both platforms, both languages) instead of
+    // reading the actual DEMAND_THRESHOLD constant, which would silently
+    // go stale the moment that pilot-scale number is ever retuned.
+    return Response.json(
+      outcome === "ok_county_not_seeded" ? { outcome, demandThreshold: DEMAND_THRESHOLD } : { outcome },
+    );
   }
 
   const form = await request.formData();
@@ -25,6 +33,8 @@ export async function POST(request: Request) {
         ? `/verify?bad=outside&lang=${lang}`
         : outcome === "resolver_unavailable"
           ? `/verify?bad=unavailable&lang=${lang}`
-          : `/verify?bad=1&lang=${lang}`; // bad_format and no_match share the "check the address" message
+          : outcome === "no_match"
+            ? `/verify?bad=no_match&lang=${lang}` // split from bad_format (2026-09-08) -- see AddressForm.tsx's own comment; kept consistent here even though no page currently reads this specific value, this route's only no-JS fallback path
+            : `/verify?bad=1&lang=${lang}`;
   return redirectTo(dest, request);
 }

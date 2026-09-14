@@ -18,6 +18,11 @@ export interface PriorityWish {
   adminNote: string | null;
   createdAt: string;
   decidedAt: string | null;
+  // Set once an admin actually drafts an axis FROM this wish (migration
+  // 104) -- lets a submitter's own UI show "you suggested this" against
+  // the real axis, and lets the admin console distinguish "approved,
+  // still need to draft" from "approved, already handled."
+  linkedAxisId: string | null;
 }
 
 const MAX_STATEMENT_LEN = 500; // generous for a one-paragraph suggestion, short enough no one mistakes this for a debate argument
@@ -47,13 +52,14 @@ export async function submitPriorityWish(userId: string, statement: string): Pro
     separate admin-only endpoint. */
 export async function listOwnPriorityWishes(userId: string): Promise<PriorityWish[]> {
   const { rows } = await db().query(
-    `SELECT id, statement, status, admin_note, created_at::text AS created_at, decided_at::text AS decided_at
+    `SELECT id, statement, status, admin_note, created_at::text AS created_at, decided_at::text AS decided_at,
+            linked_axis_id
        FROM priority_wishes WHERE submitter_id = $1 ORDER BY created_at DESC`,
     [userId],
   );
   return rows.map((r) => ({
     id: r.id, statement: r.statement, status: r.status, adminNote: r.admin_note,
-    createdAt: r.created_at, decidedAt: r.decided_at,
+    createdAt: r.created_at, decidedAt: r.decided_at, linkedAxisId: r.linked_axis_id,
   }));
 }
 
@@ -61,15 +67,37 @@ export interface AdminPriorityWish extends PriorityWish {
   submitterId: string;
 }
 
+const ADMIN_WISH_COLUMNS = `id, submitter_id, statement, status, admin_note,
+            created_at::text AS created_at, decided_at::text AS decided_at, linked_axis_id`;
+
+function toAdminWish(r: {
+  id: string; submitter_id: string; statement: string; status: PriorityWish["status"];
+  admin_note: string | null; created_at: string; decided_at: string | null; linked_axis_id: string | null;
+}): AdminPriorityWish {
+  return {
+    id: r.id, submitterId: r.submitter_id, statement: r.statement, status: r.status, adminNote: r.admin_note,
+    createdAt: r.created_at, decidedAt: r.decided_at, linkedAxisId: r.linked_axis_id,
+  };
+}
+
 export async function listPendingPriorityWishes(): Promise<AdminPriorityWish[]> {
   const { rows } = await db().query(
-    `SELECT id, submitter_id, statement, status, admin_note, created_at::text AS created_at, decided_at::text AS decided_at
-       FROM priority_wishes WHERE status = 'pending' ORDER BY created_at`,
+    `SELECT ${ADMIN_WISH_COLUMNS} FROM priority_wishes WHERE status = 'pending' ORDER BY created_at`,
   );
-  return rows.map((r) => ({
-    id: r.id, submitterId: r.submitter_id, statement: r.statement, status: r.status, adminNote: r.admin_note,
-    createdAt: r.created_at, decidedAt: r.decided_at,
-  }));
+  return rows.map(toAdminWish);
+}
+
+/** Approved, but no admin has actually drafted an axis from it yet (see
+    migration 104's own comment) -- without this, an approved wish just
+    disappears from every admin screen the moment it's decided, with
+    nothing tracking that the real work (writing the balanced axis
+    wording) is still outstanding. */
+export async function listApprovedUndraftedPriorityWishes(): Promise<AdminPriorityWish[]> {
+  const { rows } = await db().query(
+    `SELECT ${ADMIN_WISH_COLUMNS} FROM priority_wishes
+      WHERE status = 'approved' AND linked_axis_id IS NULL ORDER BY decided_at`,
+  );
+  return rows.map(toAdminWish);
 }
 
 /** Decides a pending wish and notifies the submitter through the existing

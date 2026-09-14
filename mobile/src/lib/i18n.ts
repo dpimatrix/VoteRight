@@ -90,6 +90,10 @@ const DICT = {
     priority_wish_ph: 'e.g. Flood mitigation funding for the Rock Creek corridor',
     priority_wish_submit: 'Send suggestion',
     priority_wish_sent: "Sent — you'll be notified once it's reviewed.",
+    priority_wish_approved_status: "Approved — it'll become a real priority question soon.",
+    priority_wish_rejected_status: 'Not selected this time.',
+    priority_wish_note: 'Staff note: "{note}"',
+    priority_wish_you_suggested: '✓ You suggested this priority',
     priority_wish_error: 'Could not send your suggestion. Try again.',
     see_matches: 'See matches',
     pick_more: 'Pick {n} more',
@@ -415,11 +419,20 @@ const DICT = {
     outside_error: "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     resolver_unavailable_error: 'Address verification is temporarily unavailable — please try again in a few minutes.',
     no_match_error: 'Could not match that address — check the street number, name, and state.',
+    // Split out (2026-09-08, found live testing a real address the Census
+    // geocoder couldn't confirm) -- bad_format used to fall into
+    // no_match_error above too, which reads oddly for a genuinely malformed
+    // string (missing a street number/city/state entirely) rather than a
+    // well-formed address Census just couldn't match.
+    bad_format_error: "That doesn't look like a street address — include a street number, street, city, and state.",
     generic_error: 'Something went wrong. Try again.',
     verify_btn: 'Verify',
     verify_success_h: 'Verified',
+    // {n} interpolated from the real server-side DEMAND_THRESHOLD (found
+    // hardcoded as "12" on regression review, 2026-09-08) -- see web's
+    // AddressForm.tsx / api/verify/route.ts for the same fix.
     verify_county_not_seeded:
-      "You can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
+      "You can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once {n} residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     continue_btn: 'Continue',
 
     // ---- verify-payment.tsx ----
@@ -543,6 +556,10 @@ const DICT = {
     priority_wish_ph: 'p. ej. Fondos para mitigación de inundaciones en el corredor de Rock Creek',
     priority_wish_submit: 'Enviar sugerencia',
     priority_wish_sent: 'Enviada — te avisaremos cuando sea revisada.',
+    priority_wish_approved_status: 'Aprobada — pronto será una pregunta de prioridad real.',
+    priority_wish_rejected_status: 'No fue seleccionada esta vez.',
+    priority_wish_note: 'Nota del equipo: "{note}"',
+    priority_wish_you_suggested: '✓ Tú sugeriste esta prioridad',
     priority_wish_error: 'No se pudo enviar tu sugerencia. Inténtalo de nuevo.',
     topics_load_error: 'No se pudieron cargar los temas. Desliza hacia abajo para intentar de nuevo.',
     priorities_save_error: 'No se pudieron guardar tus prioridades. Intenta de nuevo.',
@@ -827,11 +844,12 @@ const DICT = {
     outside_error: 'No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.',
     resolver_unavailable_error: 'La verificación de dirección no está disponible temporalmente — inténtalo de nuevo en unos minutos.',
     no_match_error: 'No se pudo encontrar esa dirección — revisa el número, el nombre de la calle y el estado.',
+    bad_format_error: 'No parece una dirección postal — incluye número, calle, ciudad y estado.',
     generic_error: 'Algo salió mal. Intenta de nuevo.',
     verify_btn: 'Verificar',
     verify_success_h: 'Verificado',
     verify_county_not_seeded:
-      'Ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.',
+      'Ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto {n} residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.',
     continue_btn: 'Continuar',
 
     // ---- verify-payment.tsx ----

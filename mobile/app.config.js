@@ -37,6 +37,18 @@ export default ({ config }) => {
       // icon silently fails on Android in a way that's hard to debug
       // remotely, not worth the risk for this.
       "expo-notifications",
+      // expo-asset (2026-09-09) -- required peer dependency of expo-audio,
+      // flagged by `expo-doctor` as missing ("Your app may crash outside of
+      // Expo Go without this dependency"). Was never actually installed
+      // even though expo-audio has been in use since 2026-08-24; added
+      // while investigating 2.0.0's launch-crash rejection. `expo install`
+      // itself asked for this plugin entry.
+      "expo-asset",
+      // expo-image (2026-09-09) -- already an in-use dependency (candidate
+      // photos etc.), never had a plugin entry; `expo install --fix`
+      // surfaced this while aligning package versions during the same
+      // launch-crash investigation. No config options needed.
+      "expo-image",
     ],
     name: isLocal ? "VoteRight Local" : "VoteRight",
     android: {

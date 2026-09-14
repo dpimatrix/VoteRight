@@ -29,14 +29,22 @@ export async function topicsList(): Promise<{ id: string; name: string }[]> {
   return rows;
 }
 
+// Real gap found live 2026-09-13: this list was one flat page ordered by
+// status then topic, no way to narrow it -- fine at a handful of axes,
+// unmanageable once the platform's axis set grows nationwide. Sorted
+// topic-name-first now (was status-first) specifically so the admin page
+// can group consecutive rows by topic and offer a per-topic filter;
+// filtering itself happens in memory on that page, not here, since the
+// "superseded by" picker on each axis card still needs every axis
+// regardless of which topic is currently selected.
 export async function listAxesForAdmin(): Promise<AdminAxis[]> {
   const { rows } = await db().query(
     `SELECT a.id, a.topic_id, t.name AS topic_name, a.key, a.question, a.negative_pole, a.positive_pole,
             a.status, a.created_by_admin, a.reviewed_by_admin,
             a.published_at::text AS published_at, a.retired_at::text AS retired_at, a.superseded_by_axis_id
        FROM topic_axes a JOIN topics t ON t.id = a.topic_id
-      ORDER BY CASE a.status WHEN 'in_review' THEN 0 WHEN 'draft' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
-               t.name, a.key`,
+      ORDER BY t.name, CASE a.status WHEN 'in_review' THEN 0 WHEN 'draft' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
+               a.key`,
   );
   return rows.map((r) => ({
     id: r.id,
@@ -70,6 +78,11 @@ export async function createDraftAxis(opts: {
   negativePole: string;
   positivePole: string;
   createdByAdmin: string;
+  // Set when this draft is being written FROM a resident's approved
+  // priority wish (migration 104) -- links the two atomically with the
+  // insert below, so a wish can never end up pointing at an axis that
+  // failed to actually get created.
+  wishId?: string;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   if (!opts.topicId && !opts.newTopicName) return { ok: false, reason: "topic" };
   if (!opts.key.trim() || !opts.question.trim() || !opts.negativePole.trim() || !opts.positivePole.trim()) {
@@ -92,8 +105,25 @@ export async function createDraftAxis(opts: {
        VALUES ($1, $2, $3, $4, $5, 'draft', $6) RETURNING id`,
       [topicId, opts.key, opts.question, opts.negativePole, opts.positivePole, opts.createdByAdmin],
     );
+    const axisId = rows[0].id as string;
+    if (opts.wishId) {
+      // WHERE guards the same race decidePriorityWish already guards
+      // against elsewhere on this page: two admins can't both link a
+      // draft from the same wish, and a wish that was somehow already
+      // linked (or never actually approved) refuses rather than silently
+      // producing two axes claiming the same suggestion.
+      const linked = await client.query(
+        `UPDATE priority_wishes SET linked_axis_id = $2
+          WHERE id = $1 AND status = 'approved' AND linked_axis_id IS NULL`,
+        [opts.wishId, axisId],
+      );
+      if ((linked.rowCount ?? 0) === 0) {
+        await client.query("ROLLBACK");
+        return { ok: false, reason: "wish_already_linked" };
+      }
+    }
     await client.query("COMMIT");
-    return { ok: true, id: rows[0].id as string };
+    return { ok: true, id: axisId };
   } catch (e) {
     await client.query("ROLLBACK");
     // UNIQUE (topic_id, key) is the only realistic constraint hit here.

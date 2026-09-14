@@ -117,6 +117,24 @@ export interface JurisdictionDemandRow {
   looksProvisioned: boolean; // a real county-level jurisdiction row now exists with at least one office -- doesn't mean admin has reviewed it yet
 }
 
+// KNOWN, ACCEPTED GAP (found on regression review, 2026-09-08, deliberately
+// not changed): jurisdictionForGeography's countyNotYetSeeded flips to
+// false the moment a bare `jurisdictions` row exists, before this row's own
+// looksProvisioned (which also requires an office) would agree the county
+// is actually usable -- if a county is provisioned in two steps (row, then
+// offices added later), signal collection stops slightly before
+// looksProvisioned would. Two possible fixes were considered and rejected:
+// loosening looksProvisioned to match would risk an admin clicking "Mark as
+// provisioned" on a county whose offices genuinely aren't populated yet;
+// tightening jurisdictionForGeography's own matching query to require an
+// office has a much wider blast radius (it's the core ballot-routing
+// function every resident's verification goes through, not just this
+// admin-only queue) and can't be safely verified against real production
+// jurisdiction data from here. The gap only matters during the narrow
+// window between those two seeding steps, for a resident who happens to
+// verify in exactly that window -- accepted as a real but low-frequency
+// edge case rather than risk either fix.
+
 /** Every county with at least one demand signal, most-active first --
     admin visibility starts building from the FIRST signal, not just once
     the threshold is crossed, mirroring adminPendingCheckQueue's own
@@ -155,11 +173,24 @@ export async function adminJurisdictionDemandQueue(): Promise<JurisdictionDemand
     FIPS pair) rather than erroring -- there's nothing destructive to guard
     against either way. */
 export async function adminMarkJurisdictionProvisioned(stateFips: string, countyFips: string): Promise<void> {
+  // DELETE...RETURNING, not SELECT then a separate DELETE (real race found
+  // on regression review, 2026-09-08): those were two independent
+  // round trips, so a signal INSERTed in the gap between them -- reachable
+  // via the "misclick" case this function's own label-fallback comment
+  // below already anticipates, an admin clicking Mark as provisioned
+  // before the real jurisdictions row exists yet, county_not_yet_seeded
+  // still true for anyone verifying at that exact moment -- got silently
+  // deleted by the second query without its submitter ever being in the
+  // notify list from the first. One atomic statement closes the window
+  // entirely: whatever this DELETE actually removes IS, by construction,
+  // the exact and only set of people who need notifying.
   const { rows } = await db().query(
-    `SELECT DISTINCT user_id FROM jurisdiction_demand_signals WHERE state_fips = $1 AND county_fips = $2`,
+    `DELETE FROM jurisdiction_demand_signals WHERE state_fips = $1 AND county_fips = $2 RETURNING user_id`,
     [stateFips, countyFips],
   );
   if (rows.length === 0) return;
+  // No dedup needed -- UNIQUE (state_fips, county_fips, user_id) below
+  // already guarantees at most one row per user for this county.
   const userIds = rows.map((r) => r.user_id as string);
   // Real bug found on self-review (2026-09-08): this used to be a
   // hardcoded English sentence in `detail`, which notifications/page.tsx
@@ -180,7 +211,8 @@ export async function adminMarkJurisdictionProvisioned(stateFips: string, county
   const jur = await db().query(`SELECT name FROM jurisdictions WHERE level = 'county' AND state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
   const label = (jur.rows[0]?.name as string | undefined) ?? `FIPS ${stateFips}${countyFips}`;
   await notifyUsers(userIds, "jurisdiction_provisioned", { detail: label });
-  await db().query(`DELETE FROM jurisdiction_demand_signals WHERE state_fips = $1 AND county_fips = $2`, [stateFips, countyFips]);
+  // Signal rows themselves are already gone -- removed atomically above,
+  // not here.
   // Also clears the admin-alert claim (see recordJurisdictionDemandSignal's
   // own comment) -- without this, a county that somehow needs re-tracking
   // later (data correction, a jurisdiction row removed by mistake and

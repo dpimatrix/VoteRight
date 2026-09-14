@@ -9,6 +9,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const topicId = String(form.get("topic_id") ?? "");
   const newTopicName = String(form.get("new_topic_name") ?? "").trim();
+  const wishId = String(form.get("wish_id") ?? "").trim();
   const res = await createDraftAxis({
     topicId: topicId || undefined,
     newTopicName: newTopicName || undefined,
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
     negativePole: String(form.get("negative_pole") ?? "").trim(),
     positivePole: String(form.get("positive_pole") ?? "").trim(),
     createdByAdmin: admin.username,
+    wishId: wishId || undefined,
   });
   // Real gap found live 2026-08-31: createDraftAxis()'s own rejection reason
   // (missing topic, missing fields, a duplicate key within the topic, or a

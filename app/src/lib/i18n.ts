@@ -223,6 +223,14 @@ const DICT = {
     verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verify address",
     verify_bad: "That doesn't look like a street address — include a street number, street, city, and state.",
+    // Split from verify_bad (2026-09-08, found live testing a real address
+    // the Census geocoder couldn't confirm) -- bad_format and no_match used
+    // to share verify_bad's wording, which is actively wrong for no_match:
+    // it tells someone whose address is genuinely well-formed that it
+    // "doesn't look like a street address." Now nationwide (nudged past the
+    // original DMV pilot's mostly-well-mapped areas), a real address the
+    // Census geocoder just can't confirm is a normal outcome, not a typo.
+    verify_no_match: "We couldn't verify that specific address against Census records — double-check it for typos, or try a slightly different form (e.g. spelling out the street type).",
     verify_outside:
       "We couldn't match that address to a U.S. state or territory. Double-check the street number, city, and state, then try again.",
     verify_unavailable: "Address verification is temporarily unavailable — please try again in a few minutes.",
@@ -266,8 +274,12 @@ const DICT = {
     // address" reads as if their verification failed or didn't save.
     pay_need: "Address verified — pay to complete verification and participate in debates.",
     verify_done: "✓ Address verified — you can now vote on referenda and mandates.",
+    // {n} interpolated from the real DEMAND_THRESHOLD constant at the call
+    // site (found hardcoded as "12" on regression review, 2026-09-08) --
+    // would otherwise silently go stale the moment that pilot-scale number
+    // is ever retuned.
     verify_county_not_seeded:
-      "✓ Address verified — you can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once 12 residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
+      "✓ Address verified — you can vote on statewide referenda and mandates now. Your county doesn't yet have its own local ballot detail, though: once {n} residents from your area have verified, VoteRight starts adding it, and you'll be notified if that happens for yours.",
     verify_pay_next: "Debate participation (proposing, seconding, arguing, calling the question) needs one more step — a payment, which is the identity verification for that part of the platform.",
     verify_pay_link: "Verify with a payment →",
     verify_current: "Currently verified as",
@@ -719,6 +731,7 @@ const DICT = {
     verify_ph: "123 Main St, Rockville, MD",
     verify_btn: "Verificar dirección",
     verify_bad: "No parece una dirección postal — incluye número, calle, ciudad y estado.",
+    verify_no_match: "No pudimos verificar esa dirección específica contra los registros del Censo — revisa si tiene errores de escritura, o intenta una forma ligeramente distinta (por ejemplo, escribiendo el tipo de calle completo).",
     verify_outside:
       "No pudimos encontrar esa dirección en ningún estado o territorio de EE. UU. Verifica el número, la calle y el estado, y vuelve a intentarlo.",
     verify_unavailable: "La verificación de direcciones no está disponible en este momento — inténtalo de nuevo en unos minutos.",
@@ -756,7 +769,7 @@ const DICT = {
     pay_need: "Dirección verificada — paga para completar la verificación y participar en los debates.",
     verify_done: "✓ Dirección verificada — ya puedes votar en referendos y mandatos.",
     verify_county_not_seeded:
-      "✓ Dirección verificada — ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto 12 residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.",
+      "✓ Dirección verificada — ya puedes votar en referendos y mandatos estatales. Tu condado aún no tiene su propio detalle de boleta local: en cuanto {n} residentes de tu zona se hayan verificado, VoteRight empieza a agregarlo, y te avisaremos si eso ocurre en la tuya.",
     verify_current: "Actualmente verificado como",
     verify_since: "verificado",
     verify_change_btn: "Cambiar dirección",

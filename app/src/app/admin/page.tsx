@@ -281,7 +281,7 @@ export default async function AdminHome() {
                 Jurisdiction demand
                 <span className="smeta">counties residents keep verifying in that VoteRight hasn&apos;t seeded local detail for yet</span>
               </span>
-              <span className={`chip band ${crossed > 0 ? "b1" : queue.length > 0 ? "b0" : "b0"}`}>
+              <span className={`chip band ${crossed > 0 ? "b1" : queue.length > 0 ? "bm1" : "b0"}`}>
                 {crossed} at threshold · {queue.length} tracked
               </span>
             </Link>
