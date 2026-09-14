@@ -1,7 +1,7 @@
 import { currentAdmin, hasAdminAccess } from "@/lib/adminAuth";
 import { AdminAccessDenied } from "@/components/AdminAccessDenied";
 import { listAxesForAdmin, topicsList, type AdminAxis } from "@/lib/priorityAxes";
-import { listPendingPriorityWishes } from "@/lib/priorityWishes";
+import { listApprovedUndraftedPriorityWishes, listPendingPriorityWishes } from "@/lib/priorityWishes";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,7 @@ const ERROR_NOTE: Record<string, string> = {
   duplicate_key: "That axis key is already used within this topic — pick a different one.",
   error: "That axis couldn't be saved.",
   wish_already_decided: "Someone else already decided that wish — your note wasn't saved.",
+  wish_already_linked: "Someone already drafted an axis from that wish — this one wasn't saved to avoid a duplicate.",
 };
 
 function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminAxis[]; meAdmin: string }) {
@@ -131,14 +132,31 @@ function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminA
 export default async function AdminPriorityAxesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ e?: string }>;
+  searchParams: Promise<{ e?: string; topic?: string; draft_from_wish?: string; draft_text?: string }>;
 }) {
   if (!(await hasAdminAccess("priority_axes"))) return <AdminAccessDenied screen="priority_axes" />;
   const admin = await currentAdmin();
   const sp = await searchParams;
+  // Unfiltered -- the "superseded by" dropdown on each published axis
+  // (inside AxisCard below) needs every axis regardless of the topic
+  // filter, so filtering happens here in memory rather than in the query.
   const axes = await listAxesForAdmin();
   const topics = await topicsList();
   const wishes = await listPendingPriorityWishes();
+  const approvedUndrafted = await listApprovedUndraftedPriorityWishes();
+
+  // Grouped by topic for the render below -- listAxesForAdmin() already
+  // orders topic-name-first specifically so consecutive rows share a
+  // topic; this just splits on that boundary rather than re-sorting.
+  // Filtered to the selected topic first, if any -- the grouping loop
+  // itself doesn't need to know about the filter.
+  const visibleAxes = sp.topic ? axes.filter((a) => a.topicId === sp.topic) : axes;
+  const axesByTopic: { topicName: string; axes: AdminAxis[] }[] = [];
+  for (const a of visibleAxes) {
+    const group = axesByTopic[axesByTopic.length - 1];
+    if (group?.topicName === a.topicName) group.axes.push(a);
+    else axesByTopic.push({ topicName: a.topicName, axes: [a] });
+  }
 
   return (
     <>
@@ -178,9 +196,45 @@ export default async function AdminPriorityAxesPage({
         </div>
       ))}
 
-      <div className="grouph">Draft a new axis</div>
+      {/* Real gap found live 2026-09-13: approving a wish above used to be
+          the last anyone ever saw of it -- listPendingPriorityWishes()
+          correctly drops it once decided, but nothing else picked it up,
+          so "approved" and "actually built" silently diverged with no
+          reminder. This is that reminder. */}
+      <div className="grouph">Approved, not yet drafted ({approvedUndrafted.length})</div>
+      <p className="sub" style={{ marginTop: 0 }}>
+        Approved suggestions waiting on the actual axis wording below. Stays here until a draft is
+        linked to it — tracked (migration 104), not just a note to remember.
+      </p>
+      {approvedUndrafted.length === 0 && <p className="nopos">Nothing outstanding.</p>}
+      {approvedUndrafted.map((w) => (
+        <div className="card" key={w.id} style={{ padding: "0.7rem 0.9rem" }}>
+          <p style={{ fontSize: "0.9rem", margin: 0 }}>{w.statement}</p>
+          <p className="nopos" style={{ margin: "0.3rem 0 0" }}>
+            approved {w.decidedAt?.slice(0, 10)}
+            {w.adminNote ? ` · noted: "${w.adminNote}"` : ""}
+          </p>
+          <a
+            className="btn secondary"
+            style={{ marginTop: "0.5rem", display: "inline-block" }}
+            href={`/admin/priority-axes?draft_from_wish=${w.id}&draft_text=${encodeURIComponent(w.statement)}#draft-axis`}
+          >
+            Draft axis from this ↓
+          </a>
+        </div>
+      ))}
+
+      <div id="draft-axis" className="grouph">Draft a new axis</div>
       <div className="card">
         <form method="post" action="/api/admin/priority-axes" className="admform">
+          {sp.draft_from_wish && (
+            <>
+              <input type="hidden" name="wish_id" value={sp.draft_from_wish} />
+              <p className="nopos" style={{ width: "100%", margin: 0 }}>
+                Drafting from an approved resident suggestion — linked automatically on save.
+              </p>
+            </>
+          )}
           <label style={{ flex: 1, fontSize: "0.8rem" }}>
             Existing topic
             <select name="topic_id" style={{ width: "100%" }}>
@@ -200,7 +254,13 @@ export default async function AdminPriorityAxesPage({
           </label>
           <label style={{ flex: 1, fontSize: "0.8rem" }}>
             Question, phrased neutrally
-            <textarea name="question" rows={2} required style={{ width: "100%" }} />
+            <textarea
+              name="question"
+              rows={2}
+              required
+              defaultValue={sp.draft_text ?? ""}
+              style={{ width: "100%" }}
+            />
           </label>
           <label style={{ flex: 1, fontSize: "0.8rem" }}>
             Negative pole (−2) — what the low end means, in words
@@ -214,10 +274,30 @@ export default async function AdminPriorityAxesPage({
         </form>
       </div>
 
-      <div className="grouph">All axes</div>
-      {axes.length === 0 && <p className="nopos">No axes.</p>}
-      {axes.map((a) => (
-        <AxisCard key={a.id} axis={a} allAxes={axes} meAdmin={admin?.username ?? ""} />
+      <div className="grouph">
+        All axes
+        {sp.topic && ` — ${topics.find((t) => t.id === sp.topic)?.name ?? sp.topic}`}
+      </div>
+      {/* Plain GET links, not a <select onChange>, to stay consistent with
+          this whole console's no-client-JS posture. */}
+      <p className="sub" style={{ marginTop: 0, display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+        <a href="/admin/priority-axes" style={{ fontWeight: sp.topic ? "normal" : "bold" }}>
+          All topics
+        </a>
+        {topics.map((t) => (
+          <a key={t.id} href={`/admin/priority-axes?topic=${t.id}`} style={{ fontWeight: sp.topic === t.id ? "bold" : "normal" }}>
+            {t.name}
+          </a>
+        ))}
+      </p>
+      {visibleAxes.length === 0 && <p className="nopos">No axes{sp.topic ? " for this topic" : ""}.</p>}
+      {axesByTopic.map((group) => (
+        <div key={group.topicName}>
+          <p className="nopos" style={{ margin: "0.8rem 0 0.3rem", fontWeight: "bold" }}>{group.topicName}</p>
+          {group.axes.map((a) => (
+            <AxisCard key={a.id} axis={a} allAxes={axes} meAdmin={admin?.username ?? ""} />
+          ))}
+        </div>
       ))}
     </>
   );

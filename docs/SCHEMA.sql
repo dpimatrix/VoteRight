@@ -1358,7 +1358,12 @@ CREATE TABLE priority_wishes (
     admin_note    TEXT,
     decided_by    UUID REFERENCES admin_accounts(id),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    decided_at    TIMESTAMPTZ
+    decided_at    TIMESTAMPTZ,
+    -- Set when an admin actually drafts an axis FROM this wish (migration
+    -- 104) -- an audit trail from suggestion to real axis, and what lets
+    -- the admin console show "approved, not yet drafted" as a real queue
+    -- instead of the wish just vanishing once decided.
+    linked_axis_id UUID REFERENCES topic_axes(id)
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -1425,3 +1430,5 @@ CREATE INDEX idx_signed_actions_user ON signed_actions(user_id);
 CREATE INDEX idx_signed_actions_fingerprint ON signed_actions(public_key_fingerprint);
 CREATE INDEX idx_signed_actions_seq ON signed_actions(seq DESC);
 CREATE INDEX priority_wishes_pending_idx ON priority_wishes (created_at) WHERE status = 'pending';
+CREATE INDEX priority_wishes_approved_undrafted_idx ON priority_wishes (created_at)
+  WHERE status = 'approved' AND linked_axis_id IS NULL;

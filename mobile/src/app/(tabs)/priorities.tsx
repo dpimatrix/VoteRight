@@ -38,6 +38,10 @@ interface PriorityWish {
   statement: string;
   status: 'pending' | 'approved' | 'rejected';
   adminNote: string | null;
+  // Set once staff actually draft an axis from this wish (web migration
+  // 104) -- lets this screen show "you suggested this" against the real
+  // axis it became, not just a status message with nowhere to point.
+  linkedAxisId: string | null;
 }
 
 export default function PrioritiesScreen() {
@@ -71,6 +75,11 @@ export default function PrioritiesScreen() {
   const [wishError, setWishError] = useState(false);
   const [wishes, setWishes] = useState<PriorityWish[] | null>(null);
   const latestWish = wishes?.[0] ?? null;
+  // Keyed by axis, not just the latest wish -- an older wish (not the most
+  // recent one shown in the status card below) could be the one that
+  // actually got drafted into a real axis, and every published axis this
+  // resident suggested should get the note, not just their newest.
+  const linkedWishByAxis = new Map((wishes ?? []).filter((w) => w.linkedAxisId).map((w) => [w.linkedAxisId, w]));
   const wishGeneration = useRef(0);
   const loadWishes = useCallback(() => {
     const gen = ++wishGeneration.current;
@@ -100,7 +109,10 @@ export default function PrioritiesScreen() {
       // rather than waiting on a second round trip; the next focus's
       // loadWishes() call reconciles this with the server's own record
       // regardless (real id, real createdAt) if anything here is stale.
-      setWishes((w) => [{ id: res.id, statement, status: 'pending', adminNote: null }, ...(w ?? [])]);
+      setWishes((w) => [
+        { id: res.id, statement, status: 'pending', adminNote: null, linkedAxisId: null },
+        ...(w ?? []),
+      ]);
     } catch (e) {
       console.error('Priority wish submit failed:', e);
       setWishError(true);
@@ -217,12 +229,23 @@ export default function PrioritiesScreen() {
 
       {topics?.map((tp) => {
         const s = sel[tp.axis_id];
+        const suggestedByMe = linkedWishByAxis.get(tp.axis_id);
         return (
           <View key={tp.axis_id} style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <ThemedText type="smallBold">{tp.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.question}>
               {tp.question}
             </ThemedText>
+            {/* Private to this submitter -- derived from their own fetched
+                wishes, never a public "community suggested" label everyone
+                sees (a separate, bigger call if ever wanted). Closes the
+                loop from "I don't see my priority" all the way through to
+                actually seeing it live. */}
+            {suggestedByMe && (
+              <ThemedText type="small" style={{ color: colors.evidence }}>
+                {d.priority_wish_you_suggested}
+              </ThemedText>
+            )}
             <View style={styles.poles}>
               <Pressable
                 onPress={() => pick(tp.axis_id, -1, tp.negative_pole)}
