@@ -44,7 +44,7 @@ export default function DebatesScreen() {
     setError(null);
     (async () => {
       try {
-        if (!hasSession()) await ensureSession();
+        if (!(await hasSession())) await ensureSession();
         const [res, who] = await Promise.all([
           get<{ proposals: Proposal[] }>('/api/debates'),
           get<{ tier: string }>('/api/whoami'),

@@ -216,7 +216,7 @@ export default function MatchesScreen() {
       let cancelled = false;
       (async () => {
         try {
-          if (!hasSession()) await ensureSession();
+          if (!(await hasSession())) await ensureSession();
           const res = await get<{ races: Race[] }>('/api/races');
           if (cancelled) return;
           setRaces(res.races);

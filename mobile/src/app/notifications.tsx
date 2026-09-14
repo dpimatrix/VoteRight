@@ -40,7 +40,7 @@ export default function NotificationsScreen() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!hasSession()) await ensureSession();
+    if (!(await hasSession())) await ensureSession();
     const res = await get<NotificationsResponse>('/api/notifications');
     setData(res);
     setEmailInput(res.email ?? '');

@@ -60,7 +60,7 @@ export default function CampaignScreen() {
 
   const load = useCallback(async () => {
     try {
-      if (!hasSession()) await ensureSession();
+      if (!(await hasSession())) await ensureSession();
       const [res, who] = await Promise.all([
         get<CampaignDetail>(`/api/accountability/${id}`),
         get<{ tier: string }>('/api/whoami'),

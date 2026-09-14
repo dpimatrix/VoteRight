@@ -57,7 +57,7 @@ export default function ReferendumScreen() {
 
   const load = useCallback(async () => {
     try {
-      if (!hasSession()) await ensureSession();
+      if (!(await hasSession())) await ensureSession();
       const [r, who] = await Promise.all([
         get<ReferendumDetail>(`/api/referenda/${id}`),
         get<{ tier: string }>('/api/whoami'),

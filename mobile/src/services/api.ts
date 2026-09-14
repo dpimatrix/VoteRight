@@ -7,8 +7,6 @@ const SESSION_HEADER = "X-VoteRight-Session";
 
 let currentSessionId: string | null = null;
 
-export const hasSession = () => !!currentSessionId;
-
 const persistSessionId = (sid: string) => {
   currentSessionId = sid;
   AsyncStorage.setItem(SESSION_KEY, sid).catch(() => {});
@@ -35,6 +33,30 @@ AsyncStorage.getItem(SESSION_KEY)
   })
   .catch(() => {})
   .finally(() => sessionReadyResolve());
+
+// Real bug found live (2026-09-13): reported as "Pay to Verify shows as if
+// I'd never paid" after a cold start (phone restart, not just backgrounding)
+// -- was a synchronous `!!currentSessionId` check, identical to this
+// module's own get()/post()/ensureSession() BEFORE this fix except for one
+// thing: it never awaited sessionReady first. Every single one of this
+// project's 16 call sites follows the exact same
+// `if (!hasSession()) await ensureSession()` shape, so on a true cold
+// start, if a screen's focus effect fires before the AsyncStorage read
+// above finishes (a real race, not hypothetical -- effects can fire
+// within a render pass well before a native-bridge round trip settles),
+// hasSession() incorrectly reported false, ensureSession() minted a
+// BRAND NEW anonymous identity, and that new session id overwrote the
+// real, already-verified one in both memory and AsyncStorage --
+// silently orphaning payment_verified/address_verified status,
+// priorities, and debate history, exactly the "reinstall-wipes-you" class
+// of gap the identity-backup feature was built to solve, except triggered
+// by a plain restart instead of a reinstall. Now async and gated on the
+// same sessionReady every other function here already waits on, so it can
+// never answer before the real persisted value has actually loaded.
+export const hasSession = async (): Promise<boolean> => {
+  await sessionReady;
+  return !!currentSessionId;
+};
 
 const getHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = { Accept: "application/json" };

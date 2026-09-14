@@ -61,7 +61,7 @@ export default function MandatesScreen() {
     setError(null);
     (async () => {
       try {
-        if (!hasSession()) await ensureSession();
+        if (!(await hasSession())) await ensureSession();
         const res = await get<{ referenda: Referendum[]; mandates: Mandate[] }>('/api/mandates');
         if (loadGeneration.current !== gen) return;
         setReferenda(res.referenda);

@@ -155,7 +155,7 @@ export default function CandidateScreen() {
       let cancelled = false;
       (async () => {
         try {
-          if (!hasSession()) await ensureSession();
+          if (!(await hasSession())) await ensureSession();
           const res = await get<CandidateResponse>(`/api/candidates/${id}`);
           if (!cancelled) setData(res);
         } catch (e) {

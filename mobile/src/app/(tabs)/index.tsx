@@ -77,7 +77,7 @@ export default function BallotScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      if (!hasSession()) await ensureSession();
+      if (!(await hasSession())) await ensureSession();
       const visitId = await AsyncStorage.getItem(VISIT_KEY);
       const res = await get<BallotResponse>(`/api/ballot${visitId ? `?visit=${visitId}` : ''}`);
       setData(res);

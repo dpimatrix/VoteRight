@@ -78,7 +78,7 @@ export default function AccountabilityScreen() {
       let cancelled = false;
       (async () => {
         try {
-          if (!hasSession()) await ensureSession();
+          if (!(await hasSession())) await ensureSession();
           const [res, who] = await Promise.all([
             get<{ campaigns: Campaign[]; pathways: Pathway[]; politicians: Politician[] }>('/api/accountability'),
             get<{ tier: string }>('/api/whoami'),

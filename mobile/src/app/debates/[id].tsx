@@ -101,7 +101,7 @@ export default function DebateScreen() {
 
   const load = useCallback(async () => {
     try {
-      if (!hasSession()) await ensureSession();
+      if (!(await hasSession())) await ensureSession();
       const [dd, who] = await Promise.all([
         get<DebateDetail>(`/api/debates/${id}`),
         get<{ tier: string }>('/api/whoami'),
