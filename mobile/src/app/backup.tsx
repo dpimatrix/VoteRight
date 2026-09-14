@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLanguagePreference } from '@/hooks/language-preference';
-import { t } from '@/lib/i18n';
+import { t, tf } from '@/lib/i18n';
 import {
   ensureSigningKey,
   exportEncryptedBackup,
@@ -25,6 +25,11 @@ import {
    web's own scope for this pass was specifically the reinstall-wipes-
    your-identity gap, not the full KeySettings surface; those stay a
    real, separate follow-up. */
+// Matches the disabled-until check on the export button below -- pulled
+// out to a constant so the displayed requirement and the actual gate can
+// never quietly drift apart.
+const MIN_PASSPHRASE_LEN = 8;
+
 export default function BackupScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
@@ -170,12 +175,29 @@ export default function BackupScreen() {
             autoCapitalize="none"
             style={[styles.input, { borderColor: colors.textSecondary, color: colors.text }]}
           />
+          {/* Real gap found live: the export button was silently disabled
+              below 8 characters with nothing on screen ever saying so --
+              the passphrase field is masked (secureTextEntry), so there
+              was no way to tell how many characters you'd actually typed,
+              let alone that 8 was the target. MIN_PASSPHRASE_LEN is the
+              same constant the disabled check below reads, not a
+              separately-typed number that could drift from it. */}
+          <ThemedText
+            type="small"
+            style={passphrase.length >= MIN_PASSPHRASE_LEN ? { color: colors.evidence } : undefined}
+            themeColor={passphrase.length >= MIN_PASSPHRASE_LEN ? undefined : 'textSecondary'}
+          >
+            {tf(d.key_passphrase_count, { n: passphrase.length, min: MIN_PASSPHRASE_LEN })}
+          </ThemedText>
           <Pressable
-            disabled={busy || passphrase.length < 8}
+            disabled={busy || passphrase.length < MIN_PASSPHRASE_LEN}
             onPress={doExport}
             style={[
               styles.submitBtn,
-              { backgroundColor: busy || passphrase.length < 8 ? colors.backgroundElement : colors.evidence },
+              {
+                backgroundColor:
+                  busy || passphrase.length < MIN_PASSPHRASE_LEN ? colors.backgroundElement : colors.evidence,
+              },
             ]}
           >
             {busy ? <ActivityIndicator /> : <ThemedText type="smallBold">{d.key_export_go}</ThemedText>}
