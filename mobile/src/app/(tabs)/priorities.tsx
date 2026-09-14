@@ -33,6 +33,13 @@ interface SavedPriority {
   statement: string;
 }
 
+interface PriorityWish {
+  id: string;
+  statement: string;
+  status: 'pending' | 'approved' | 'rejected';
+  adminNote: string | null;
+}
+
 export default function PrioritiesScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -50,19 +57,50 @@ export default function PrioritiesScreen() {
   // that isn't on the list yet. Independent of the topics/selection state
   // above -- this is a one-off suggestion, not part of what gets POSTed
   // to /api/priorities.
+  //
+  // Real bug found live (2026-09-13): this used to track only a local
+  // `wishSent` boolean, set once on submit and never touched again --
+  // meaning "Sent, you'll be notified once it's reviewed" stayed on screen
+  // forever, even long after the user had ALREADY been notified the wish
+  // was approved or rejected (GET /api/priority-wishes has always returned
+  // the real status; this screen just never called it). Now fetched
+  // alongside topics on every focus, so the message reflects the wish's
+  // actual current state instead of a frozen one-shot flag.
   const [wishText, setWishText] = useState('');
   const [wishBusy, setWishBusy] = useState(false);
-  const [wishSent, setWishSent] = useState(false);
   const [wishError, setWishError] = useState(false);
+  const [wishes, setWishes] = useState<PriorityWish[] | null>(null);
+  const latestWish = wishes?.[0] ?? null;
+  const wishGeneration = useRef(0);
+  const loadWishes = useCallback(() => {
+    const gen = ++wishGeneration.current;
+    (async () => {
+      try {
+        if (!hasSession()) await ensureSession();
+        const res = await get<{ wishes: PriorityWish[] }>('/api/priority-wishes');
+        if (wishGeneration.current === gen) setWishes(res.wishes);
+      } catch (e) {
+        // Best-effort -- a failure here just means the screen falls back to
+        // the plain submission form instead of showing a real status; it
+        // must never block or replace the topics screen's own error state.
+        console.error('Priority wishes load failed:', e);
+      }
+    })();
+  }, []);
   async function submitWish() {
-    if (!wishText.trim()) return;
+    const statement = wishText.trim();
+    if (!statement) return;
     setWishBusy(true);
     setWishError(false);
     try {
       if (!hasSession()) await ensureSession();
-      await post('/api/priority-wishes', { statement: wishText.trim() });
+      const res = await post<{ id: string }>('/api/priority-wishes', { statement });
       setWishText('');
-      setWishSent(true);
+      // Optimistic, not a refetch -- shows the real pending state instantly
+      // rather than waiting on a second round trip; the next focus's
+      // loadWishes() call reconciles this with the server's own record
+      // regardless (real id, real createdAt) if anything here is stale.
+      setWishes((w) => [{ id: res.id, statement, status: 'pending', adminNote: null }, ...(w ?? [])]);
     } catch (e) {
       console.error('Priority wish submit failed:', e);
       setWishError(true);
@@ -107,7 +145,12 @@ export default function PrioritiesScreen() {
     })();
   }, [d.topics_load_error]);
 
-  useFocusEffect(useCallback(() => { loadTopics(); }, [loadTopics]));
+  useFocusEffect(
+    useCallback(() => {
+      loadTopics();
+      loadWishes();
+    }, [loadTopics, loadWishes]),
+  );
   // Gated to the load error specifically, not priorities_save_error --
   // a failed save shouldn't silently retry as a topics reload on resume.
   useRetryOnForeground(error === d.topics_load_error, loadTopics);
@@ -250,11 +293,33 @@ export default function PrioritiesScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           {d.priority_wish_sub}
         </ThemedText>
-        {wishSent ? (
-          <ThemedText type="small" style={{ color: colors.evidence }}>
-            {d.priority_wish_sent}
-          </ThemedText>
-        ) : (
+        {latestWish && (
+          <View style={styles.wishStatus}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {tf(d.you_said, { statement: latestWish.statement })}
+            </ThemedText>
+            <ThemedText
+              type="small"
+              style={latestWish.status === 'approved' ? { color: colors.evidence } : undefined}
+              themeColor={latestWish.status === 'approved' ? undefined : 'textSecondary'}
+            >
+              {latestWish.status === 'pending'
+                ? d.priority_wish_sent
+                : latestWish.status === 'approved'
+                  ? d.priority_wish_approved_status
+                  : d.priority_wish_rejected_status}
+            </ThemedText>
+            {latestWish.adminNote && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {tf(d.priority_wish_note, { note: latestWish.adminNote })}
+              </ThemedText>
+            )}
+          </View>
+        )}
+        {/* Only actually pending suggestions block a new one -- a decided
+            wish (approved or rejected) shows its outcome above but still
+            lets the resident suggest something else. */}
+        {latestWish?.status !== 'pending' && (
           <>
             <TextInput
               value={wishText}
@@ -295,6 +360,7 @@ const styles = StyleSheet.create({
   poleBtn: { flex: 1, borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center' },
   weightRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
   submitBtn: { borderRadius: Spacing.two, padding: Spacing.three, alignItems: 'center' },
+  wishStatus: { gap: Spacing.half },
   wishInput: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, minHeight: 60, textAlignVertical: 'top' },
   wishSubmitBtn: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two, alignItems: 'center' },
 });
