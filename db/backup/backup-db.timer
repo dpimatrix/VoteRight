@@ -1,0 +1,11 @@
+[Unit]
+Description=Run VoteRight local database backup daily
+
+[Timer]
+# 03:00 ET — ahead of the 06:00 checkpoint cron, clear of the 15-min thread
+# sweep, and off-peak for real traffic.
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

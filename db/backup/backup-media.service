@@ -1,0 +1,9 @@
+[Unit]
+Description=VoteRight local debate-media backup (rsync incremental snapshot)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/repo
+Environment=PATH=/opt/cpanel/ea-nodejs22/bin:/usr/bin:/bin
+ExecStart=%h/repo/db/backup/backup-media.sh
+# View output with: journalctl --user -u backup-media.service

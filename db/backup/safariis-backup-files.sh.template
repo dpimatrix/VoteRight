@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# TEMPLATE — see safariis-backup-db.sh.template's header for why this lives
+# here as reference only, not a script VoteRight itself runs.
+#
+# Same rsync --link-dest incremental-snapshot pattern as VoteRight's
+# backup-media.sh. Fill in SRC below — for a typical cPanel PHP app this is
+# usually public_html/ plus any upload/image directories NOT already tracked
+# in Safariis' own git repo (back up user-generated content; code that's
+# already in version control doesn't need a second copy here). If Safariis'
+# own deploy process keeps everything under one directory, point this at that
+# whole directory — better to back up a bit of redundant code than miss a
+# real upload folder.
+set -uo pipefail
+
+if ! command -v rsync >/dev/null 2>&1; then
+  echo "FAILED: rsync not found on PATH" >&2
+  exit 1
+fi
+
+SRC="CHANGE_ME_e.g._/home/safariis/public_html/"
+BACKUP_ROOT="${SAFARIIS_BACKUP_DIR:-$HOME/backups/files}/safariis-files"
+LATEST_LINK="$BACKUP_ROOT/latest"
+TIMESTAMP="$(date -u +%Y-%m-%dT%H-%M)"
+NEW_SNAPSHOT="$BACKUP_ROOT/$TIMESTAMP"
+
+if [[ "$SRC" == CHANGE_ME* ]]; then
+  echo "FAILED: edit this script and set SRC first" >&2
+  exit 1
+fi
+
+mkdir -p "$BACKUP_ROOT"
+
+if [ -d "$LATEST_LINK" ]; then
+  rsync -a --delete --link-dest="$LATEST_LINK" "$SRC" "$NEW_SNAPSHOT/"
+else
+  rsync -a "$SRC" "$NEW_SNAPSHOT/"
+fi
+
+rm -rf "$LATEST_LINK"
+cp -al "$NEW_SNAPSHOT" "$LATEST_LINK" 2>/dev/null || cp -r "$NEW_SNAPSHOT" "$LATEST_LINK"
+
+echo "OK: $NEW_SNAPSHOT ($(du -sh "$NEW_SNAPSHOT" | cut -f1) apparent)"
+
+# Retention: keep last 30 snapshots. (Files probably change less often than
+# VoteRight's debate media, so a lower count / less-frequent cron than
+# backup-media.sh's every-6-hours is likely fine — e.g. daily.)
+ls -1dt "$BACKUP_ROOT"/20* 2>/dev/null | tail -n +31 | while read -r old; do
+  echo "Pruning old snapshot: $old"
+  rm -rf "$old"
+done

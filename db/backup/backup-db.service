@@ -1,0 +1,16 @@
+[Unit]
+Description=VoteRight local database backup (full dump, GFS retention)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/repo
+# Same PATH gap close-and-notify-threads.service already documents: a
+# systemd --user service doesn't inherit an interactive shell's PATH, so
+# the cPanel-installed Node/pg_dump aren't found without this. backup-db.sh
+# exports its own PATH-independent pieces (pg_dump comes from the system
+# postgresql client package, not ea-nodejs22 — confirm `which pg_dump`
+# resolves for the voteright user before relying on this unit; if it
+# doesn't, add its directory to the Environment= line below too).
+Environment=PATH=/opt/cpanel/ea-nodejs22/bin:/usr/bin:/bin
+ExecStart=%h/repo/db/backup/backup-db.sh
+# View output with: journalctl --user -u backup-db.service
