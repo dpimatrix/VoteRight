@@ -85,7 +85,7 @@ export default function PrioritiesScreen() {
     const gen = ++wishGeneration.current;
     (async () => {
       try {
-        if (!hasSession()) await ensureSession();
+        if (!(await hasSession())) await ensureSession();
         const res = await get<{ wishes: PriorityWish[] }>('/api/priority-wishes');
         if (wishGeneration.current === gen) setWishes(res.wishes);
       } catch (e) {
@@ -102,7 +102,7 @@ export default function PrioritiesScreen() {
     setWishBusy(true);
     setWishError(false);
     try {
-      if (!hasSession()) await ensureSession();
+      if (!(await hasSession())) await ensureSession();
       const res = await post<{ id: string }>('/api/priority-wishes', { statement });
       setWishText('');
       // Optimistic, not a refetch -- shows the real pending state instantly
@@ -131,7 +131,7 @@ export default function PrioritiesScreen() {
     setError(null);
     (async () => {
       try {
-        if (!hasSession()) await ensureSession();
+        if (!(await hasSession())) await ensureSession();
         const res = await get<{ topics: Topic[] }>('/api/topics');
         if (loadGeneration.current !== gen) return;
         setTopics(res.topics);

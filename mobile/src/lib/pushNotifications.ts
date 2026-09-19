@@ -22,7 +22,7 @@ async function submitPushToken(token: string): Promise<void> {
   // pattern every other screen's load() already follows -- this can run
   // from the root layout on boot, potentially before anything else has had
   // a chance to mint one on a truly fresh install.
-  if (!hasSession()) await ensureSession();
+  if (!(await hasSession())) await ensureSession();
   await post('/api/notifications/push-token', { token });
 }
 

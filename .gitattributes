@@ -10,6 +10,13 @@
 # enforced, repo-level default going forward instead of relying on that
 # happening by hand every time.
 *.sh text eol=lf
+# Same reasoning applies to the Safariis backup templates (db/backup/) --
+# they're real shell scripts meant to be copied onto a Linux box and have
+# their .template suffix dropped, just not matched by the *.sh rule above
+# because of that suffix. Found while committing them 2026-09-19 (git
+# warned about CRLF on these specifically, not on the sibling *.sh files --
+# this rule already covered those).
+*.sh.template text eol=lf
 # systemd unit files -- less certain to break on a stray \r than bash's
 # shebang line is, but not worth finding out live on the VPS either.
 *.service text eol=lf

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# TEMPLATE — this backs up Safariis, a separate app/cPanel account from
+# VoteRight. It lives here only as a reference copy matching VoteRight's own
+# backup-db.sh conventions; it is NOT deployed as part of VoteRight and isn't
+# expected to run under the `voteright` OS user (cPanel accounts are
+# isolated from each other by default — `voteright` almost certainly can't
+# read Safariis' database credentials or files, and shouldn't try to).
+#
+# To actually use this: copy it into Safariis' own repo/home directory,
+# rename it (drop .template), fill in the two blanks below, and set it up
+# under Safariis' OWN cPanel account/cron — same shape as VoteRight's setup,
+# different account.
+#
+# Fill in:
+#   1. SAFARIIS_DB_NAME below (production database name)
+#   2. A credentials file at ~/.my.cnf (MySQL's own standard, NOT this
+#      script) containing:
+#        [client]
+#        user=<db user>
+#        password=<db password>
+#      chmod 600 ~/.my.cnf — this keeps the password out of this script,
+#      out of crontab, and out of any git history, the same "no live
+#      secrets in code" discipline VoteRight itself follows.
+#
+# Retention: same GFS scheme as VoteRight's backup-db.sh (14 daily / 90-day
+# Sundays / 365-day 1st-of-month) — see that script's own header for the
+# honesty note on why this is a dump SCHEDULE, not true incremental (MySQL's
+# real equivalent would be binlog-based point-in-time recovery, which needs
+# binlog enabled in my.cnf — a root-level change, separate project if wanted).
+set -uo pipefail
+
+SAFARIIS_DB_NAME="CHANGE_ME"
+BACKUP_DIR="${SAFARIIS_BACKUP_DIR:-$HOME/backups/db}"
+mkdir -p "$BACKUP_DIR"
+
+if [ "$SAFARIIS_DB_NAME" = "CHANGE_ME" ]; then
+  echo "FAILED: edit this script and set SAFARIIS_DB_NAME first" >&2
+  exit 1
+fi
+
+TODAY="$(date -u +%F)"
+DUMP_FILE="$BACKUP_DIR/safariis-${TODAY}.sql.gz"
+
+# --single-transaction: consistent snapshot without locking tables for the
+# duration (works for InnoDB; if Safariis has MyISAM tables this won't be
+# fully consistent for those — check `SHOW TABLE STATUS` if that matters).
+if ! mysqldump --single-transaction --routines --triggers "$SAFARIIS_DB_NAME" | gzip > "$DUMP_FILE.tmp"; then
+  echo "FAILED: mysqldump exited non-zero" >&2
+  rm -f "$DUMP_FILE.tmp"
+  exit 1
+fi
+mv "$DUMP_FILE.tmp" "$DUMP_FILE"
+echo "OK: $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
+
+# --- Retention (identical logic to backup-db.sh) ---
+NOW_EPOCH="$(date -u +%s)"
+for f in "$BACKUP_DIR"/safariis-*.sql.gz; do
+  [ -e "$f" ] || continue
+  fdate="$(basename "$f" .sql.gz | sed 's/^safariis-//')"
+  fepoch="$(date -u -d "$fdate" +%s 2>/dev/null)" || continue
+  age_days=$(( (NOW_EPOCH - fepoch) / 86400 ))
+  dow="$(date -u -d "$fdate" +%u)"
+  dom="$(date -u -d "$fdate" +%d)"
+  if [ "$age_days" -le 14 ]; then
+    continue
+  elif [ "$dom" = "01" ] && [ "$age_days" -le 365 ]; then
+    continue
+  elif [ "$dow" = "7" ] && [ "$age_days" -le 90 ]; then
+    continue
+  else
+    echo "Pruning old dump: $f (age ${age_days}d)"
+    rm -f "$f"
+  fi
+done

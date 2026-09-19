@@ -89,7 +89,7 @@ export default function CompareScreen() {
       let cancelled = false;
       (async () => {
         try {
-          if (!hasSession()) await ensureSession();
+          if (!(await hasSession())) await ensureSession();
           const res = await get<MatchesResponse>(`/api/matches?race=${race}`);
           if (!cancelled) setData(res);
         } catch (e) {

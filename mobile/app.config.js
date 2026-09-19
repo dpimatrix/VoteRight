@@ -11,7 +11,19 @@ export default ({ config }) => {
       // <input type="file" capture>). Custom permission strings instead
       // of each plugin's generic default, explaining the actual VoteRight
       // reason rather than a bare "access your microphone/camera".
-      ["expo-audio", { microphonePermission: "VoteRight needs microphone access to record an audio debate argument." }],
+      // enableBackgroundPlayback: false (2026-09-19, Apple 2.5.4 rejection
+      // of build 13) -- this plugin defaults enableBackgroundPlayback to
+      // true, which unconditionally adds UIBackgroundModes=["audio"] to
+      // Info.plist. VoteRight only records a one-shot audio argument, no
+      // persistent background playback exists, so Apple correctly flagged
+      // the declared-but-unused capability.
+      [
+        "expo-audio",
+        {
+          microphonePermission: "VoteRight needs microphone access to record an audio debate argument.",
+          enableBackgroundPlayback: false,
+        },
+      ],
       [
         "expo-image-picker",
         {

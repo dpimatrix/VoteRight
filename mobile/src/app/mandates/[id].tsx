@@ -65,7 +65,7 @@ export default function MandateScreen() {
       let cancelled = false;
       (async () => {
         try {
-          if (!hasSession()) await ensureSession();
+          if (!(await hasSession())) await ensureSession();
           const res = await get<MandateDetail>(`/api/mandates/${id}`);
           if (!cancelled) setM(res);
         } catch (e) {
