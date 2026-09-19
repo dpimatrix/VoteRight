@@ -61,13 +61,42 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
+# pg_dump/psql use libpq's URI parser, which is stricter than Node's `pg`
+# driver (the one the running app actually uses) about literal `%` in the
+# password — confirmed live 2026-09-19: production's real DATABASE_URL
+# makes pg_dump fail with "invalid percent-encoded token" even though the
+# app itself connects fine, same root cause already hit once before with
+# plain `psql` (2026-08-19, payment-verification setup). Sidestep it
+# entirely by decomposing the URL into discrete PG* env vars instead of
+# handing pg_dump a URI at all — env vars are never percent-decoded, so the
+# raw password survives intact regardless of what characters it contains.
+# Reuses `pg-connection-string` (a dependency of `pg`, already installed
+# under app/node_modules) rather than hand-rolling URI parsing in bash —
+# it's the exact same parser the app's own `pg` client uses, so it's
+# guaranteed to read this URL the same way the running app already does.
+eval "$(cd app && node -e '
+  const { parse } = require("pg-connection-string");
+  const c = parse(process.env.DATABASE_URL);
+  const esc = (s) => "\x27" + String(s ?? "").replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
+  console.log("export PGHOST=" + esc(c.host));
+  console.log("export PGPORT=" + esc(c.port || 5432));
+  console.log("export PGUSER=" + esc(c.user));
+  console.log("export PGPASSWORD=" + esc(c.password));
+  console.log("export PGDATABASE=" + esc(c.database));
+')"
+if [ -z "${PGDATABASE:-}" ]; then
+  echo "FAILED: could not parse DATABASE_URL via pg-connection-string" >&2
+  exit 1
+fi
+
 TODAY="$(date -u +%F)"
 DUMP_FILE="$BACKUP_DIR/voteright-${TODAY}.dump"
 
 # Custom format (-Fc): compressed, and unlike a plain .sql dump it supports
 # pg_restore's selective/parallel restore (restore one table, or use -j for
 # a faster full restore) instead of forcing a single sequential psql replay.
-if ! pg_dump -Fc "$DATABASE_URL" -f "$DUMP_FILE.tmp"; then
+# No connection string argument — PG* env vars set above drive the connection.
+if ! pg_dump -Fc -f "$DUMP_FILE.tmp"; then
   echo "FAILED: pg_dump exited non-zero" >&2
   rm -f "$DUMP_FILE.tmp"
   exit 1
