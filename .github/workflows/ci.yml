@@ -1,0 +1,76 @@
+name: CI
+
+# Runs on every push to main and on pull requests. Until 2026-09-21 this repo
+# had no CI at all -- type errors and logic breaks were found by the owner on
+# a phone. This is the cheap first net: does it type-check, do the tests
+# pass. It does NOT replace looking at the app; see db/smoke/prod-smoke.mjs
+# for the deployed-behavior checks.
+#
+# eslint runs but does NOT fail the build: the codebase already had 32 (web)
+# and 6 (mobile) lint errors when this was added, mostly cosmetic
+# (react/no-unescaped-entities) plus a few react-hooks rules. Gating on them
+# would make CI red from day one, and a permanently red check gets ignored.
+# Flip `continue-on-error` off once they're cleaned up.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app (type-check, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test
+      - name: Lint (informational)
+        continue-on-error: true
+        run: npm run lint
+
+  mobile:
+    name: Mobile app (type-check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      # .expo/types (Expo Router's typed routes) and expo-env.d.ts are
+      # generated, gitignored, and tsconfig includes them -- a fresh checkout
+      # fails to type-check without regenerating them first.
+      - name: Generate Expo Router route types
+        env:
+          CI: "1"
+        run: npx expo customize tsconfig.json
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint (informational)
+        continue-on-error: true
+        run: npm run lint
