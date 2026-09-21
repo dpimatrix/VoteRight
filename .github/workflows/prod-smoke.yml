@@ -1,0 +1,35 @@
+name: Production smoke test
+
+# Daily read-only check of the live site (db/smoke/prod-smoke.mjs). Runs from
+# GitHub, not the VPS, on purpose: a job on the VPS can't notice the VPS being
+# down. A failed run emails the repo owner via GitHub's normal workflow-failure
+# notifications; the results table is also on the run's summary page.
+#
+# 12:17 UTC = 08:17 ET, after the 06:00 ET audit-checkpoint cron and the
+# 03:00 ET database backup have both had time to finish. Also runnable on
+# demand from the Actions tab (workflow_dispatch) -- useful right after a
+# deploy.
+
+on:
+  schedule:
+    - cron: "17 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Smoke test production
+        env:
+          # Only raises the GitHub API rate limit for the advisory
+          # checkpoint check; no write access is granted (contents: read).
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node db/smoke/prod-smoke.mjs
