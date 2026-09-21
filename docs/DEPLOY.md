@@ -142,6 +142,20 @@ preferred consolidating onto it.
 **Vercel/Neon are paused, not deleted** — kept as a rollback path. The section below
 is retained as history/reference for that setup, not the active posture.
 
+### After every deploy: run the smoke test
+
+```bash
+node db/smoke/prod-smoke.mjs        # from anywhere with Node 18+; read-only, no credentials
+```
+
+It checks the live site the way a user would hit it: races load and open on a
+prominent race, every seeded councilmember's portrait serves, Maryland and
+Virginia ballots include federal + state offices, the pilot-region ballot
+loads. Exit code 1 on any failure. The same script also runs daily on GitHub
+Actions (`.github/workflows/prod-smoke.yml`, 08:17 ET) and can be run on demand
+from the repo's Actions tab. CI (`.github/workflows/ci.yml`) type-checks and
+tests every push to `main`. Neither replaces looking at the app on a device.
+
 ## Superseded — original Vercel/Neon decision (kept for history)
 
 ### Decision: Vercel (app) + Neon (Postgres)
