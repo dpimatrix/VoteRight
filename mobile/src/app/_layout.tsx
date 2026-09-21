@@ -34,7 +34,13 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      <Stack screenOptions={{ headerShown: false }}>
+      {/* headerBackButtonDisplayMode "minimal": iOS defaults to "default",
+          which labels the back button with the PREVIOUS screen's title --
+          and the (tabs) group has no title, so every pushed screen showed
+          a literal "< (tabs)" (found by the owner on a real iPhone
+          2026-09-21). Android already defaults to "minimal", so this just
+          makes iOS match. JS-only option, no native rebuild needed. */}
+      <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="candidates/[id]" options={{ headerShown: true, title: d.title_candidate }} />
         <Stack.Screen name="debates/[id]" options={{ headerShown: true, title: d.title_debate }} />
