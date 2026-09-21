@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { sortRaces } from "./raceOrder";
 import type { EvidenceCoding, Priority } from "./scoring/engine";
 
 /* ── voting record (D2: ingested facts with citations) ── */
@@ -199,13 +200,27 @@ export async function loadPriorities(userId: string): Promise<(Priority & { stat
 }
 
 /* ── races + candidates ── */
-export async function races() {
+export interface RaceRow {
+  id: string;
+  title: string;
+  seats_elected: number;
+  seat_type: string;
+}
+
+export async function races(): Promise<RaceRow[]> {
   const { rows } = await db().query(
-    `SELECT r.id, o.title, r.seats_elected, o.seat_type
-       FROM races r JOIN offices o ON o.id = r.office_id
-      ORDER BY o.title`,
+    `SELECT r.id, o.title, r.seats_elected, o.seat_type, o.level
+       FROM races r JOIN offices o ON o.id = r.office_id`,
   );
-  return rows as { id: string; title: string; seats_elected: number; seat_type: string }[];
+  // Ordered by prominence, not alphabetically -- callers default to [0]. See
+  // raceOrder.ts. `level` is only needed for sorting; dropped so the shape
+  // callers (and the native app's JSON) see is unchanged.
+  return sortRaces(rows as (RaceRow & { level: string })[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    seats_elected: r.seats_elected,
+    seat_type: r.seat_type,
+  }));
 }
 
 export interface CandidateRow {
