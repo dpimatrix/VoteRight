@@ -144,3 +144,39 @@ Three rules that outrank frequency:
 | Monthly | Review ingestion_runs for silent failures; roster diff check |
 | Per SCORING.md | Bias-audit sampling + acceptance gates |
 | Per COUNSEL-REVIEW | Post-launch legal cadences already tabled there |
+
+## 8. Coverage-expansion checklist — run this every time, not just once
+
+**The real gap this closes**: D6 (2026-08-11–14) put real politicians, offices,
+and ballot data in front of nationwide users — but nobody re-checked whether
+every *evidence-dependent* subsystem that used to work fine at Montgomery-
+County scale would still work for someone in Ohio. It didn't. Found live
+2026-09-22: the vote → position-coding queue only ever listed Montgomery
+County councilmembers, because `voting_records` (what the queue's own query
+joins against) had only ever been fed by Montgomery's own ingester —
+meaning **every politician outside those 11 people had zero scored
+evidence and could never clear the 50% coverage gate**, silently, since the
+day nationwide rosters shipped. Nothing caught this because roster/ballot
+data (offices, `office_terms`, district narrowing) and *evidence* data
+(votes, sponsorships, expenditures, endorsements, accountability
+mechanisms) are structurally separate pipelines that happen to look
+connected on a candidate page — expanding one says nothing about the other.
+
+**Whenever a jurisdiction tier gets added or expanded (a new state, a new
+office type, a new region), check every row below for that new territory —
+don't assume "the roster exists" means "the evidence pipeline exists too."**
+
+| Evidence type | Table it lands in | What actually feeds it | Real reach as of 2026-09-22 |
+|---|---|---|---|
+| Roll-call votes → scored positions | `voting_records` → `politician_positions`/`position_codings` | `db/ingest/votes.mjs` (Montgomery Socrata), `db/ingest/congress-votes.mjs` (U.S. House, built 2026-09-22) | Montgomery County Council + U.S. House. **Senate, all 50 state legislatures, and every other DMV-pilot council (PG/Fairfax/Arlington/DC) have zero scored votes.** |
+| Legislative sponsorship (displayed, not scored) | `council_sponsorships` | 5 ingesters, one per jurisdiction (`db/ingest/council-sponsorships*.mjs`) | Montgomery, PG, Fairfax, Arlington, D.C. only. Nothing for Congress, states, or anywhere outside the DMV pilot. |
+| Campaign finance / independent expenditures / endorsements | `independent_expenditures`, `endorsements` | Hand-entered via `/admin/transparency` (deliberately admin-curated — every state runs its own system, this genuinely doesn't bulk-automate, see §2) | A handful of Montgomery/DMV races only. No scaling plan exists beyond "an admin does it by hand" — needs a real people-hours plan before it means anything nationwide. |
+| Accountability pathways (recall/removal mechanisms) | `accountability_pathways` | Hand-researched, one migration per jurisdiction (charter/statute citations) | The ~40 DMV-pilot jurisdictions (Montgomery + PG + Fairfax + Arlington + D.C. + their municipalities) only. Zero for any state-level seat or anywhere outside the DMV region — a nationwide politician's accountability page is empty. |
+| Advisory referenda / mandates / promises | `referenda`, `mandate_commitments`, `promises` | Admin-created per referendum; inherently a *locally-initiated* civic action, not a bulk-ingestible feed | Only Montgomery has ever had one set up. Not quite the same shape of gap as the rows above — "nationwide referenda" isn't a coherent goal the way "nationwide vote data" is — but still only adopted in one place. |
+| Expert commentary (§8.2) | `commentator_qualifications`, `commentator_pieces` | Nothing — grep confirms zero code in `app/src` references these tables | Designed (ARCHITECTURE.md) and prototyped, but never actually built into the real app. Not a scaling gap; don't mistake it for one. |
+
+**Process**: before calling any coverage expansion "done," re-run this table
+against the new territory. If a row's real reach doesn't include it, that's
+either a disclosed, deliberate gap (write it down, same as every other
+honest gap in this project) or a new build — never a silent absence a user
+has to find by clicking around.
