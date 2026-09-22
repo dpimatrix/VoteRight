@@ -207,6 +207,12 @@ CREATE TABLE topic_axes (
     question        TEXT NOT NULL,                       -- the axis phrased as a neutral question
     negative_pole   TEXT NOT NULL,                       -- what -2 means, in words
     positive_pole   TEXT NOT NULL,                       -- what +2 means, in words
+    -- Migration 105: NULL = nationwide (shown to every resident); a real
+    -- ocd_id scopes this axis to residents whose own jurisdiction ancestor
+    -- chain includes it (e.g. Montgomery-County-scoped reaches every
+    -- Montgomery resident, including Gaithersburg, via the same walk
+    -- ballotForJurisdiction() already does for offices).
+    jurisdiction_id TEXT REFERENCES jurisdictions(ocd_id),
     -- Admin-editable-with-guardrails state machine (migration 092):
     -- draft -> in_review -> published -> retired. Existing/seeded rows are
     -- 'published' with no admin attribution (never drafted through the

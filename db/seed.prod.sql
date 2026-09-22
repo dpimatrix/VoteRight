@@ -48,13 +48,16 @@ INSERT INTO topics (id, name) VALUES
  ('00000000-0000-4000-8000-000000000104', 'Climate & environment'),
  ('00000000-0000-4000-8000-000000000105', 'Public safety'),
  ('00000000-0000-4000-8000-000000000106', 'Taxes & budget');
-INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pole) VALUES
- ('00000000-0000-4000-8000-000000000111', '00000000-0000-4000-8000-000000000101', 'rent_stabilization', 'Should annual rent increases stay capped near the current limit?', 'Repeal the cap', 'Keep or tighten the cap'),
- ('00000000-0000-4000-8000-000000000112', '00000000-0000-4000-8000-000000000102', 'bus_network_expansion', 'Should Ride On bus service expand countywide?', 'Hold current service', 'Expand countywide'),
- ('00000000-0000-4000-8000-000000000113', '00000000-0000-4000-8000-000000000103', 'mcps_full_funding', 'Should the county fully fund the MCPS operating budget request?', 'Fund below the request', 'Fully fund the request'),
- ('00000000-0000-4000-8000-000000000114', '00000000-0000-4000-8000-000000000104', 'zero_emissions_schedule', 'Should the county meet its zero-emissions targets on schedule?', 'Delay or relax targets', 'Keep or accelerate targets'),
- ('00000000-0000-4000-8000-000000000115', '00000000-0000-4000-8000-000000000105', 'police_staffing', 'Should the county hire more police officers for neighborhood patrols?', 'Hold or redirect staffing', 'Hire more officers'),
- ('00000000-0000-4000-8000-000000000116', '00000000-0000-4000-8000-000000000106', 'property_tax_line', 'Should the county hold the line on property-tax increases?', 'Open to increases', 'No increases');
+-- jurisdiction_id (migration 105): these 6 are Montgomery-County-specific
+-- in content (MCPS, Ride On), not generically "any county" -- scoped so a
+-- fresh prod DB matches a migrated one instead of defaulting to nationwide.
+INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pole, jurisdiction_id) VALUES
+ ('00000000-0000-4000-8000-000000000111', '00000000-0000-4000-8000-000000000101', 'rent_stabilization', 'Should annual rent increases stay capped near the current limit?', 'Repeal the cap', 'Keep or tighten the cap', 'ocd-division/country:us/state:md/county:montgomery'),
+ ('00000000-0000-4000-8000-000000000112', '00000000-0000-4000-8000-000000000102', 'bus_network_expansion', 'Should Ride On bus service expand countywide?', 'Hold current service', 'Expand countywide', 'ocd-division/country:us/state:md/county:montgomery'),
+ ('00000000-0000-4000-8000-000000000113', '00000000-0000-4000-8000-000000000103', 'mcps_full_funding', 'Should the county fully fund the MCPS operating budget request?', 'Fund below the request', 'Fully fund the request', 'ocd-division/country:us/state:md/county:montgomery'),
+ ('00000000-0000-4000-8000-000000000114', '00000000-0000-4000-8000-000000000104', 'zero_emissions_schedule', 'Should the county meet its zero-emissions targets on schedule?', 'Delay or relax targets', 'Keep or accelerate targets', 'ocd-division/country:us/state:md/county:montgomery'),
+ ('00000000-0000-4000-8000-000000000115', '00000000-0000-4000-8000-000000000105', 'police_staffing', 'Should the county hire more police officers for neighborhood patrols?', 'Hold or redirect staffing', 'Hire more officers', 'ocd-division/country:us/state:md/county:montgomery'),
+ ('00000000-0000-4000-8000-000000000116', '00000000-0000-4000-8000-000000000106', 'property_tax_line', 'Should the county hold the line on property-tax increases?', 'Open to increases', 'No increases', 'ocd-division/country:us/state:md/county:montgomery');
 
 -- ── Accountability pathways (real legal facts, §2.1/§2.1.1 — verified) ─────
 INSERT INTO accountability_pathways (id, jurisdiction_id, office_id, mechanism_type, is_binding, legal_citation, signature_requirement_note, description) VALUES
