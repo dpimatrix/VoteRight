@@ -46,6 +46,10 @@ const DICT = {
     seat_not_tracked: 'Pending',
     seat_off_cycle: 'Not this cycle',
     next_election_note: 'Next election: {year}',
+    ballot_legend_h: 'What the labels mean',
+    ballot_legend_tracked: 'Tracked — a real race with candidates is set up. See how they compare on Matches.',
+    ballot_legend_pending: "Pending — this seat is up this cycle, but we don't have a scored race for it yet (candidates may not have filed, or we're still adding it).",
+    ballot_legend_off_cycle: "Not this cycle — this seat's term isn't up for election right now, so it correctly has no race.",
     ballot_unscored_note: 'Unscored seats stay on the list — an incomplete ballot must never look complete.',
     ballot_districts_note:
       "U.S. House, state legislature, local council/board, and (in Maryland) Supreme Court circuit seats are narrowed to your own district automatically wherever a public boundary source exists. Which one is yours depends on your exact address, so any seat this project can't yet narrow shows every district until that lookup arrives.",
@@ -515,6 +519,10 @@ const DICT = {
     seat_not_tracked: 'Pendiente',
     seat_off_cycle: 'No en este ciclo',
     next_election_note: 'Próxima elección: {year}',
+    ballot_legend_h: 'Qué significan las etiquetas',
+    ballot_legend_tracked: 'Con seguimiento — hay una elección real con candidatos. Compáralos en Coincidencias.',
+    ballot_legend_pending: 'Pendiente — este cargo se elige en este ciclo, pero aún no tenemos una elección evaluada para él (puede que los candidatos no se hayan inscrito, o que todavía la estemos agregando).',
+    ballot_legend_off_cycle: 'No en este ciclo — el mandato de este cargo no se renueva ahora, así que correctamente no tiene elección.',
     ballot_unscored_note: 'Los cargos sin evaluar permanecen en la lista — una boleta incompleta nunca debe parecer completa.',
     ballot_districts_note:
       'Los escaños de la Cámara de Representantes, la legislatura estatal, el concejo o junta local, y (en Maryland) los circuitos de la Corte Suprema se limitan automáticamente a tu propio distrito dondequiera que exista una fuente pública de límites. Cuál es el tuyo depende de tu dirección exacta, así que cualquier escaño que este proyecto aún no pueda ajustar muestra todos los distritos hasta que llegue esa búsqueda.',

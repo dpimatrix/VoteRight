@@ -219,6 +219,30 @@ export default function BallotScreen() {
         {data && <ThemedText type="small" themeColor="textSecondary">{d.ballot_addr_note}</ThemedText>}
 
         {data && (
+          <View style={styles.legend}>
+            <ThemedText type="smallBold">{d.ballot_legend_h}</ThemedText>
+            {(
+              [
+                { label: d.seat_tracked, color: colors.evidence, text: d.ballot_legend_tracked },
+                { label: d.seat_not_tracked, color: colors.textSecondary, text: d.ballot_legend_pending },
+                { label: d.seat_off_cycle, color: colors.textSecondary, text: d.ballot_legend_off_cycle },
+              ] as const
+            ).map((row) => (
+              <View key={row.label} style={styles.legendRow}>
+                <View style={[styles.chip, styles.legendChip, { borderColor: row.color }]}>
+                  <ThemedText type="small" style={{ color: row.color }}>
+                    {row.label}
+                  </ThemedText>
+                </View>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.legendText}>
+                  {row.text}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {data && (
           <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
             <Pressable onPress={() => setShowPicker((s) => !s)}>
               <ThemedText type="smallBold">{d.browse_jurisdiction_h}</ThemedText>
@@ -295,4 +319,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   pickerChip: { borderWidth: 1, borderRadius: Spacing.four, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  legend: { gap: Spacing.two },
+  legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  legendChip: { marginTop: Spacing.half },
+  legendText: { flex: 1 },
 });
