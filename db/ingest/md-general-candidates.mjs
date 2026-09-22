@@ -248,31 +248,58 @@ try {
   }
 
   async function findOrCreatePolitician(officeId, fullName, party) {
-    const incumbent = await client.query(
+    // ALL current officeholders of this office, not just "the one" --
+    // real bug caught live 2026-09-22: most Maryland House of Delegates
+    // districts elect 3 members from ONE shared office row (District 18:
+    // Kaufman, Shetty, *and* Solomon simultaneously), same for several
+    // other multi-seat offices here (County Council/Board of Education
+    // At-Large, Circuit Court Judges). The original version required
+    // EXACTLY ONE current officeholder before even trying a name match,
+    // so a real, sitting Delegate seeking re-election in a multi-member
+    // district silently fell through to the ambiguous name-only tier --
+    // confirmed live: Del. Jared Solomon (District 18, MD) has his own
+    // real office_terms row for that exact office, but so do his two
+    // co-delegates, so rowCount was 3, not 1, and the old check never
+    // even looked at names. Fixed by checking ALL current officeholders'
+    // surnames against the ballot name and requiring exactly one to
+    // match, not exactly one officeholder to exist.
+    const incumbents = await client.query(
       `SELECT p.id, p.full_name FROM politicians p
          JOIN office_terms ot ON ot.politician_id = p.id
         WHERE ot.office_id = $1 AND ot.term_end IS NULL`,
       [officeId],
     );
-    if (incumbent.rowCount === 1) {
-      // Cross-check on the INCUMBENT's own stored last token, not the
-      // ballot name's -- a roster source (Congress.gov/OpenStates) reliably
-      // ends in the surname, but an SBE ballot name often doesn't (a
-      // trailing ", Jr."/", III" suffix or a "Nickname" in quotes is
-      // common). Real bug caught live: "Johnny Olszewski" (roster) vs
-      // 'John "Johnny O" Olszewski, Jr.' (ballot) -- the ballot name's own
-      // last token is "Jr.", which never matches anything, and the
-      // original direction of this check silently created a duplicate
-      // politician for a sitting Congressman before this fix.
-      const incumbentLastToken = incumbent.rows[0].full_name.trim().split(/\s+/).pop().toLowerCase();
-      if (incumbentLastToken && fullName.toLowerCase().includes(incumbentLastToken)) {
-        stats.matchedIncumbent += 1;
-        return incumbent.rows[0].id;
-      }
+    // Cross-check on each INCUMBENT's own stored last token, not the
+    // ballot name's -- a roster source (Congress.gov/OpenStates) reliably
+    // ends in the surname, but an SBE ballot name often doesn't (a
+    // trailing ", Jr."/", III" suffix or a "Nickname" in quotes is
+    // common). Real bug caught live: "Johnny Olszewski" (roster) vs
+    // 'John "Johnny O" Olszewski, Jr.' (ballot) -- the ballot name's own
+    // last token is "Jr.", which never matches anything.
+    const nameMatches = incumbents.rows.filter((r) => {
+      const lastToken = r.full_name.trim().split(/\s+/).pop().toLowerCase();
+      return lastToken && fullName.toLowerCase().includes(lastToken);
+    });
+    if (nameMatches.length === 1) {
+      stats.matchedIncumbent += 1;
+      return nameMatches[0].id;
     }
-    const exact = await client.query(`SELECT id FROM politicians WHERE lower(full_name) = lower($1)`, [fullName]);
+    const exact = await client.query(`SELECT id, party FROM politicians WHERE lower(full_name) = lower($1)`, [fullName]);
     if (exact.rowCount === 1) { stats.matchedExactName += 1; return exact.rows[0].id; }
     if (exact.rowCount > 1) {
+      // A shared name alone isn't decisive (Maryland has real same-named
+      // legislators -- verified live 2026-09-22: two distinct, real
+      // "Dana Jones" and two distinct, real "Steve Johnson" state
+      // legislators, confirmed by their own distinct openstates_id).
+      // Narrow by the ballot row's own declared party first -- if exactly
+      // one same-named politician also shares this exact filing's party,
+      // that's real, near-conclusive evidence, not a guess (verified live:
+      // this alone resolves the Jones and Johnson collisions correctly,
+      // since each pair splits D/R). Still never resolves two same-named,
+      // same-party people (e.g. two real "Jared Solomon" Democrats) --
+      // that stays a refused, human-reviewed case, same as before.
+      const byParty = exact.rows.filter((r) => r.party === party);
+      if (party && byParty.length === 1) { stats.matchedExactName += 1; return byParty[0].id; }
       stats.ambiguousSkipped += 1;
       ambiguousLog.push(fullName);
       return null;
