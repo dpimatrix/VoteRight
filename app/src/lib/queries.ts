@@ -67,6 +67,7 @@ const INGESTION_CADENCE_DAYS: Record<string, number> = {
   "dc-legislation-items": 7, // D.C. LIMS introducers/co-introducers, weekly
   "congress-house-votes": 7, // House roll calls via Congress.gov, weekly (same cadence class as the other legislative-record feeds)
   "senate-votes": 7, // Senate roll calls via senate.gov's own XML feed, weekly
+  "state-legislature-votes": 7, // State legislature roll calls via OpenStates (MD+VA first pass), weekly
   "checkpoint-publish": 1, // daily VPS cron (db/checkpoint-and-publish.sh), not a data feed -- see ingestionFreshness doc
   // Actual cadence is every 15 minutes (systemd timer, db/close-and-notify-
   // threads.mjs), not daily -- but data_through there is only ever set to
