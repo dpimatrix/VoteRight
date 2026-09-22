@@ -65,6 +65,7 @@ const INGESTION_CADENCE_DAYS: Record<string, number> = {
   "fairfax-agenda-items": 7, // Fairfax Board Summary PDF movers, weekly
   "arlington-agenda-items": 7, // Arlington County Board minutes PDF movers/seconders, weekly
   "dc-legislation-items": 7, // D.C. LIMS introducers/co-introducers, weekly
+  "congress-house-votes": 7, // House roll calls via Congress.gov, weekly (same cadence class as the other legislative-record feeds)
   "checkpoint-publish": 1, // daily VPS cron (db/checkpoint-and-publish.sh), not a data feed -- see ingestionFreshness doc
   // Actual cadence is every 15 minutes (systemd timer, db/close-and-notify-
   // threads.mjs), not daily -- but data_through there is only ever set to
