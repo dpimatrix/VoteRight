@@ -43,13 +43,36 @@ export async function votesForCoding(politicianId: string, limit = 40) {
   }[];
 }
 
-export async function axesForCoding() {
+// jurisdiction-scoped (migration 105) -- required, not optional. Real gap
+// this closes before it ever bites: once a federal axis exists alongside
+// Montgomery's county-specific ones (MCPS funding, Ride On buses), an
+// unscoped dropdown would let staff code a U.S. Representative's vote onto
+// "should the county fully fund MCPS" -- structurally impossible (a
+// Representative never votes on that), and a coding mistake CODING-
+// STANDARDS.md's "code only what the record actually shows" rule exists to
+// prevent. Scoped to THIS politician's own office (politicianJurisdiction()'s
+// ancestor walk, same recursive CTE as topicsWithAxes()) rather than any
+// notion of a viewer -- there is no viewer here, only the record being coded.
+export async function axesForCoding(politicianId: string) {
   const { rows } = await db().query(
     // published-only (migration 092) -- staff shouldn't be coding a
     // candidate's position against an axis that hasn't cleared review yet.
-    `SELECT a.id, t.name AS topic, a.question, a.negative_pole, a.positive_pole
+    `WITH RECURSIVE stack AS (
+       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j
+        WHERE j.ocd_id = (
+          SELECT o.jurisdiction_id FROM politicians p
+            JOIN offices o ON o.id = p.current_office_id
+           WHERE p.id = $1
+        )
+       UNION ALL
+       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
+     )
+     SELECT a.id, t.name AS topic, a.question, a.negative_pole, a.positive_pole
        FROM topic_axes a JOIN topics t ON t.id = a.topic_id
-      WHERE a.status = 'published' ORDER BY t.name`,
+      WHERE a.status = 'published'
+        AND (a.jurisdiction_id IS NULL OR a.jurisdiction_id IN (SELECT ocd_id FROM stack))
+      ORDER BY t.name`,
+    [politicianId],
   );
   return rows as { id: string; topic: string; question: string; negative_pole: string; positive_pole: string }[];
 }

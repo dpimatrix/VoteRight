@@ -19,7 +19,10 @@ export default async function AdminPositionsPage({
   const pols = await politiciansWithVotes();
   const selected = pols.find((p) => p.id === sp.politician) ?? null;
   const votes = selected ? await votesForCoding(selected.id) : [];
-  const axes = await axesForCoding();
+  // jurisdiction-scoped (migration 105) -- axesForCoding() needs a politician
+  // to scope by; nothing renders the axis dropdown until one is selected
+  // anyway (see below), so there's nothing to compute yet.
+  const axes = selected ? await axesForCoding(selected.id) : [];
   const recent = await recentCodedPositions();
 
   return (
