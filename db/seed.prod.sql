@@ -59,6 +59,25 @@ INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pol
  ('00000000-0000-4000-8000-000000000115', '00000000-0000-4000-8000-000000000105', 'police_staffing', 'Should the county hire more police officers for neighborhood patrols?', 'Hold or redirect staffing', 'Hire more officers', 'ocd-division/country:us/state:md/county:montgomery'),
  ('00000000-0000-4000-8000-000000000116', '00000000-0000-4000-8000-000000000106', 'property_tax_line', 'Should the county hold the line on property-tax increases?', 'Open to increases', 'No increases', 'ocd-division/country:us/state:md/county:montgomery');
 
+-- migration 106: draft federal axes, DRAFTED BY CLAUDE, NOT PUBLISHED --
+-- see that migration file's header for the full fit-analysis rationale.
+-- status='draft' + jurisdiction_id NULL (nationwide) mirrored here so a
+-- fresh dev DB's admin review queue matches a freshly-migrated one.
+INSERT INTO topics (id, name) VALUES
+ ('00000000-0000-4000-8000-000000000201', 'Immigration'),
+ ('00000000-0000-4000-8000-000000000202', 'Health care'),
+ ('00000000-0000-4000-8000-000000000203', 'Reproductive rights'),
+ ('00000000-0000-4000-8000-000000000204', 'Foreign policy & defense');
+INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pole, status, created_by_admin, jurisdiction_id) VALUES
+ ('00000000-0000-4000-8000-000000000211', '00000000-0000-4000-8000-000000000104', 'clean_energy_transition', 'Should the federal government expand incentives for clean energy and emissions reductions, or prioritize traditional energy production and reduced regulation?', 'Prioritize traditional energy production', 'Expand clean-energy incentives', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000212', '00000000-0000-4000-8000-000000000106', 'federal_income_tax_level', 'Should federal income tax rates be cut, or kept at current levels/raised on higher incomes?', 'Cut broadly', 'Keep or raise on higher incomes', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000213', '00000000-0000-4000-8000-000000000102', 'federal_transit_infrastructure_funding', 'Should federal funding for public transit and infrastructure increase?', 'Reduce or hold funding', 'Increase funding', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000214', '00000000-0000-4000-8000-000000000103', 'federal_k12_funding', 'Should federal funding for K-12 public schools (Title I, special education) increase?', 'Reduce or hold funding', 'Increase funding', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000215', '00000000-0000-4000-8000-000000000201', 'immigration_legal_pathways', 'Should Congress expand legal pathways to citizenship/status for undocumented immigrants, or prioritize border security and enforcement funding?', 'Prioritize enforcement', 'Expand legal pathways', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000216', '00000000-0000-4000-8000-000000000202', 'federal_health_coverage_role', 'Should the federal government expand public health coverage (ACA subsidies, Medicaid), or reduce its role and rely more on private markets?', 'Reduce federal role', 'Expand coverage', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000217', '00000000-0000-4000-8000-000000000203', 'federal_abortion_access', 'Should Congress codify federal protections for abortion access, or restrict abortion access at the federal level?', 'Restrict abortion access', 'Codify abortion-access protections', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
+ ('00000000-0000-4000-8000-000000000218', '00000000-0000-4000-8000-000000000204', 'defense_spending_level', 'Should federal defense/military spending increase?', 'Reduce spending', 'Increase spending', 'draft', 'Claude, pending human review (2026-09-22)', NULL);
+
 -- ── Accountability pathways (real legal facts, §2.1/§2.1.1 — verified) ─────
 INSERT INTO accountability_pathways (id, jurisdiction_id, office_id, mechanism_type, is_binding, legal_citation, signature_requirement_note, description) VALUES
  ('00000000-0000-4000-8000-000000000f01', 'ocd-division/country:us/state:md/county:montgomery',
