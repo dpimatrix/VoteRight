@@ -174,12 +174,30 @@ const COUNTY_TITLE_RESOLVERS = {
   },
 };
 
+const MD_STATE_OCD = "ocd-division/country:us/state:md";
+const MONTGOMERY_OCD = "ocd-division/country:us/state:md/county:montgomery";
+
+// Returns { title, jurisdictionId } or null. Real bug caught live in
+// production (2026-09-22): an earlier version matched offices via a
+// state-wide `jurisdiction_id LIKE 'ocd-division/country:us/state:md%'`
+// scan instead of an exact jurisdiction, which collided on "County
+// Executive"/"County Council — District N" -- Prince George's County has
+// offices with the IDENTICAL title strings (migration 005) under a
+// different jurisdiction_id, so the query found 2 rows, failed the
+// exactly-one-match safety check, and every one of Montgomery's own 9
+// county-row offices was wrongly reported as "unmatched" instead of
+// found. Fixed by resolving an exact jurisdiction alongside the title,
+// never a broad LIKE.
 function resolveTitle(row) {
   const office = row["Office Name"];
-  if (STATE_TITLE_RESOLVERS[office]) return STATE_TITLE_RESOLVERS[office](row);
+  if (STATE_TITLE_RESOLVERS[office]) {
+    const title = STATE_TITLE_RESOLVERS[office](row);
+    return title ? { title, jurisdictionId: MD_STATE_OCD } : null;
+  }
   if (COUNTY_TITLE_RESOLVERS[office]) {
     if (row["Candidate Residential Jurisdiction"] !== "Montgomery County") return null;
-    return COUNTY_TITLE_RESOLVERS[office](row);
+    const title = COUNTY_TITLE_RESOLVERS[office](row);
+    return title ? { title, jurisdictionId: MONTGOMERY_OCD } : null;
   }
   return null;
 }
@@ -203,15 +221,16 @@ try {
   if (cycleRes.rowCount === 0) throw new Error(`election_cycles row '${ELECTION_CYCLE_NAME}' not found -- never creating one silently, seed it first`);
   const electionCycleId = cycleRes.rows[0].id;
 
-  const officeCache = new Map(); // title -> {id, seat_count} | null (checked, no match)
-  async function lookupOffice(title) {
-    if (officeCache.has(title)) return officeCache.get(title);
+  const officeCache = new Map(); // `${jurisdictionId}::${title}` -> {id, seat_count} | null
+  async function lookupOffice(jurisdictionId, title) {
+    const key = `${jurisdictionId}::${title}`;
+    if (officeCache.has(key)) return officeCache.get(key);
     const res = await client.query(
-      `SELECT id, seat_count FROM offices WHERE jurisdiction_id LIKE 'ocd-division/country:us/state:md%' AND title = $1`,
-      [title],
+      `SELECT id, seat_count FROM offices WHERE jurisdiction_id = $1 AND title = $2`,
+      [jurisdictionId, title],
     );
     const result = res.rowCount === 1 ? { id: res.rows[0].id, seatCount: res.rows[0].seat_count } : null;
-    officeCache.set(title, result);
+    officeCache.set(key, result);
     return result;
   }
 
@@ -286,17 +305,17 @@ try {
     for (const row of rows) {
       stats.rowsSeen += 1;
       if (row["Candidate Status"] !== "Active") { stats.notActive += 1; continue; }
-      const title = resolveTitle(row);
-      if (!title) { stats.unmatchedOffice += 1; continue; }
-      const office = await lookupOffice(title);
-      if (!office) { stats.unmatchedOffice += 1; unmatchedTitles.add(title); continue; }
+      const resolved = resolveTitle(row);
+      if (!resolved) { stats.unmatchedOffice += 1; continue; }
+      const office = await lookupOffice(resolved.jurisdictionId, resolved.title);
+      if (!office) { stats.unmatchedOffice += 1; unmatchedTitles.add(resolved.title); continue; }
 
       await processCandidate(office.id, office.seatCount, mainCandidateName(row), partyCode(row["Office Political Party"]));
 
       // Governor / Lt. Governor is a combined-ticket row -- the related
       // candidate (Lt. Governor) rides along in the SAME csv row.
       if (row["Office Name"] === "Governor / Lt. Governor" && row["Has Related Candidate"] === "Yes") {
-        const ltGov = await lookupOffice("Lieutenant Governor");
+        const ltGov = await lookupOffice(MD_STATE_OCD, "Lieutenant Governor");
         if (ltGov) {
           await processCandidate(ltGov.id, ltGov.seatCount, relatedCandidateName(row), partyCode(row["Related Office Political Party"]));
         } else {
