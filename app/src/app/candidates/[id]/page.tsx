@@ -9,6 +9,7 @@ import {
   SPONSORSHIP_SOURCE_BY_JURISDICTION,
   isSampleData,
   loadPriorities,
+  politicianJurisdiction,
   politicianProfile,
   promisesFor,
   publishedFlagsFor,
@@ -48,7 +49,10 @@ export default async function CandidatePage({
   const profile = await politicianProfile(id);
   if (!profile) notFound();
   const evidence = (await evidenceForPoliticians([id]))[id] ?? {};
-  const topics = await topicsWithAxes();
+  // jurisdiction-scoped (migration 105) -- by THIS politician's own office,
+  // not the viewer's residence, so the same profile reads identically to
+  // every viewer. See queries.ts's politicianJurisdiction() doc comment.
+  const topics = await topicsWithAxes(await politicianJurisdiction(id));
   const userId = await currentUserId();
   const priorities = userId ? await loadPriorities(userId) : [];
   const prioByAxis = new Map(priorities.map((p) => [p.axisId, p]));

@@ -122,15 +122,41 @@ export async function isSampleData(): Promise<boolean> {
 }
 
 /* ── topics + axes ── */
-export async function topicsWithAxes() {
+// residenceJurisdictionId (migration 105): jurisdiction-scopes which axes a
+// resident is actually offered. Real gap found live 2026-09-22 -- this had
+// no jurisdiction filter at all since the feature was built, so a resident
+// anywhere in the country was shown Montgomery-County-specific priority
+// questions (MCPS funding, Ride On bus service) regardless of where they
+// actually live. Invisible from a Montgomery County resident's own
+// perspective, since those axes genuinely do apply there -- exactly why it
+// went unnoticed this long.
+//
+// An axis with jurisdiction_id NULL is nationwide (shown to everyone,
+// verified or not -- e.g. future federal axes). A real jurisdiction_id
+// reaches a resident only if it's in THEIR OWN jurisdiction ancestor chain
+// -- the identical recursive-CTE walk ballotForJurisdiction() already uses
+// for offices, so a Montgomery-County-scoped axis correctly reaches a
+// Gaithersburg resident (Gaithersburg -> Montgomery County -> Maryland ->
+// United States) the same way a Montgomery County office does. Passing
+// null (unverified resident, no known residence) makes the recursive CTE
+// return zero rows, so only nationwide axes show -- the safe default,
+// since nothing county-specific should ever be guessed at.
+export async function topicsWithAxes(residenceJurisdictionId: string | null = null) {
   const { rows } = await db().query(
     // published-only (migration 092) -- a resident must never be offered a
     // draft/in_review axis to set a priority against, or code a position
     // to, before it's actually cleared second-person review.
-    `SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole
+    `WITH RECURSIVE stack AS (
+       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j WHERE j.ocd_id = $1
+       UNION ALL
+       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
+     )
+     SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole
        FROM topics t JOIN topic_axes a ON a.topic_id = t.id
       WHERE a.status = 'published'
+        AND (a.jurisdiction_id IS NULL OR a.jurisdiction_id IN (SELECT ocd_id FROM stack))
       ORDER BY t.name`,
+    [residenceJurisdictionId],
   );
   return rows as {
     topic_id: string;
@@ -140,6 +166,22 @@ export async function topicsWithAxes() {
     negative_pole: string;
     positive_pole: string;
   }[];
+}
+
+// migration 105 support: a candidate profile's topic-breakdown section needs
+// axes relevant to THIS POLITICIAN's own office, not the viewing resident's
+// residence -- the same profile should show identically to every viewer,
+// including a visitor browsing a jurisdiction they don't live in (already a
+// supported, honest pattern elsewhere in this app). Falls back to null
+// (nationwide-only) for a politician with no current office_terms row --
+// same safe default as an unverified resident.
+export async function politicianJurisdiction(politicianId: string): Promise<string | null> {
+  const { rows } = await db().query(
+    `SELECT o.jurisdiction_id FROM office_terms ot JOIN offices o ON o.id = ot.office_id
+      WHERE ot.politician_id = $1 AND ot.term_end IS NULL LIMIT 1`,
+    [politicianId],
+  );
+  return rows[0]?.jurisdiction_id ?? null;
 }
 
 /* ── anonymous voter (cookie-scoped; verification_tier stays 'unverified') ── */

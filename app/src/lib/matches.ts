@@ -1,3 +1,4 @@
+import { userResidence } from "./jurisdictions";
 import { candidatesInRace, evidenceForPoliticians, loadPriorities, topicsWithAxes } from "./queries";
 import { scoreCandidate, type CandidateScore, type Priority } from "./scoring/engine";
 
@@ -69,10 +70,19 @@ export function toPublicResults(results: MatchResult[]): PublicMatchResult[] {
 
 /** Score every candidate in a race against one voter's priorities (SCORING.md S4–S5). */
 export async function matchesForRace(raceId: string, userId: string) {
+  // jurisdiction-scoped (migration 105) -- axes here is only a lookup
+  // table attaching question/pole text to this resident's OWN already-set
+  // priorities (rawPriorities below), never used to decide what gets
+  // scored. Those priorities were set through the now-jurisdiction-scoped
+  // Priorities page/screen, so this needs the same residence to find them
+  // -- topicsWithAxes() with no jurisdiction now returns nationwide-only,
+  // which would silently blank out a resident's own county-scoped
+  // priorities' question/pole text otherwise.
+  const residence = await userResidence(userId);
   const [rawPriorities, cands, axes] = await Promise.all([
     loadPriorities(userId),
     candidatesInRace(raceId),
-    topicsWithAxes(),
+    topicsWithAxes(residence?.ocd_id ?? null),
   ]);
   const evidence = await evidenceForPoliticians(cands.map((c) => c.politician_id));
 

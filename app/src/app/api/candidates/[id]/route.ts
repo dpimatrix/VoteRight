@@ -4,6 +4,7 @@ import {
   ingestionFreshness,
   isSampleData,
   loadPriorities,
+  politicianJurisdiction,
   politicianProfile,
   promisesFor,
   publishedFlagsFor,
@@ -23,7 +24,10 @@ export async function GET(
   if (!profile) return Response.json({ error: "not found" }, { status: 404 });
 
   const evidence = (await evidenceForPoliticians([id]))[id] ?? {};
-  const topics = await topicsWithAxes();
+  // jurisdiction-scoped (migration 105) -- by THIS politician's own office,
+  // not the viewer's residence, so the same profile reads identically to
+  // every viewer. See queries.ts's politicianJurisdiction() doc comment.
+  const topics = await topicsWithAxes(await politicianJurisdiction(id));
   const userId = await currentUserId();
   const priorities = userId ? await loadPriorities(userId) : [];
   const prioByAxis = new Map(priorities.map((p) => [p.axisId, p]));

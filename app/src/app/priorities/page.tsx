@@ -1,6 +1,8 @@
 import { PriorityForm } from "@/components/PriorityForm";
 import { SiteHeader } from "@/components/SiteHeader";
+import { currentUserId } from "@/lib/anon";
 import { langFrom, t } from "@/lib/i18n";
+import { userResidence } from "@/lib/jurisdictions";
 import { races, topicsWithAxes } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,12 @@ export default async function PrioritiesPage({
   const sp = await searchParams;
   const lang = langFrom(sp.lang);
   const d = t(lang);
-  const topics = await topicsWithAxes();
+  // jurisdiction-scoped (migration 105) -- see topicsWithAxes()'s own
+  // header for why this was a real, long-standing gap. null residence
+  // (unverified resident) correctly falls back to nationwide-only axes.
+  const userId = await currentUserId();
+  const residence = userId ? await userResidence(userId) : null;
+  const topics = await topicsWithAxes(residence?.ocd_id ?? null);
   const allRaces = await races();
   const defaultRace = sp.race ?? allRaces[0]?.id ?? "";
 

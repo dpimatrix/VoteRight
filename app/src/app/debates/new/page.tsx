@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { currentUserId } from "@/lib/anon";
 import { userTier } from "@/lib/debates";
 import { langFrom, t } from "@/lib/i18n";
+import { userResidence } from "@/lib/jurisdictions";
 import { topicsWithAxes } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,10 @@ export default async function NewProposalPage({
   const d = t(lang);
   const userId = await currentUserId();
   const tier = userId ? await userTier(userId) : "unverified";
-  const topics = await topicsWithAxes();
+  // jurisdiction-scoped (migration 105) -- a proposer should pick from
+  // topics relevant to where THEY live, same as the Priorities page.
+  const residence = userId ? await userResidence(userId) : null;
+  const topics = await topicsWithAxes(residence?.ocd_id ?? null);
   // Debate participation (2026-08-19) requires payment_verified specifically
   // -- see anon.ts's paymentVerifiedUserId() doc comment.
   const verifyHref = tier === "unverified" ? `/verify?lang=${lang}` : `/verify/payment?lang=${lang}`;
