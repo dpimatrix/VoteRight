@@ -322,6 +322,59 @@ rather than letting this drift out of sync with reality.
     running* — that stays a human judgment call per jurisdiction until
     enough get built up that real reusable patterns emerge (e.g. one
     "Maryland SBE scraper" reused across every MD jurisdiction).
+  - **First such scraper BUILT (2026-09-22), exactly the pattern above
+    anticipated**: total gaps had grown from 146 (2026-08-24, when this
+    screen shipped) to 626 by 2026-09-22, almost entirely because the
+    nationwide roster buildout (full Congress, all 50 states'
+    legislatures, statewide executives) added hundreds of new elected
+    `offices` that never got a `races` row — candidate-filing sourcing
+    had never been attempted for any of them. Checked live and confirmed
+    Maryland's State Board of Elections is a genuine exception to "no
+    nationwide API": it publishes real, structured, bulk CSV candidate
+    lists (statewide + all-counties, both primary and general) — verified
+    by pulling the raw files directly, not trusting a summary. Deliberately
+    used the GENERAL list, not the primary one — confirmed live that a
+    primary loser (2 of 3 real 2026 Allegany County Sheriff candidates)
+    correctly drops off the general list, so the primary list would have
+    wrongly seeded non-running candidates.
+
+    `db/ingest/md-general-candidates.mjs` (new): matches CSV rows against
+    offices VoteRight **already tracks** (federal delegation, MD General
+    Assembly, Governor/Lt. Governor, Attorney General, Montgomery County's
+    already-built county-row offices) — never creates a new office, never
+    expands county scope. Matches a candidate to an existing `politicians`
+    row two ways: the office's current officeholder (catches an incumbent
+    seeking re-election even under a differently-formatted ballot name),
+    then an exact full-name match anywhere in the table (catches an
+    existing officeholder filing for a *different* seat, e.g. Marc Elrich
+    filing for County Council At-Large while still County Executive, Will
+    Jawando filing for County Executive while still an At-Large
+    councilmember) — genuinely new candidates get a fresh row. Judicial
+    circuit races are deliberately skipped (Maryland's circuits span
+    multiple counties with no clean per-seat subcircuit mapping in this
+    feed — CODING-STANDARDS.md's "code narrower" applies to race-matching
+    too, not just position-coding).
+
+    **Real bug caught and fixed before this was considered done**: the
+    incumbent cross-check originally compared the ballot name's OWN last
+    token against the roster name — broke on any suffixed ballot name
+    (verified live: Rep. "Johnny Olszewski" on Congress.gov vs. 'John
+    "Johnny O" Olszewski, Jr.' on the SBE ballot; last token "Jr." matched
+    nothing, so a duplicate politician row was silently created). Fixed by
+    checking the ROSTER name's last token against the ballot name instead
+    (the roster source is reliably suffix-free). Verified live in a
+    throwaway DB loaded with real `SCHEMA.sql` + every real MD seed file +
+    live Congress.gov/OpenStates roster pulls: 993 real CSV rows → 128 new
+    races, 319 new candidacies, 188 new politicians, 77 correctly-matched
+    incumbents (via either tier), zero duplicate `full_name` rows anywhere
+    in the table after the fix, zero ambiguous matches.
+
+    **Not yet run against production** (no production DB access this
+    session, by design) — the script is idempotent and safe to re-run
+    (`node db/ingest/md-general-candidates.mjs` on the VPS, same self-serve
+    pattern as every other ingester). Virginia has partial, less-unified
+    candidate lists (several separate files, some Excel, no single bulk
+    export) — a real next step, more work than Maryland's, not started.
 
 ## Admin-editable priority topics/axes
 
