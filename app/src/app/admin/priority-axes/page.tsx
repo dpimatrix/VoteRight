@@ -41,6 +41,7 @@ function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminA
       <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.82rem", margin: "0.3rem 0 0", flexWrap: "wrap" }}>
         <span className="chip cite">− {axis.negativePole}</span>
         <span className="chip cite">+ {axis.positivePole}</span>
+        <span className="chip cite">{axis.jurisdictionId ? axis.jurisdictionName ?? axis.jurisdictionId : "Nationwide"}</span>
       </div>
       <p className="nopos" style={{ margin: "0.35rem 0 0" }}>
         {axis.createdByAdmin ? `drafted by ${axis.createdByAdmin}` : "seeded, no admin attribution"}
@@ -269,6 +270,12 @@ export default async function AdminPriorityAxesPage({
           <label style={{ flex: 1, fontSize: "0.8rem" }}>
             Positive pole (+2) — what the high end means, in words
             <input name="positive_pole" required style={{ width: "100%" }} />
+          </label>
+          <label style={{ flex: 1, fontSize: "0.8rem" }}>
+            Jurisdiction scope (migration 105) — leave blank for nationwide (shown to every resident); or a
+            jurisdiction&apos;s ocd_id (e.g. ocd-division/country:us/state:md/county:montgomery) to scope this
+            axis to residents whose own jurisdiction includes it
+            <input name="jurisdiction_id" placeholder="blank = nationwide" style={{ width: "100%" }} />
           </label>
           <button type="submit">Save as draft</button>
         </form>

@@ -22,6 +22,11 @@ export interface AdminAxis {
   publishedAt: string | null;
   retiredAt: string | null;
   supersededByAxisId: string | null;
+  // jurisdiction_id (migration 105): null = nationwide. jurisdictionName is
+  // a display convenience (LEFT JOIN below) so the admin list can show
+  // "Montgomery County" instead of a bare ocd_id.
+  jurisdictionId: string | null;
+  jurisdictionName: string | null;
 }
 
 export async function topicsList(): Promise<{ id: string; name: string }[]> {
@@ -41,8 +46,10 @@ export async function listAxesForAdmin(): Promise<AdminAxis[]> {
   const { rows } = await db().query(
     `SELECT a.id, a.topic_id, t.name AS topic_name, a.key, a.question, a.negative_pole, a.positive_pole,
             a.status, a.created_by_admin, a.reviewed_by_admin,
-            a.published_at::text AS published_at, a.retired_at::text AS retired_at, a.superseded_by_axis_id
+            a.published_at::text AS published_at, a.retired_at::text AS retired_at, a.superseded_by_axis_id,
+            a.jurisdiction_id, j.name AS jurisdiction_name
        FROM topic_axes a JOIN topics t ON t.id = a.topic_id
+       LEFT JOIN jurisdictions j ON j.ocd_id = a.jurisdiction_id
       ORDER BY t.name, CASE a.status WHEN 'in_review' THEN 0 WHEN 'draft' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
                a.key`,
   );
@@ -57,6 +64,8 @@ export async function listAxesForAdmin(): Promise<AdminAxis[]> {
     status: r.status,
     createdByAdmin: r.created_by_admin,
     reviewedByAdmin: r.reviewed_by_admin,
+    jurisdictionId: r.jurisdiction_id,
+    jurisdictionName: r.jurisdiction_name,
     publishedAt: r.published_at,
     retiredAt: r.retired_at,
     supersededByAxisId: r.superseded_by_axis_id,
@@ -83,6 +92,14 @@ export async function createDraftAxis(opts: {
   // insert below, so a wish can never end up pointing at an axis that
   // failed to actually get created.
   wishId?: string;
+  // jurisdiction_id (migration 105): undefined/omitted = nationwide (shown
+  // to every resident). A real ocd_id scopes this axis to residents whose
+  // own jurisdiction ancestor chain includes it -- see topicsWithAxes()'s
+  // own header for the full reasoning. Not validated against the
+  // jurisdictions table here beyond the FK constraint itself -- same "trust
+  // an admin-entered value, let the DB catch a real typo" posture this
+  // admin console already uses for citation URLs.
+  jurisdictionId?: string;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
   if (!opts.topicId && !opts.newTopicName) return { ok: false, reason: "topic" };
   if (!opts.key.trim() || !opts.question.trim() || !opts.negativePole.trim() || !opts.positivePole.trim()) {
@@ -101,9 +118,9 @@ export async function createDraftAxis(opts: {
         (await client.query(`INSERT INTO topics (name) VALUES ($1) RETURNING id`, [opts.newTopicName])).rows[0].id;
     }
     const { rows } = await client.query(
-      `INSERT INTO topic_axes (topic_id, key, question, negative_pole, positive_pole, status, created_by_admin)
-       VALUES ($1, $2, $3, $4, $5, 'draft', $6) RETURNING id`,
-      [topicId, opts.key, opts.question, opts.negativePole, opts.positivePole, opts.createdByAdmin],
+      `INSERT INTO topic_axes (topic_id, key, question, negative_pole, positive_pole, status, created_by_admin, jurisdiction_id)
+       VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7) RETURNING id`,
+      [topicId, opts.key, opts.question, opts.negativePole, opts.positivePole, opts.createdByAdmin, opts.jurisdictionId || null],
     );
     const axisId = rows[0].id as string;
     if (opts.wishId) {
