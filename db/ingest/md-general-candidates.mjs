@@ -329,7 +329,17 @@ try {
     console.log(`fetching ${sourceUrl} ...`);
     const csvText = await fetchWithRetry(sourceUrl);
     const rows = rowsToObjects(parseCSV(csvText));
+    // Real gap found live 2026-09-29: this loop can run for a while
+    // (one or more DB round-trips per row across ~1,000 total rows), with
+    // zero output in between -- indistinguishable from a hang when
+    // watched live via `journalctl -u nationwide-ingest-and-log.service -f`.
+    console.log(`  ${rows.length} row(s) to process`);
+    let rowsProcessed = 0;
     for (const row of rows) {
+      rowsProcessed += 1;
+      if (rowsProcessed % 100 === 0 || rowsProcessed === rows.length) {
+        console.log(`  ...${rowsProcessed}/${rows.length} rows processed`);
+      }
       stats.rowsSeen += 1;
       if (row["Candidate Status"] !== "Active") { stats.notActive += 1; continue; }
       const resolved = resolveTitle(row);

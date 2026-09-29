@@ -132,13 +132,26 @@ try {
     if (batch.length < 250) break;
   }
 
+  // Real gap found live 2026-09-29: this loop can run silent for several
+  // minutes on a busy week (one API call per roll call, no output between
+  // them) -- indistinguishable from a hang when watched live via
+  // `journalctl -u nationwide-ingest-and-log.service -f`. A periodic
+  // progress line fixes that without spamming the log on a normal
+  // (small) incremental run.
+  console.log(`  ${rollCalls.length} roll call(s) to check`);
+
   let upserted = 0;
   let skippedRollCalls = 0;
   const skippedBioguides = new Set();
   const skippedVoteCasts = new Set();
   let dataThrough = null;
 
+  let processed = 0;
   for (const rc of rollCalls) {
+    processed += 1;
+    if (processed % 25 === 0 || processed === rollCalls.length) {
+      console.log(`  ...${processed}/${rollCalls.length} roll calls checked`);
+    }
     // Legislation-less roll calls exist (e.g. procedural motions, electing
     // a Speaker) -- no bill to attach the citation to, so skipped rather
     // than inventing a fake bill_external_id. Real, expected, not an error.

@@ -243,7 +243,16 @@ try {
     groups.get(title).push(row);
   }
 
+  // Real gap found live 2026-09-29 (same class as md-general-candidates.mjs):
+  // silent processing looks like a hang when watched live. Virginia's own
+  // total (~38 rows across 12 office groups) is small enough that this is
+  // mostly future-proofing rather than a real current pain point, but kept
+  // consistent with the other four ingesters in the same weekly job.
+  console.log(`  ${groups.size} office group(s) to process (${rows.length} candidate row(s) total)`);
+  let groupsProcessed = 0;
   for (const [title, groupRows] of groups) {
+    groupsProcessed += 1;
+    console.log(`  ...(${groupsProcessed}/${groups.size}) ${title}`);
     const candidates = await lookupOffices(title);
     let office = null;
     if (candidates.length === 1) {
