@@ -4,6 +4,17 @@ Description=VoteRight nationwide vote + candidate-filing ingestion
 [Service]
 Type=oneshot
 WorkingDirectory=%h/repo
+# Real bug found live 2026-09-29: with no override here, this unit
+# inherited whatever this system's default TimeoutStartSec is, and got
+# killed (SIGTERM, "Main process exited, code=killed, status=15/TERM")
+# 32 minutes into a real run -- while still in "activating (start)",
+# systemd's own job-timeout phase, not a crash inside the script itself.
+# This is a batch job whose real runtime legitimately varies with how
+# much Congress/state legislatures did that week (a heavy week's
+# incremental catch-up across 3 vote sources + 2 candidate-filing
+# sources can genuinely take a while) -- it should never have an
+# arbitrary time limit. 0 = no timeout.
+TimeoutStartSec=0
 ExecStart=%h/repo/db/ingest/nationwide-ingest-and-log.sh
 # No StandardOutput/StandardError override -- systemd --user services
 # default to the journal, which captures this automatically with zero
