@@ -1,0 +1,19 @@
+[Unit]
+Description=Run VoteRight nationwide vote + candidate-filing ingestion weekly
+
+[Timer]
+# Saturdays 10:00 local server time -- matches the weekly cadence already
+# documented for these sources (INGESTION_CADENCE_DAYS in queries.ts:
+# congress-house-votes/senate-votes/state-legislature-votes all 7 days).
+# Saturday gives a full Mon-Fri legislative week of buffer before
+# checking, and lands clear of the existing Wednesday Montgomery-votes
+# cron (db/ingest-and-log.sh) and the daily 03:00 backup-db timer.
+# Adjust OnCalendar if a different cadence/time is ever wanted.
+OnCalendar=Sat *-*-* 10:00:00
+# If the VPS happens to be down/rebooting exactly at the scheduled time,
+# run the missed cycle as soon as it's back up instead of silently
+# skipping it -- the one real advantage over plain cron here.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
