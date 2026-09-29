@@ -86,7 +86,14 @@ async function fetchWithRetry(u, attempts = 5) {
 // handled rather than assumed absent). Anything else is a genuinely new
 // value this script has never seen -- skipped and counted, never guessed,
 // same discipline as votes.mjs's unmapped-name handling.
-const VOTE_MAP = { Yea: "yea", Nay: "nay", Present: "abstain", "Not Voting": "absent" };
+// "Aye"/"No" found live 2026-09-29 (a real production run's "unrecognized
+// voteCast value(s), skipped: Aye, No") -- the House uses this vocabulary
+// specifically for votes taken as the Committee of the Whole (a distinct
+// procedural mechanism from a regular "Yea"/"Nay" vote), not a data error.
+// Aye=Yea and No=Nay are well-established parliamentary synonyms, not a
+// guess -- these were being silently skipped (safely, never miscoded) but
+// undercounting real votes on that vote-type until this was added.
+const VOTE_MAP = { Yea: "yea", Nay: "nay", Aye: "yea", No: "nay", Present: "abstain", "Not Voting": "absent" };
 
 const client = new Client({ connectionString: url });
 await client.connect();
