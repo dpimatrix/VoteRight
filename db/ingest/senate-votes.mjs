@@ -182,8 +182,16 @@ try {
     // partially ingested by an interrupted prior run (ON CONFLICT DO
     // NOTHING makes this a safe no-op for anything already correct).
     const toFetch = full ? voteNumbers : voteNumbers.filter((n) => n >= minVote - 1);
+    // Same "silent for minutes, looks like a hang" gap fixed live
+    // 2026-09-29 in congress-votes.mjs -- one HTTP fetch per vote here too.
+    console.log(`  session ${session}: ${toFetch.length} vote(s) to check`);
 
+    let processed = 0;
     for (const voteNumber of toFetch) {
+      processed += 1;
+      if (processed % 25 === 0 || processed === toFetch.length) {
+        console.log(`  ...session ${session}: ${processed}/${toFetch.length} votes checked`);
+      }
       const padded = String(voteNumber).padStart(5, "0");
       const detailXml = await fetchWithRetry(
         `https://www.senate.gov/legislative/LIS/roll_call_votes/vote${congress}${session}/vote_${congress}_${session}_${padded}.xml`,

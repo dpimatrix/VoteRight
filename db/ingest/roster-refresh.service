@@ -4,6 +4,17 @@ Description=VoteRight roster refresh (Congress + state legislators)
 [Service]
 Type=oneshot
 WorkingDirectory=%h/repo
+# Preventive fix, applied 2026-09-29 alongside the same fix on
+# nationwide-ingest-and-log.service (found live there: no override here
+# means inheriting whatever this system's default TimeoutStartSec is,
+# which killed that job -- SIGTERM, "activating (start)" phase, systemd's
+# own job-timeout, not a script crash -- 32 minutes into a real run).
+# This job runs congress.mjs across every US state/territory plus
+# openstates-legislature.mjs across 48 states plus photo lookups --
+# the same class of "real runtime genuinely varies, shouldn't have an
+# arbitrary limit" batch job, just one that hasn't happened to hit the
+# same wall yet. 0 = no timeout.
+TimeoutStartSec=0
 ExecStart=%h/repo/db/ingest/roster-refresh.sh
 # No StandardOutput/StandardError override -- systemd --user services
 # default to the journal, which captures this automatically with zero

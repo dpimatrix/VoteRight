@@ -141,6 +141,11 @@ try {
       const body = await fetchWithRetry(u);
       const bills = body.results ?? [];
       if (bills.length === 0) break;
+      // Same "silent for minutes, looks like a hang" gap fixed live
+      // 2026-09-29 in congress-votes.mjs/senate-votes.mjs -- OpenStates
+      // pagination here is naturally chunked (20 bills/page), so a
+      // per-page line is enough granularity without extra bookkeeping.
+      console.log(`  ${slug}: page ${page} (${bills.length} bill(s), ${stateUpserted} vote(s) upserted so far)`);
 
       let sawAnyRecentVote = false;
       for (const bill of bills) {
