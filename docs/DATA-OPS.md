@@ -115,8 +115,19 @@ same directory) — the same mechanism the app itself already runs under (DEPLOY
 cron; the existing audit-checkpoint job predates this and stays on cron, no need to migrate
 it. See the setup steps in `roster-refresh.sh`'s own header comment — a one-time,
 self-serve VPS step (API key placement, `systemctl --user enable --now`) this doc doesn't
-duplicate. The original cadence table below still describes the right *frequency* per
-source, just not the *mechanism* everywhere yet:
+duplicate.
+
+**Real gap found and closed (2026-09-29)**: every nationwide-scope vote/candidate-filing
+ingester built 2026-09-22 through 2026-09-28 (`congress-votes.mjs`, `senate-votes.mjs`,
+`state-legislature-votes.mjs`, `md-general-candidates.mjs`, `va-federal-candidates.mjs`)
+had zero scheduling — each had only ever been run by hand, once. `db/ingest/nationwide-
+ingest-and-log.sh` wraps all five into one weekly job (same `systemd --user` timer
+mechanism as `roster-refresh.sh`, same setup steps, same `read_env_var()` credential-
+sourcing pattern reused verbatim to avoid re-hitting the two real bugs that pattern already
+fixed once). Weekly matches `INGESTION_CADENCE_DAYS`'s existing 7-day entries for the three
+vote sources; the candidate-filing ingesters are cheap/idempotent enough to just ride along
+on the same schedule rather than needing their own. The original cadence table below still
+describes the right *frequency* per source, just not the *mechanism* everywhere yet:
 
 | Source | Cadence | Why |
 |---|---|---|
