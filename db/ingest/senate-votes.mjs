@@ -58,7 +58,18 @@ async function fetchWithRetry(u, attempts = 5) {
   for (let i = 1; i <= attempts; i += 1) {
     try {
       const res = await fetch(u, { signal: AbortSignal.timeout(30000) });
-      if (res.status === 429) throw Object.assign(new Error("429"), { rateLimited: true });
+      // 403 treated the same as 429 -- real gap found live 2026-09-29: a
+      // full production run exhausted all 5 attempts on 403s (getting
+      // only the short 1500*i backoff meant for generic errors) and
+      // failed outright, ingesting zero Senate votes that cycle. This
+      // is senate.gov's own public, unauthenticated XML feed -- there's
+      // no real "you're not authorized" case here, so a 403 in this
+      // context is almost certainly the same anti-bot/load-based block
+      // already observed once before (this script's own header notes
+      // senate.gov "intermittently 403'd under concurrent request load"),
+      // not a genuine auth failure -- it deserves the same longer
+      // backoff 429 already gets, not the short generic one.
+      if (res.status === 429 || res.status === 403) throw Object.assign(new Error(`${res.status}`), { rateLimited: true });
       if (res.status === 404) return null; // a session with no data yet (e.g. session 2 before it starts) -- not an error
       if (!res.ok) throw new Error(`${res.status}`);
       return await res.text();

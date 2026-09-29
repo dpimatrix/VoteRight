@@ -210,7 +210,16 @@ try {
   if (skippedBills) notes.push(`${skippedBills} vote event(s) with no date, skipped`);
   if (skippedVoters) notes.push(`${skippedVoters} vote(s) with no resolvable politician (unmatched OpenStates person or role-only entry like "Speaker")`);
   if (skippedOptions.size) notes.push(`unrecognized option value(s), skipped: ${[...skippedOptions].join(", ")}`);
-  notes.push(`by state: ${Object.entries(perStateStats).map(([s, n]) => `${s}=${n}`).join(", ")}`);
+  // Real gap found live 2026-09-29: joined onto the SAME line as the
+  // "no resolvable politician" note just above (both land in one
+  // semicolon-joined `notes` string), this used to just say "by state:"
+  // -- reading as if it were a BREAKDOWN of that skip count, when it's
+  // actually the totally unrelated total-upserted-per-state figure
+  // (confirmed live: a real run showed "4181 vote(s) with no resolvable
+  // politician... by state: md=253193, va=1784" -- 253193+1784 sums to
+  // the full upserted total, not to 4181). Reworded to say what it
+  // actually is.
+  notes.push(`upserted by state (total, not the skip count above): ${Object.entries(perStateStats).map(([s, n]) => `${s}=${n}`).join(", ")}`);
 
   await client.query(
     `UPDATE ingestion_runs SET finished_at = now(), status = 'succeeded',
