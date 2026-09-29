@@ -35,7 +35,8 @@ INSERT INTO offices (id, jurisdiction_id, title, seat_type, seat_count, term_len
 
 -- ── 2026 cycle + tracked races (real contests; candidacies arrive in D1) ───
 INSERT INTO election_cycles (id, name, election_date, election_type, commentary_promotion_blackout_days) VALUES
- ('00000000-0000-4000-8000-000000000301', '2026 Maryland General', '2026-11-03', 'general', 30);
+ ('00000000-0000-4000-8000-000000000301', '2026 Maryland General', '2026-11-03', 'general', 30),
+ ('00000000-0000-4000-8000-000000000302', '2026 Virginia General', '2026-11-03', 'general', 30);
 INSERT INTO races (id, election_cycle_id, office_id, seats_elected) VALUES
  ('00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000401', 1),
  ('00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000301', '00000000-0000-4000-8000-000000000402', 4);
