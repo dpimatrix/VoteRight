@@ -110,20 +110,32 @@ try {
   );
   const byBioguide = new Map(pols.rows.map((p) => [p.bioguide_id, p.id]));
 
-  let since = null;
+  // Real bug found live 2026-09-29: `fromDateTime` does NOT actually
+  // filter this endpoint's results -- confirmed live by requesting the
+  // same page with and without it and getting an IDENTICAL response
+  // (Congress.gov silently ignores the parameter rather than erroring).
+  // A second real production run still had "676 roll call(s) to check",
+  // identical to the first-ever run, even though most were already
+  // ingested -- the "avoids re-fetching..." claim in the comment this
+  // replaces was aspirational, never actually implemented. Fixed by
+  // skipping already-ingested roll calls ourselves, at the database
+  // level, rather than trusting an API parameter that doesn't work: the
+  // per-vote UNIQUE constraint already makes re-ingesting safe, so this
+  // is purely a real, large performance fix (676 detail fetches -> only
+  // the genuinely new ones), not a correctness requirement.
+  let alreadyIngested = new Set();
   if (!full) {
     const { rows } = await client.query(
-      `SELECT (max(voted_at) - interval '3 days')::date::text AS since
-         FROM voting_records WHERE jurisdiction_id = $1 AND bill_external_id LIKE 'roll-%'`,
+      `SELECT DISTINCT bill_external_id FROM voting_records
+        WHERE jurisdiction_id = $1 AND bill_external_id LIKE 'roll-%'`,
       [JURISDICTION],
     );
-    since = rows[0]?.since ?? null;
+    alreadyIngested = new Set(rows.map((r) => r.bill_external_id));
   }
 
-  // List every roll call in range first (cheap, one call per 250), THEN
-  // fetch each one's member-level detail (one call per roll call) -- same
-  // two-phase shape as house-vote's own list/detail split, avoids
-  // re-fetching the full member list for roll calls already ingested.
+  // List every roll call (cheap, one call per 250 -- the list endpoint
+  // itself has no working date filter, so this always returns the full
+  // set for the Congress; the real skip happens below, per roll call).
   const rollCalls = [];
   for (let offset = 0; ; offset += 250) {
     const u = new URL(`https://api.congress.gov/v3/house-vote/${congress}`);
@@ -131,7 +143,6 @@ try {
     u.searchParams.set("limit", "250");
     u.searchParams.set("offset", String(offset));
     u.searchParams.set("api_key", API_KEY);
-    if (since) u.searchParams.set("fromDateTime", `${since}T00:00:00Z`);
     const res = await fetchWithRetry(u);
     const body = await res.json();
     const batch = body.houseRollCallVotes ?? [];
@@ -149,6 +160,7 @@ try {
 
   let upserted = 0;
   let skippedRollCalls = 0;
+  let skippedAlreadyIngested = 0;
   const skippedBioguides = new Set();
   const skippedVoteCasts = new Set();
   let dataThrough = null;
@@ -169,6 +181,13 @@ try {
     const votedAt = rc.startDate.slice(0, 10);
     if (!dataThrough || votedAt > dataThrough) dataThrough = votedAt;
     const rollId = `roll-${rc.congress}-${rc.sessionNumber}-${rc.rollCallNumber}`;
+    // The real incremental skip (see the header note above this loop) --
+    // this is what actually avoids re-fetching each roll call's member
+    // detail on a normal run, not the non-functional fromDateTime param.
+    if (alreadyIngested.has(rollId)) {
+      skippedAlreadyIngested += 1;
+      continue;
+    }
     const title = `${rc.legislationType} ${rc.legislationNumber}`.slice(0, 500);
     const sourceUrl = rc.legislationUrl ?? rc.sourceDataURL;
 
@@ -212,7 +231,7 @@ try {
       WHERE id = $1`,
     [runId, upserted, skippedBioguides.size + skippedVoteCasts.size, dataThrough, notes.join("; ") || null],
   );
-  console.log(`${SOURCE}: ${rollCalls.length} roll call(s) checked, upserted ${upserted} vote(s), data through ${dataThrough ?? "n/a"}`);
+  console.log(`${SOURCE}: ${rollCalls.length} roll call(s) in range, ${skippedAlreadyIngested} already ingested (skipped), upserted ${upserted} vote(s), data through ${dataThrough ?? "n/a"}`);
   if (notes.length) console.log(`  notes: ${notes.join("; ")}`);
 } catch (e) {
   await client.query(`UPDATE ingestion_runs SET finished_at = now(), status = 'failed', note = $2 WHERE id = $1`, [runId, String(e.message ?? e)]);
