@@ -141,7 +141,20 @@ export async function isSampleData(): Promise<boolean> {
 // null (unverified resident, no known residence) makes the recursive CTE
 // return zero rows, so only nationwide axes show -- the safe default,
 // since nothing county-specific should ever be guessed at.
-export async function topicsWithAxes(residenceJurisdictionId: string | null = null) {
+// requiredLevelForNationwide: null (the default, every viewer-facing
+// caller) means NULL/nationwide axes show unconditionally -- correct for
+// a RESIDENT, who cares about federal priorities regardless of where they
+// live. Passed as a real office level (candidate-profile callers only)
+// means NULL axes require THAT level specifically -- correct for a
+// CANDIDATE's own profile, where a nationwide axis is only genuinely
+// relevant if the office itself is at the level that axis's wording asks
+// about (every one of the 8 federal axes reads "should the federal
+// government/Congress..."). Real gap found live 2026-09-28: without this,
+// a Montgomery councilmember's own profile page showed all 8 federal axes
+// too (as harmless-but-noisy "No public position" rows) -- same
+// underlying bug axesForCoding() was fixed for the same day, here on the
+// display side rather than the coding side.
+export async function topicsWithAxes(residenceJurisdictionId: string | null = null, requiredLevelForNationwide: string | null = null) {
   const { rows } = await db().query(
     // published-only (migration 092) -- a resident must never be offered a
     // draft/in_review axis to set a priority against, or code a position
@@ -154,9 +167,12 @@ export async function topicsWithAxes(residenceJurisdictionId: string | null = nu
      SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole
        FROM topics t JOIN topic_axes a ON a.topic_id = t.id
       WHERE a.status = 'published'
-        AND (a.jurisdiction_id IS NULL OR a.jurisdiction_id IN (SELECT ocd_id FROM stack))
+        AND (
+          (a.jurisdiction_id IS NULL AND ($2::text IS NULL OR $2 = 'federal'))
+          OR a.jurisdiction_id IN (SELECT ocd_id FROM stack)
+        )
       ORDER BY t.name`,
-    [residenceJurisdictionId],
+    [residenceJurisdictionId, requiredLevelForNationwide],
   );
   return rows as {
     topic_id: string;
@@ -175,13 +191,26 @@ export async function topicsWithAxes(residenceJurisdictionId: string | null = nu
 // supported, honest pattern elsewhere in this app). Falls back to null
 // (nationwide-only) for a politician with no current office_terms row --
 // same safe default as an unverified resident.
-export async function politicianJurisdiction(politicianId: string): Promise<string | null> {
+// Returns both the jurisdiction_id AND the office's own level -- migration
+// 106 support needed both: jurisdiction_id feeds topicsWithAxes()'s normal
+// ancestor walk (Montgomery-scoped axes reach a Montgomery officeholder),
+// but a NULL/nationwide axis needs the office's LEVEL specifically, not
+// just a jurisdiction match. Real gap found live 2026-09-28, same day the
+// coding-tool equivalent (axesForCoding()) was fixed for the identical
+// reason: every one of the 8 federal axes is worded "should the federal
+// government/Congress...", so a Montgomery councilmember's own profile
+// showing them (as 8 "No public position" rows -- harmless in that no
+// wrong CLAIM is made, since that's honestly true, but real display noise
+// for a topic that officeholder could never plausibly have a position on)
+// is the same underlying bug as the coding-tool one, just on the display
+// side rather than the write side.
+export async function politicianJurisdiction(politicianId: string): Promise<{ jurisdictionId: string; level: string } | null> {
   const { rows } = await db().query(
-    `SELECT o.jurisdiction_id FROM office_terms ot JOIN offices o ON o.id = ot.office_id
+    `SELECT o.jurisdiction_id, o.level FROM office_terms ot JOIN offices o ON o.id = ot.office_id
       WHERE ot.politician_id = $1 AND ot.term_end IS NULL LIMIT 1`,
     [politicianId],
   );
-  return rows[0]?.jurisdiction_id ?? null;
+  return rows[0] ? { jurisdictionId: rows[0].jurisdiction_id, level: rows[0].level } : null;
 }
 
 /* ── anonymous voter (cookie-scoped; verification_tier stays 'unverified') ── */

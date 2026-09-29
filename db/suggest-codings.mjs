@@ -48,11 +48,16 @@ const noPrefilter = args.includes("--no-prefilter");
 // drops for the new topic.
 const TOPIC_KEYWORDS = [
   /rent|housing|tenant|landlord|zoning|dwelling/i, // Housing affordability
-  /\bbus\b|transit|ride on|pedestrian|vision zero|bicycle|parking|transportation/i, // Transit & roads
-  /school|education|student|mcps/i, // Public schools
+  /\bbus\b|transit|ride on|pedestrian|vision zero|bicycle|parking|transportation|highway|infrastructure/i, // Transit & roads (extended for federal transit/infra bills, migration 106)
+  /school|education|student|mcps|title i\b|special education|head start/i, // Public schools (extended for federal K-12 bills)
   /energy|climate|electri|decarbon|environment|tree|solar|emission|green bank|sustainab/i, // Climate & environment
   /police|policing|crime|gun|firearm|safety|public safety/i, // Public safety
-  /\btax\b|taxation|revenue|\bfee\b/i, // Taxes & budget
+  /\btax\b|taxation|revenue|\bfee\b|tax cut|tax credit|reconciliation/i, // Taxes & budget (extended for federal income-tax bills)
+  // Federal-only topics with no county equivalent (migration 106, 2026-09-28):
+  /immigra|border|asylum|refugee|\bvisa\b|deportation|\bdaca\b|citizenship/i, // Immigration
+  /health.?care|medicaid|medicare|affordable care act|\baca\b|health insurance/i, // Health care
+  /abortion|reproductive (health|rights|care)|planned parenthood/i, // Reproductive rights
+  /defense authorization|\bndaa\b|\bmilitary\b|armed forces|national security|foreign aid|department of defense|\bpentagon\b/i, // Foreign policy & defense
 ];
 const PLAUSIBLE_TOPIC = new RegExp(TOPIC_KEYWORDS.map((r) => r.source).join("|"), "i");
 const url = opt("url", process.env.DATABASE_URL ?? "postgres://postgres:vr@localhost:5433/voteright");
@@ -114,18 +119,64 @@ exact_match=true only if the title names the precise policy the axis's pole desc
 }
 
 try {
-  const axesRes = await client.query(
-    `SELECT a.id, a.key, t.name AS topic, a.question, a.negative_pole, a.positive_pole
-       FROM topic_axes a JOIN topics t ON t.id = a.topic_id`,
-  );
-  const axes = axesRes.rows;
-  const axisById = new Map(axes.map((a) => [a.key, a]));
+  // Per-jurisdiction axis eligibility, not one global list -- real gap
+  // found live 2026-09-28, the moment the 8 federal axes actually
+  // published: a NULL/nationwide axis is only real evidence from a vote
+  // cast at the level of government that axis's own wording asks about
+  // (every one of the 8 reads "should the federal government/Congress...")
+  // -- not from anywhere the resident-facing "nationwide" label would
+  // naively suggest. A Montgomery council bill should never even be ASKED
+  // about a federal axis; it wastes an API call and risks the model
+  // finding a spurious "adjacent" match. Mirrors axesForCoding()'s own
+  // identical fix (app/src/lib/positions.ts, same date).
+  const axesCache = new Map(); // jurisdictionId -> axes[]
+  async function axesForJurisdiction(jurisdictionId) {
+    if (axesCache.has(jurisdictionId)) return axesCache.get(jurisdictionId);
+    const res = await client.query(
+      `WITH RECURSIVE stack AS (
+         SELECT ocd_id, parent_ocd_id FROM jurisdictions WHERE ocd_id = $1
+         UNION ALL
+         SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
+       )
+       SELECT a.id, a.key, t.name AS topic, a.question, a.negative_pole, a.positive_pole
+         FROM topic_axes a JOIN topics t ON t.id = a.topic_id
+        WHERE a.status = 'published'
+          AND (
+            (a.jurisdiction_id IS NULL AND $1 = 'ocd-division/country:us')
+            OR a.jurisdiction_id IN (SELECT ocd_id FROM stack)
+          )`,
+      [jurisdictionId],
+    );
+    axesCache.set(jurisdictionId, res.rows);
+    return res.rows;
+  }
+
+  // Dynamic citation publisher, not a hardcoded county name -- same
+  // "name the actual body" convention app/src/lib/positions.ts's own
+  // createPositionFromVote() already uses. Real gap: this script now runs
+  // across every ingested source (Montgomery, Congress, state
+  // legislatures), and "Montgomery County legislative record" on a real
+  // U.S. Representative's citation would be a wrong, publishable claim.
+  const publisherCache = new Map(); // politicianId -> string
+  async function publisherFor(politicianId) {
+    if (publisherCache.has(politicianId)) return publisherCache.get(politicianId);
+    const res = await client.query(
+      `SELECT j.name FROM politicians p
+         JOIN offices o ON o.id = p.current_office_id
+         JOIN jurisdictions j ON j.ocd_id = o.jurisdiction_id
+        WHERE p.id = $1`,
+      [politicianId],
+    );
+    const publisher = res.rows[0]?.name ? `${res.rows[0].name} legislative record` : "Legislative record";
+    publisherCache.set(politicianId, publisher);
+    return publisher;
+  }
 
   // Bills with votes, where NOT EVERY axis has already been checked/coded for
   // this bill (approximated: bill has at least one vote and no politician_positions
   // row cites its source_url yet — a fully-uncoded bill).
   const billsRes = await client.query(
-    `SELECT DISTINCT v.bill_external_id, v.bill_title, v.source_url
+    `SELECT DISTINCT v.bill_external_id, v.bill_title, v.source_url, v.jurisdiction_id
        FROM voting_records v
       WHERE NOT EXISTS (
         SELECT 1 FROM politician_positions pp JOIN citations c ON c.id = pp.citation_id
@@ -162,6 +213,17 @@ try {
       excludedPrefilter++;
       continue;
     }
+    const axes = await axesForJurisdiction(bill.jurisdiction_id);
+    if (axes.length === 0) {
+      // No published axis is even eligible at this bill's own level of
+      // government (e.g. a state-legislature bill when no state-level
+      // axis exists yet) -- asking the model would only ever produce a
+      // no-match, at real API cost. Counted with the other prefilter
+      // exclusions since it's the same kind of cost gate.
+      excludedPrefilter++;
+      continue;
+    }
+    const axisById = new Map(axes.map((a) => [a.key, a]));
     let draft;
     apiCalls++;
     try {
@@ -206,9 +268,9 @@ try {
 
       const cit = await client.query(
         `INSERT INTO citations (url, archive_url, title, publisher)
-         VALUES ($1, 'https://web.archive.org/web/' || $1, $2, 'Montgomery County legislative record')
+         VALUES ($1, 'https://web.archive.org/web/' || $1, $2, $3)
          RETURNING id`,
-        [bill.source_url, `${bill.bill_external_id} · roll call · ${v.vote.toUpperCase()}`],
+        [bill.source_url, `${bill.bill_external_id} · roll call · ${v.vote.toUpperCase()}`, await publisherFor(v.politician_id)],
       );
       const pos = await client.query(
         `INSERT INTO politician_positions (politician_id, topic_id, statement, source_type, citation_id)

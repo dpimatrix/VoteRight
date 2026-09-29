@@ -57,20 +57,50 @@ export async function axesForCoding(politicianId: string) {
   const { rows } = await db().query(
     // published-only (migration 092) -- staff shouldn't be coding a
     // candidate's position against an axis that hasn't cleared review yet.
-    `WITH RECURSIVE stack AS (
-       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j
-        WHERE j.ocd_id = (
-          SELECT o.jurisdiction_id FROM politicians p
-            JOIN offices o ON o.id = p.current_office_id
-           WHERE p.id = $1
-        )
+    //
+    // Real gap found live 2026-09-28, once the 8 federal axes actually
+    // published: NULL/nationwide previously matched UNCONDITIONALLY here,
+    // same bug as topicsWithAxes() had before migration 105 -- but the
+    // fix isn't symmetric with that one. A resident should see a nationwide
+    // axis regardless of where they live (it's their own priority to set);
+    // a VOTE can only be evidence for a nationwide axis if it was cast at
+    // the level of government that axis's own wording asks about -- every
+    // one of the 8 federal axes literally reads "should the federal
+    // government/Congress...", so only a federal vote can honestly answer
+    // it. Left unfixed, staff coding a Montgomery councilmember's LOCAL
+    // housing vote via /admin/positions would see "should the federal
+    // government expand health coverage" sitting in the same dropdown --
+    // a real miscoding risk, not just clutter, the moment the federal
+    // axes went live. Fixed: NULL axes now require the politician's own
+    // OFFICE LEVEL to be 'federal' -- not a jurisdiction_id string match.
+    // Real bug caught testing this exact fix: a U.S. Representative's own
+    // office.jurisdiction_id is the STATE-level ocd_id (congress.mjs
+    // anchors House/Senate offices to their state, e.g.
+    // 'ocd-division/country:us/state:md'), NOT the literal country root --
+    // only VOTES (voting_records.jurisdiction_id) carry that root, per
+    // congress-votes.mjs/senate-votes.mjs. Comparing the office's
+    // jurisdiction_id to the country ocd_id would silently show federal
+    // members zero nationwide axes. offices.level = 'federal' is the
+    // correct, direct signal (set by congress.mjs for every Senate/House
+    // seat) regardless of how the office happens to be jurisdiction-anchored.
+    `WITH RECURSIVE own_office AS (
+       SELECT o.jurisdiction_id, o.level FROM politicians p
+         JOIN offices o ON o.id = p.current_office_id
+        WHERE p.id = $1
+     ),
+     stack AS (
+       SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j, own_office oo
+        WHERE j.ocd_id = oo.jurisdiction_id
        UNION ALL
        SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
      )
      SELECT a.id, t.name AS topic, a.question, a.negative_pole, a.positive_pole
-       FROM topic_axes a JOIN topics t ON t.id = a.topic_id
+       FROM topic_axes a JOIN topics t ON t.id = a.topic_id, own_office oo
       WHERE a.status = 'published'
-        AND (a.jurisdiction_id IS NULL OR a.jurisdiction_id IN (SELECT ocd_id FROM stack))
+        AND (
+          (a.jurisdiction_id IS NULL AND oo.level = 'federal')
+          OR a.jurisdiction_id IN (SELECT ocd_id FROM stack)
+        )
       ORDER BY t.name`,
     [politicianId],
   );

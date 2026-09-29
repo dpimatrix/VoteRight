@@ -27,7 +27,8 @@ export async function GET(
   // jurisdiction-scoped (migration 105) -- by THIS politician's own office,
   // not the viewer's residence, so the same profile reads identically to
   // every viewer. See queries.ts's politicianJurisdiction() doc comment.
-  const topics = await topicsWithAxes(await politicianJurisdiction(id));
+  const office = await politicianJurisdiction(id);
+  const topics = await topicsWithAxes(office?.jurisdictionId ?? null, office?.level ?? null);
   const userId = await currentUserId();
   const priorities = userId ? await loadPriorities(userId) : [];
   const prioByAxis = new Map(priorities.map((p) => [p.axisId, p]));

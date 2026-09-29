@@ -96,26 +96,30 @@ describe("extractDistricts (D6 gap #5 — production resolver, pure extraction)"
   const resp = (geos: Record<string, object[]>): CensusResponse => ({ result: { addressMatches: [{ geographies: geos }] } });
 
   it("extracts all three district numbers from a live-shaped response", () => {
-    // Real BASENAME values observed live this session for a Rockville, MD test
-    // address (D6 gap #5 research) — congressional 8, state senate/house 17.
+    // Real BASENAME values observed live 2026-09-28 for a real Gaithersburg,
+    // MD address (owner-reported bug: the geocoder's layer names had gone
+    // stale -- "119th"/"2024" renamed to "120th"/"2026" by the Census
+    // Bureau, silently degrading every resident's congressional/state
+    // district narrowing to "show every district" until this was caught
+    // and fixed) -- congressional 6, state senate/house 17.
     expect(
       extractDistricts(
         resp({
-          "119th Congressional Districts": [{ BASENAME: "8" }],
-          "2024 State Legislative Districts - Upper": [{ BASENAME: "17" }],
-          "2024 State Legislative Districts - Lower": [{ BASENAME: "17" }],
+          "120th Congressional Districts": [{ BASENAME: "6" }],
+          "2026 State Legislative Districts - Upper": [{ BASENAME: "17" }],
+          "2026 State Legislative Districts - Lower": [{ BASENAME: "17" }],
         }),
       ),
-    ).toEqual(districts({ congressional: "8", stateSenate: "17", stateHouse: "17" }));
+    ).toEqual(districts({ congressional: "6", stateSenate: "17", stateHouse: "17" }));
   });
 
   it("keeps Maryland's split sub-district letter (e.g. 34A), not just the number", () => {
-    expect(extractDistricts(resp({ "2024 State Legislative Districts - Lower": [{ BASENAME: "34A" }] }))).toEqual(
+    expect(extractDistricts(resp({ "2026 State Legislative Districts - Lower": [{ BASENAME: "34A" }] }))).toEqual(
       districts({ stateHouse: "34A" }),
     );
   });
 
-  it("yields null per-field, never throws, when a layer wasn't requested or the geocoder didn't cover it — a stale/renumbered layer name (Congress renumbers every 2 years) degrades to this, not a crash", () => {
+  it("yields null per-field, never throws, when a layer wasn't requested or the geocoder didn't cover it — a stale/renumbered layer name (Congress renumbers every 2 years, and the Bureau evidently renames these on its own schedule, not tied to inauguration day -- confirmed live 2026-09-28) degrades to this, not a crash", () => {
     expect(extractDistricts(resp({ Counties: [{ STATE: "24", COUNTY: "031" }] }))).toEqual(districts({}));
   });
 
@@ -126,10 +130,10 @@ describe("extractDistricts (D6 gap #5 — production resolver, pure extraction)"
 
   it("always leaves countyCouncil/boardOfEducation null — those are Montgomery-County-specific and filled in separately by montgomeryLocalDistricts, never from a Census layer", () => {
     expect(
-      extractDistricts(resp({ "119th Congressional Districts": [{ BASENAME: "8" }] })).countyCouncil,
+      extractDistricts(resp({ "120th Congressional Districts": [{ BASENAME: "6" }] })).countyCouncil,
     ).toBeNull();
     expect(
-      extractDistricts(resp({ "119th Congressional Districts": [{ BASENAME: "8" }] })).boardOfEducation,
+      extractDistricts(resp({ "120th Congressional Districts": [{ BASENAME: "6" }] })).boardOfEducation,
     ).toBeNull();
   });
 });

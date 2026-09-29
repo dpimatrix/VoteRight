@@ -120,9 +120,9 @@ export function extractDistricts(data: CensusResponse): ExtractedDistricts {
   const geos = match?.geographies;
   const basename = (layer: string) => (geos?.[layer] ?? [])[0]?.BASENAME ?? null;
   return {
-    congressional: basename("119th Congressional Districts"),
-    stateSenate: basename("2024 State Legislative Districts - Upper"),
-    stateHouse: basename("2024 State Legislative Districts - Lower"),
+    congressional: basename(CONGRESSIONAL_LAYER),
+    stateSenate: basename(STATE_SENATE_LAYER),
+    stateHouse: basename(STATE_HOUSE_LAYER),
     countyCouncil: null, // filled in by montgomeryLocalDistricts, Montgomery County only
     boardOfEducation: null,
     appellateCircuit: null, // filled in by appellateCircuitForCounty, Maryland only
@@ -411,14 +411,38 @@ async function jurisdictionForGeography(geo: ExtractedGeography): Promise<"outsi
 
 // Congress renumbers every 2 years and states redistrict on their own
 // schedules — these layer names are dated/versioned by the Census Bureau
-// itself and WILL need bumping (119th → 120th after the 2026 election;
-// the "2024" legislative-district vintage after the next redistricting
-// cycle). A stale layer name here doesn't silently mismatch addresses to
-// the wrong district — the geocoder just returns nothing for that layer,
-// extractDistricts yields null, and the app falls back to its existing
-// "show every district + disclosure banner" behavior. Still worth a
-// periodic check rather than leaving it stale indefinitely.
-const DISTRICT_LAYERS = "119th Congressional Districts,2024 State Legislative Districts - Upper,2024 State Legislative Districts - Lower";
+// itself and WILL need bumping again in the future. A stale layer name
+// here doesn't silently mismatch addresses to the wrong district — the
+// geocoder just returns nothing for that layer, extractDistricts yields
+// null, and the app falls back to its existing "show every district +
+// disclosure banner" behavior. That's exactly what happened, silently,
+// for real: found live 2026-09-28 (owner reported a real Gaithersburg, MD
+// address seeing every Maryland State Senate/Delegate race, unfiltered) --
+// live-queried the Census geocoder's own `layers=all` response for that
+// exact address and confirmed the Bureau had already renamed these to
+// "120th Congressional Districts" / "2026 State Legislative Districts -
+// Upper/Lower" (this project's own prior comment here expected the
+// Congressional bump only "after the 2026 election," i.e. Jan 2027 --
+// the Bureau evidently updates these layers on its own schedule, not
+// tied to inauguration day). This bug silently affected EVERY resident's
+// congressional/state-senate/state-house narrowing, nationwide, not just
+// the one reported address, for as long as the rename had already
+// happened before this fix. Still worth a periodic live check rather
+// than leaving these stale indefinitely.
+// Named once, used both to build the request's `layers` parameter AND by
+// extractDistricts() to look the same layers back up in the response --
+// real bug found alongside the rename above: extractDistricts() used to
+// hardcode its OWN copy of these same three strings, so fixing only the
+// request side here would NOT have fixed the actual bug (the geocoder
+// would correctly start returning "120th Congressional Districts" etc.,
+// but extractDistricts() would still look up the old "119th..." key,
+// which no longer exists in the response, yielding null all over again).
+// One shared source now, so a future rename can't silently drift the two
+// apart again.
+const CONGRESSIONAL_LAYER = "120th Congressional Districts";
+const STATE_SENATE_LAYER = "2026 State Legislative Districts - Upper";
+const STATE_HOUSE_LAYER = "2026 State Legislative Districts - Lower";
+const DISTRICT_LAYERS = `${CONGRESSIONAL_LAYER},${STATE_SENATE_LAYER},${STATE_HOUSE_LAYER}`;
 
 export async function resolveJurisdiction(address: string): Promise<Resolution> {
   try {
