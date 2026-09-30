@@ -79,6 +79,24 @@ INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pol
  ('00000000-0000-4000-8000-000000000217', '00000000-0000-4000-8000-000000000203', 'federal_abortion_access', 'Should Congress codify federal protections for abortion access, or restrict abortion access at the federal level?', 'Restrict abortion access', 'Codify abortion-access protections', 'draft', 'Claude, pending human review (2026-09-22)', NULL),
  ('00000000-0000-4000-8000-000000000218', '00000000-0000-4000-8000-000000000204', 'defense_spending_level', 'Should federal defense/military spending increase?', 'Reduce spending', 'Increase spending', 'draft', 'Claude, pending human review (2026-09-22)', NULL);
 
+-- migration 108: second batch of draft federal axes, DRAFTED BY CLAUDE, NOT
+-- PUBLISHED -- see that migration file's header for the full rationale.
+INSERT INTO topics (id, name) VALUES
+ ('00000000-0000-4000-8000-000000000205', 'Criminal justice'),
+ ('00000000-0000-4000-8000-000000000206', 'Voting & elections'),
+ ('00000000-0000-4000-8000-000000000207', 'Labor & wages'),
+ ('00000000-0000-4000-8000-000000000208', 'Higher education'),
+ ('00000000-0000-4000-8000-000000000209', 'Drug policy'),
+ ('00000000-0000-4000-8000-000000000210', 'Trade');
+INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pole, status, created_by_admin, jurisdiction_id) VALUES
+ ('00000000-0000-4000-8000-000000000219', '00000000-0000-4000-8000-000000000105', 'gun_background_checks', 'Should Congress expand background-check requirements for gun purchases, or protect current purchasing processes from new restrictions?', 'Protect current purchasing process', 'Expand background checks', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000220', '00000000-0000-4000-8000-000000000205', 'federal_criminal_justice_reform', 'Should Congress expand federal criminal-justice reform (sentencing reform, policing oversight), or maintain current federal sentencing/policing standards?', 'Maintain current standards', 'Expand reform', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000221', '00000000-0000-4000-8000-000000000206', 'federal_voting_access_standards', 'Should Congress set new federal standards expanding voting access, or leave election administration primarily to the states?', 'Leave to the states', 'Expand federal voting-access standards', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000222', '00000000-0000-4000-8000-000000000207', 'federal_minimum_wage', 'Should Congress raise the federal minimum wage, or leave current wage-setting primarily to states/employers?', 'Leave to states/employers', 'Raise the federal minimum wage', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000223', '00000000-0000-4000-8000-000000000208', 'federal_student_loan_relief', 'Should the federal government expand student loan forgiveness/relief, or hold borrowers to current repayment terms?', 'Hold to current repayment terms', 'Expand forgiveness/relief', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000224', '00000000-0000-4000-8000-000000000209', 'federal_cannabis_policy', 'Should Congress ease federal restrictions on cannabis (rescheduling/legalization), or maintain current federal drug-scheduling law?', 'Maintain current federal law', 'Ease federal restrictions', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
+ ('00000000-0000-4000-8000-000000000225', '00000000-0000-4000-8000-000000000210', 'federal_trade_tariff_policy', 'Should Congress limit executive tariff authority and expand free trade agreements, or preserve broad tariff authority to protect domestic industries?', 'Preserve tariff authority', 'Limit tariffs / expand free trade', 'draft', 'Claude, pending human review (2026-09-30)', NULL);
+
 -- ── Accountability pathways (real legal facts, §2.1/§2.1.1 — verified) ─────
 INSERT INTO accountability_pathways (id, jurisdiction_id, office_id, mechanism_type, is_binding, legal_citation, signature_requirement_note, description) VALUES
  ('00000000-0000-4000-8000-000000000f01', 'ocd-division/country:us/state:md/county:montgomery',
