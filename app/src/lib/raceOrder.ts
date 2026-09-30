@@ -22,7 +22,12 @@ export interface OrderableRace {
   seat_type: string;
 }
 
-const LEVEL_RANK: Record<string, number> = {
+// Exported (not just used internally) so other domains ordering/grouping by
+// government level -- e.g. queries.ts's topicsWithAxes()/PriorityForm.tsx's
+// own level-grouped Priorities view, 2026-09-30 -- share this one ranking
+// rather than each keeping their own copy that could silently drift out of
+// sync with this one.
+export const LEVEL_RANK: Record<string, number> = {
   federal: 0,
   state: 1,
   county: 2,

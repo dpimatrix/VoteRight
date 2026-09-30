@@ -159,13 +159,28 @@ export async function topicsWithAxes(residenceJurisdictionId: string | null = nu
     // published-only (migration 092) -- a resident must never be offered a
     // draft/in_review axis to set a priority against, or code a position
     // to, before it's actually cleared second-person review.
+    //
+    // `level` added 2026-09-30 for the Priorities view's own level-grouped
+    // display (owner request: a flat list mixing "should the county hire
+    // more police" next to "should Congress ease cannabis restrictions"
+    // with no visual distinction gets genuinely disorienting once more
+    // than a handful of axes exist, especially as federal-axis count
+    // grows). A NULL axis (nationwide) is federal by construction -- every
+    // nationwide axis this project has drafted is worded "the federal
+    // government/Congress...", same equivalence the coding-pipeline fixes
+    // two days ago already established -- a non-NULL axis's level comes
+    // from its own jurisdiction row directly (LEFT JOIN, not the ancestor
+    // stack -- that CTE is about ELIGIBILITY, an axis's OWN level is a
+    // separate, simpler lookup).
     `WITH RECURSIVE stack AS (
        SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j WHERE j.ocd_id = $1
        UNION ALL
        SELECT j.ocd_id, j.parent_ocd_id FROM jurisdictions j JOIN stack s ON j.ocd_id = s.parent_ocd_id
      )
-     SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole
+     SELECT t.id AS topic_id, t.name, a.id AS axis_id, a.question, a.negative_pole, a.positive_pole,
+            COALESCE(aj.level, 'federal') AS level
        FROM topics t JOIN topic_axes a ON a.topic_id = t.id
+       LEFT JOIN jurisdictions aj ON aj.ocd_id = a.jurisdiction_id
       WHERE a.status = 'published'
         AND (
           (a.jurisdiction_id IS NULL AND ($2::text IS NULL OR $2 = 'federal'))
@@ -181,6 +196,7 @@ export async function topicsWithAxes(residenceJurisdictionId: string | null = nu
     question: string;
     negative_pole: string;
     positive_pole: string;
+    level: string;
   }[];
 }
 

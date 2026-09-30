@@ -34,6 +34,18 @@ const DICT = {
     weight: ["", "Barely matters", "Matters a little", "Matters", "Matters a lot", "Non-negotiable"],
     see_matches: "See my matches",
     need_more: "Pick at least 3 issues to continue",
+    // Priorities-view level grouping (2026-09-30, owner request): a flat
+    // list mixing a county question next to a federal one with no visual
+    // distinction gets disorienting once more than a handful of axes
+    // exist. Same level set/ordering raceOrder.ts's own LEVEL_RANK
+    // already established for the Ballot page -- reusing a mental model
+    // residents already encounter there, not inventing a new one.
+    prio_level_federal: "Federal",
+    prio_level_state: "State",
+    prio_level_county: "County",
+    prio_level_municipal: "Municipal",
+    prio_level_school_board: "School board",
+    prio_level_judicial: "Judicial",
     priority_wish_h: "Don't see your priority?",
     priority_wish_sub:
       "Suggest a new priority issue for VoteRight staff to review — approved suggestions become real, balanced priority questions for everyone.",
@@ -557,6 +569,12 @@ const DICT = {
     weight: ["", "Casi no importa", "Importa poco", "Importa", "Importa mucho", "Innegociable"],
     see_matches: "Ver mis coincidencias",
     need_more: "Elige al menos 3 temas para continuar",
+    prio_level_federal: "Federal",
+    prio_level_state: "Estatal",
+    prio_level_county: "Del condado",
+    prio_level_municipal: "Municipal",
+    prio_level_school_board: "Junta escolar",
+    prio_level_judicial: "Judicial",
     priority_wish_h: "¿No ves tu prioridad?",
     priority_wish_sub:
       "Sugiere un nuevo tema de prioridad para que el equipo de VoteRight lo revise — las sugerencias aprobadas se convierten en preguntas de prioridad reales y equilibradas para todos.",

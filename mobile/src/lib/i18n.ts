@@ -87,6 +87,16 @@ const DICT = {
     // ---- (tabs)/priorities.tsx ----
     priorities_title: 'Your priorities',
     priorities_sub: 'Pick a side on at least 3 issues to see how candidates match you.',
+    // Level-grouped display (2026-09-30, owner request): same reasoning as
+    // web's PriorityForm.tsx -- a flat list mixing a county question next
+    // to a federal one with no visual distinction gets disorienting once
+    // more than a handful of axes exist.
+    prio_level_federal: 'Federal',
+    prio_level_state: 'State',
+    prio_level_county: 'County',
+    prio_level_municipal: 'Municipal',
+    prio_level_school_board: 'School board',
+    prio_level_judicial: 'Judicial',
     topics_load_error: 'Could not load issues. Pull down to try again.',
     priorities_save_error: 'Could not save your priorities. Try again.',
     priority_wish_h: "Don't see your priority?",
@@ -560,6 +570,12 @@ const DICT = {
     // ---- (tabs)/priorities.tsx ----
     priorities_title: 'Tus prioridades',
     priorities_sub: 'Elige una postura en al menos 3 temas para ver qué tanto coinciden los candidatos contigo.',
+    prio_level_federal: 'Federal',
+    prio_level_state: 'Estatal',
+    prio_level_county: 'Del condado',
+    prio_level_municipal: 'Municipal',
+    prio_level_school_board: 'Junta escolar',
+    prio_level_judicial: 'Judicial',
     priority_wish_h: '¿No ves tu prioridad?',
     priority_wish_sub: 'Sugiere un nuevo tema de prioridad para que el equipo de VoteRight lo revise — las sugerencias aprobadas se convierten en preguntas de prioridad reales y equilibradas para todos.',
     priority_wish_ph: 'p. ej. Fondos para mitigación de inundaciones en el corredor de Rock Creek',

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Dict, Lang } from "@/lib/i18n";
+import { LEVEL_RANK } from "@/lib/raceOrder";
 
 interface Topic {
   topic_id: string;
@@ -11,7 +12,47 @@ interface Topic {
   question: string;
   negative_pole: string;
   positive_pole: string;
+  level: string;
 }
+
+// Level-grouped display (2026-09-30, owner request): a flat list mixing a
+// county question next to a federal one with no visual distinction gets
+// disorienting once more than a handful of axes exist -- same level
+// set/ordering raceOrder.ts's own LEVEL_RANK already established for the
+// Ballot page, reused here rather than duplicated. An unrecognized level
+// (shouldn't happen -- topicsWithAxes() only ever emits the 6 real
+// jurisdictions.level values -- but never trust that blindly) sorts last
+// via the same `?? 99` fallback LEVEL_RANK's own callers already use.
+function groupByLevel(topics: Topic[]): { level: string; items: Topic[] }[] {
+  const byLevel = new Map<string, Topic[]>();
+  for (const tp of topics) {
+    const list = byLevel.get(tp.level);
+    if (list) list.push(tp);
+    else byLevel.set(tp.level, [tp]);
+  }
+  return [...byLevel.entries()]
+    .map(([level, items]) => ({ level, items }))
+    .sort((a, b) => (LEVEL_RANK[a.level] ?? 99) - (LEVEL_RANK[b.level] ?? 99));
+}
+
+// One shared type for the level-label keys, used both by LEVEL_LABEL_KEY
+// below and the `d` prop's own Pick<> -- keeps them from drifting apart
+// (the original single Record<string, keyof Dict> typed the map's values
+// too broadly for TypeScript to verify indexing the narrowed `d` prop was
+// safe, even though every value in the map is, in fact, one of d's own
+// picked keys).
+type LevelLabelKey =
+  | "prio_level_federal" | "prio_level_state" | "prio_level_county"
+  | "prio_level_municipal" | "prio_level_school_board" | "prio_level_judicial";
+
+const LEVEL_LABEL_KEY: Record<string, LevelLabelKey> = {
+  federal: "prio_level_federal",
+  state: "prio_level_state",
+  county: "prio_level_county",
+  municipal: "prio_level_municipal",
+  school_board: "prio_level_school_board",
+  judicial: "prio_level_judicial",
+};
 interface Sel {
   direction: 1 | -1;
   weight: number;
@@ -26,10 +67,7 @@ export function PriorityForm({
 }: {
   topics: Topic[];
   lang: Lang;
-  d: Pick<
-    Dict,
-    "prio_p" | "prio_priv" | "weight" | "see_matches" | "need_more"
-  >;
+  d: Pick<Dict, "prio_p" | "prio_priv" | "weight" | "see_matches" | "need_more" | LevelLabelKey>;
   defaultRace: string;
 }) {
   const router = useRouter();
@@ -37,6 +75,7 @@ export function PriorityForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const count = Object.keys(sel).length;
+  const groups = groupByLevel(topics);
 
   function pick(axisId: string, direction: 1 | -1, poleText: string) {
     setSel((s) => {
@@ -77,7 +116,10 @@ export function PriorityForm({
   return (
     <>
       <p className="sub">{d.prio_p}</p>
-      {topics.map((tp) => {
+      {groups.map(({ level, items }) => (
+        <div key={level}>
+          <div className="grouph">{d[LEVEL_LABEL_KEY[level] ?? "prio_level_federal"]}</div>
+          {items.map((tp) => {
         const s = sel[tp.axis_id];
         return (
           <div className="card" key={tp.axis_id}>
@@ -139,7 +181,9 @@ export function PriorityForm({
             )}
           </div>
         );
-      })}
+          })}
+        </div>
+      ))}
       {error && <p className="nopos">{error}</p>}
       <button className="btn" disabled={count < 3 || busy} onClick={submit}>
         {count >= 3 ? d.see_matches : d.need_more}

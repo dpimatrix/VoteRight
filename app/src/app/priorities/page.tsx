@@ -39,6 +39,12 @@ export default async function PrioritiesPage({
           weight: d.weight,
           see_matches: d.see_matches,
           need_more: d.need_more,
+          prio_level_federal: d.prio_level_federal,
+          prio_level_state: d.prio_level_state,
+          prio_level_county: d.prio_level_county,
+          prio_level_municipal: d.prio_level_municipal,
+          prio_level_school_board: d.prio_level_school_board,
+          prio_level_judicial: d.prio_level_judicial,
         }}
       />
 

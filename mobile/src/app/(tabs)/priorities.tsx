@@ -18,6 +18,48 @@ interface Topic {
   question: string;
   negative_pole: string;
   positive_pole: string;
+  level: string;
+}
+
+// Level-grouped display (2026-09-30, owner request): same reasoning and
+// level set/ordering as web's PriorityForm.tsx -- a flat list mixing a
+// county question next to a federal one with no visual distinction gets
+// disorienting once more than a handful of axes exist. Mirrors (not
+// imports -- mobile and web are separate packages) web's own
+// app/src/lib/raceOrder.ts LEVEL_RANK, which this SAME set of values
+// already established for the Ballot screen's own race ordering.
+const LEVEL_RANK: Record<string, number> = {
+  federal: 0,
+  state: 1,
+  county: 2,
+  municipal: 3,
+  school_board: 4,
+  judicial: 5,
+};
+
+type LevelLabelKey =
+  | 'prio_level_federal' | 'prio_level_state' | 'prio_level_county'
+  | 'prio_level_municipal' | 'prio_level_school_board' | 'prio_level_judicial';
+
+const LEVEL_LABEL_KEY: Record<string, LevelLabelKey> = {
+  federal: 'prio_level_federal',
+  state: 'prio_level_state',
+  county: 'prio_level_county',
+  municipal: 'prio_level_municipal',
+  school_board: 'prio_level_school_board',
+  judicial: 'prio_level_judicial',
+};
+
+function groupByLevel(topics: Topic[]): { level: string; items: Topic[] }[] {
+  const byLevel = new Map<string, Topic[]>();
+  for (const tp of topics) {
+    const list = byLevel.get(tp.level);
+    if (list) list.push(tp);
+    else byLevel.set(tp.level, [tp]);
+  }
+  return [...byLevel.entries()]
+    .map(([level, items]) => ({ level, items }))
+    .sort((a, b) => (LEVEL_RANK[a.level] ?? 99) - (LEVEL_RANK[b.level] ?? 99));
 }
 
 interface Selection {
@@ -227,7 +269,12 @@ export default function PrioritiesScreen() {
         </View>
       )}
 
-      {topics?.map((tp) => {
+      {topics && groupByLevel(topics).map(({ level, items }) => (
+        <View key={level} style={styles.levelGroup}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.levelHeader}>
+            {d[LEVEL_LABEL_KEY[level] ?? 'prio_level_federal']}
+          </ThemedText>
+          {items.map((tp) => {
         const s = sel[tp.axis_id];
         const suggestedByMe = linkedWishByAxis.get(tp.axis_id);
         return (
@@ -296,7 +343,9 @@ export default function PrioritiesScreen() {
             )}
           </View>
         );
-      })}
+          })}
+        </View>
+      ))}
 
       <Pressable
         disabled={count < 3 || busy}
@@ -377,6 +426,8 @@ const styles = StyleSheet.create({
   title: { marginBottom: Spacing.two },
   spinner: { marginTop: Spacing.five },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
+  levelGroup: { gap: Spacing.three },
+  levelHeader: { textTransform: 'uppercase', letterSpacing: 1, fontWeight: '800', fontSize: 11 },
   card: { borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
   question: { marginTop: -Spacing.one },
   poles: { flexDirection: 'row', gap: Spacing.two },
