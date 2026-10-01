@@ -11,7 +11,13 @@
 INSERT INTO jurisdictions (ocd_id, name, level, parent_ocd_id, registered_voter_count, registered_voter_count_as_of) VALUES
  ('ocd-division/country:us/state:md', 'Maryland', 'state', NULL, NULL, NULL),
  ('ocd-division/country:us/state:md/county:montgomery', 'Montgomery County', 'county', 'ocd-division/country:us/state:md', 686000, '2026-06-01'),
- ('ocd-division/country:us/state:md/place:rockville', 'City of Rockville', 'municipal', 'ocd-division/country:us/state:md/county:montgomery', NULL, NULL);
+ ('ocd-division/country:us/state:md/place:rockville', 'City of Rockville', 'municipal', 'ocd-division/country:us/state:md/county:montgomery', NULL, NULL),
+ -- Virginia's state-level row only (not its counties -- not needed by
+ -- anything seeded here): migration 109's VA-scoped topic_axes rows
+ -- FK-reference it, and this structural fixture otherwise stays frozen at
+ -- the original Montgomery-pilot geography (real production got this row
+ -- from migration 004, never replayed into this file before now).
+ ('ocd-division/country:us/state:va', 'Virginia', 'state', NULL, NULL, NULL);
 
 -- ── Offices (real roster; 11-member Council since Dec 2022) ────────────────
 INSERT INTO offices (id, jurisdiction_id, title, seat_type, seat_count, term_length_years, is_partisan, is_elected, level) VALUES
@@ -96,6 +102,27 @@ INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pol
  ('00000000-0000-4000-8000-000000000223', '00000000-0000-4000-8000-000000000208', 'federal_student_loan_relief', 'Should the federal government expand student loan forgiveness/relief, or hold borrowers to current repayment terms?', 'Hold to current repayment terms', 'Expand forgiveness/relief', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
  ('00000000-0000-4000-8000-000000000224', '00000000-0000-4000-8000-000000000209', 'federal_cannabis_policy', 'Should Congress ease federal restrictions on cannabis (rescheduling/legalization), or maintain current federal drug-scheduling law?', 'Maintain current federal law', 'Ease federal restrictions', 'draft', 'Claude, pending human review (2026-09-30)', NULL),
  ('00000000-0000-4000-8000-000000000225', '00000000-0000-4000-8000-000000000210', 'federal_trade_tariff_policy', 'Should Congress limit executive tariff authority and expand free trade agreements, or preserve broad tariff authority to protect domestic industries?', 'Preserve tariff authority', 'Limit tariffs / expand free trade', 'draft', 'Claude, pending human review (2026-09-30)', NULL);
+
+-- migration 109: first batch of draft STATE-level axes (MD + VA), DRAFTED BY
+-- CLAUDE, NOT PUBLISHED -- see that migration file's header for the full
+-- sourcing method and jurisdiction-scoping rationale.
+INSERT INTO topics (id, name) VALUES
+ ('00000000-0000-4000-8000-000000000231', 'Housing & land use'),
+ ('00000000-0000-4000-8000-000000000232', 'Data privacy'),
+ ('00000000-0000-4000-8000-000000000233', 'Energy & utilities'),
+ ('00000000-0000-4000-8000-000000000234', 'Technology & AI regulation'),
+ ('00000000-0000-4000-8000-000000000235', 'Prescription drug costs');
+INSERT INTO topic_axes (id, topic_id, key, question, negative_pole, positive_pole, status, created_by_admin, jurisdiction_id) VALUES
+ ('00000000-0000-4000-8000-000000000236', '00000000-0000-4000-8000-000000000206', 'md_election_administration', 'Should Maryland expand voter-access provisions in election administration (early voting, accessible/expedited voting, plain-language ballot questions), or keep current election-administration rules as they are?', 'Keep current rules', 'Expand voter-access provisions', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:md'),
+ ('00000000-0000-4000-8000-000000000237', '00000000-0000-4000-8000-000000000206', 'va_election_administration', 'Should Virginia expand voter-registration and voting-access tools (DMV-linked registration, ranked-choice voting), or keep current election-administration rules as they are?', 'Keep current rules', 'Expand registration/voting-access tools', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:va'),
+ ('00000000-0000-4000-8000-000000000238', '00000000-0000-4000-8000-000000000105', 'md_immigration_enforcement_cooperation', 'Should Maryland restrict state and local cooperation with federal immigration enforcement (limiting information-sharing, as in the Community Trust Act), or maintain/expand that cooperation?', 'Maintain/expand cooperation', 'Restrict cooperation', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:md'),
+ ('00000000-0000-4000-8000-000000000239', '00000000-0000-4000-8000-000000000232', 'md_consumer_data_privacy', 'Should Maryland expand consumer data-privacy protections and restrictions on data collection/sharing (as in the Maryland Data Privacy Act), or keep current, lighter data-privacy requirements on businesses?', 'Keep current, lighter requirements', 'Expand data-privacy protections', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:md'),
+ ('00000000-0000-4000-8000-000000000240', '00000000-0000-4000-8000-000000000232', 'va_consumer_data_privacy', 'Should Virginia expand consumer data-privacy protections, including for children (as in the Consumer Data Protection Act), or keep current data-privacy requirements on businesses as they are?', 'Keep current requirements', 'Expand data-privacy protections', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:va'),
+ ('00000000-0000-4000-8000-000000000241', '00000000-0000-4000-8000-000000000231', 'md_housing_zoning_preemption', 'Should Maryland law make it easier to build housing by limiting local zoning/permitting barriers (as in the Maryland Housing Certainty Act), or preserve local governments'' current zoning and permitting authority?', 'Preserve local zoning/permitting authority', 'Limit local barriers to ease housing development', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:md'),
+ ('00000000-0000-4000-8000-000000000242', '00000000-0000-4000-8000-000000000231', 'va_housing_zoning_preemption', 'Should Virginia expand state authority to override local zoning barriers to affordable-housing construction, or preserve localities'' current zoning authority?', 'Preserve local zoning authority', 'Expand state authority to ease housing construction', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:va'),
+ ('00000000-0000-4000-8000-000000000243', '00000000-0000-4000-8000-000000000233', 'va_data_center_energy_siting', 'Should Virginia impose new state oversight or limits on data-center siting and the electric infrastructure built to serve them, or continue allowing data-center development and utility buildout largely as it is now?', 'Continue largely as-is', 'Impose new state oversight/limits', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:va'),
+ ('00000000-0000-4000-8000-000000000244', '00000000-0000-4000-8000-000000000234', 'va_synthetic_media_regulation', 'Should Virginia expand criminal/civil penalties and restrictions on AI-generated synthetic media (deepfakes used for fraud, defamation, or election interference), or rely on existing law without new synthetic-media-specific rules?', 'Rely on existing law, no new synthetic-media rules', 'Expand synthetic-media-specific penalties/restrictions', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:va'),
+ ('00000000-0000-4000-8000-000000000245', '00000000-0000-4000-8000-000000000235', 'md_prescription_drug_affordability', 'Should Maryland strengthen the Prescription Drug Affordability Board''s authority to cap or limit drug costs (as in the Lowering Prescription Drug Costs for All Marylanders Now Act), or limit the Board''s authority and rely more on market pricing?', 'Limit Board authority, rely on market pricing', 'Strengthen Board''s cost-capping authority', 'draft', 'Claude, pending human review (2026-09-30)', 'ocd-division/country:us/state:md');
 
 -- ── Accountability pathways (real legal facts, §2.1/§2.1.1 — verified) ─────
 INSERT INTO accountability_pathways (id, jurisdiction_id, office_id, mechanism_type, is_binding, legal_citation, signature_requirement_note, description) VALUES
