@@ -816,6 +816,21 @@ CREATE TABLE jurisdiction_demand_alerts_sent (
     PRIMARY KEY (state_fips, county_fips)
 );
 
+-- AI-research draft step for jurisdiction-demand onboarding (migration 110)
+-- -- see that migration's own header for the full rationale. Upserted on
+-- re-research, not append-only -- a live aid to current onboarding work,
+-- not a public record needing history.
+CREATE TABLE jurisdiction_demand_research (
+    state_fips          TEXT NOT NULL,
+    county_fips         TEXT NOT NULL,
+    note                TEXT NOT NULL,
+    source_urls         JSONB NOT NULL,
+    model_version       TEXT NOT NULL,
+    requested_by_admin  TEXT NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (state_fips, county_fips)
+);
+
 -- Opt-in notification email (2026-08-24, owner's vendor choice: Resend) --
 -- deliberately separate from verification/identity: users.email_hash above
 -- is a hashed, format-checked signal for a tier that was never actually

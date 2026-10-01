@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { db } from "./db";
 import { notifyAdmins } from "./adminNotify";
 import { notifyUsers } from "./notifications";
@@ -108,6 +109,131 @@ export async function recordJurisdictionDemandSignal(userId: string, locality: L
   }
 }
 
+let anthropicClient: Anthropic | null = null;
+function anthropicResearchClient(): Anthropic | null {
+  if (!process.env.ANTHROPIC_API_KEY) return null; // unconfigured -- same graceful-degradation posture as notifications.ts's resend()
+  if (!anthropicClient) anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return anthropicClient;
+}
+
+const RESEARCH_MODEL = "claude-sonnet-5";
+
+export interface JurisdictionResearch {
+  note: string;
+  sourceUrls: { url: string; title: string | null }[];
+  modelVersion: string;
+  requestedByAdmin: string;
+  createdAt: string;
+}
+
+/** Admin-triggered only -- never called from recordJurisdictionDemandSignal
+    or any background job. A human decides when to spend a real API call,
+    and sees the result (with its actual source URLs, not just the model's
+    summary of them) before relying on anything -- same "draft, cited, a
+    human verifies before anything real happens" posture priority axes
+    already use, just without a separate publish gate, since this note
+    never reaches a resident directly; it only ever helps an admin decide
+    what to actually build. Returns a clear "not configured" result rather
+    than throwing -- this is always triggered by an explicit admin click,
+    so silently doing nothing (the best-effort posture every OTHER function
+    in this file uses) would be the wrong failure mode here. */
+export async function researchJurisdiction(
+  stateFips: string,
+  countyFips: string,
+  countyName: string | null,
+  placeNames: string[],
+  requestedByAdmin: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const client = anthropicResearchClient();
+  if (!client) return { ok: false, reason: "not_configured" };
+
+  const localityLabel = countyName ?? `county FIPS ${stateFips}${countyFips}`;
+  const placesNote =
+    placeNames.length > 0
+      ? ` It contains these incorporated places residents have verified addresses in: ${placeNames.join(", ")}.`
+      : "";
+  try {
+    const message = await client.messages.create({
+      model: RESEARCH_MODEL,
+      // Real bug found live testing this (2026-10-01): 2048 was too low --
+      // this model's tool-use turns spend a large, variable share of the
+      // output budget on interleaved thinking before ever writing the
+      // final answer (one real run: 3110 thinking tokens of 6673 total),
+      // so a tight budget can exhaust itself before any answer text is
+      // emitted at all, silently producing an empty note instead of an
+      // error. 8192 verified live to leave enough room.
+      max_tokens: 8192,
+      tools: [{ type: "web_search_20260318", name: "web_search", max_uses: 6 }],
+      messages: [
+        {
+          role: "user",
+          content:
+            `What is the current election-day schedule and elected-office structure for ${localityLabel}?${placesNote} ` +
+            `Cover the county government itself AND each incorporated place named above separately, since each may ` +
+            `run its own municipal elections on its own schedule, separate from the county/state general election. ` +
+            `For each one, state: the next election date (or "none scheduled" if genuinely none is known), which ` +
+            `offices are up, and term lengths. Cite a real source for every factual claim.`,
+        },
+      ],
+    });
+
+    const note = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n\n")
+      .trim();
+    if (!note) return { ok: false, reason: "empty_response" };
+
+    // Real gap found live testing this (2026-10-01): text blocks' own
+    // `citations` field came back empty/undefined on every real run in
+    // this environment -- this account's web_search tool gets invoked
+    // through a code-execution sandbox (the model writes and runs Python
+    // that calls web_search() itself, confirmed live by dumping the raw
+    // content blocks), and the API's automatic per-sentence citation
+    // tracking only applies to a DIRECT tool_use call, not one reached
+    // through arbitrary code. Fixed by reading source URLs straight off
+    // the web_search_tool_result blocks themselves instead -- every real
+    // search actually run during this request, regardless of which exact
+    // sentence used which result. Less precise (can't point to the one
+    // sentence a URL backs) but far more reliable, and still gives the
+    // admin every real link to check -- which is the actual requirement
+    // here, not perfect per-claim attribution.
+    const seen = new Set<string>();
+    const sourceUrls: { url: string; title: string | null }[] = [];
+    for (const block of message.content) {
+      if (block.type !== "web_search_tool_result") continue;
+      if (!Array.isArray(block.content)) continue; // a WebSearchToolRequestError, not results -- nothing to harvest
+      for (const result of block.content) {
+        if (seen.has(result.url)) continue;
+        seen.add(result.url);
+        sourceUrls.push({ url: result.url, title: result.title });
+      }
+    }
+
+    await db().query(
+      `INSERT INTO jurisdiction_demand_research (state_fips, county_fips, note, source_urls, model_version, requested_by_admin)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (state_fips, county_fips) DO UPDATE SET
+         note = EXCLUDED.note, source_urls = EXCLUDED.source_urls, model_version = EXCLUDED.model_version,
+         requested_by_admin = EXCLUDED.requested_by_admin, created_at = now()`,
+      [stateFips, countyFips, note, JSON.stringify(sourceUrls), message.model, requestedByAdmin],
+    );
+
+    // Owner's explicit request: every admin with jurisdiction_demand access
+    // gets told, same channel the threshold-cross alert already uses --
+    // not just the admin who happened to click the button.
+    await notifyAdmins(
+      "jurisdiction_demand",
+      `AI research note ready for ${localityLabel}`,
+      `${requestedByAdmin} requested research on ${localityLabel} -- ${sourceUrls.length} source(s) cited. Review it in /admin/jurisdiction-demand before relying on anything in it.`,
+    );
+    return { ok: true };
+  } catch (e) {
+    console.error(`researchJurisdiction failed for ${stateFips}${countyFips}: ${(e as Error).message}`);
+    return { ok: false, reason: "error" };
+  }
+}
+
 export interface JurisdictionDemandRow {
   stateFips: string;
   countyFips: string;
@@ -115,6 +241,7 @@ export interface JurisdictionDemandRow {
   signalCount: number;
   firstSignalAt: string;
   looksProvisioned: boolean; // a real county-level jurisdiction row now exists with at least one office -- doesn't mean admin has reviewed it yet
+  research: JurisdictionResearch | null;
 }
 
 // KNOWN, ACCEPTED GAP (found on regression review, 2026-09-08, deliberately
@@ -141,6 +268,10 @@ export interface JurisdictionDemandRow {
     "show the whole queue, not just the urgent slice" convention. */
 export async function adminJurisdictionDemandQueue(): Promise<JurisdictionDemandRow[]> {
   const { rows } = await db().query(
+    // LEFT JOINed research row's columns need r.state_fips/r.county_fips in
+    // the GROUP BY too (not just s.'s) -- Postgres only recognizes the
+    // functional-dependency shortcut (letting the other columns of a table
+    // go unaggregated) when a table's OWN primary key is what's grouped on.
     `SELECT s.state_fips, s.county_fips,
             array_remove(array_agg(DISTINCT s.place_name), NULL) AS place_names,
             count(*)::int AS signal_count,
@@ -149,9 +280,11 @@ export async function adminJurisdictionDemandQueue(): Promise<JurisdictionDemand
               SELECT 1 FROM jurisdictions j
                 JOIN offices o ON o.jurisdiction_id = j.ocd_id
                WHERE j.level = 'county' AND j.state_fips = s.state_fips AND j.county_fips = s.county_fips
-            ) AS looks_provisioned
+            ) AS looks_provisioned,
+            r.note, r.source_urls, r.model_version, r.requested_by_admin, r.created_at AS research_created_at
        FROM jurisdiction_demand_signals s
-      GROUP BY s.state_fips, s.county_fips
+       LEFT JOIN jurisdiction_demand_research r ON r.state_fips = s.state_fips AND r.county_fips = s.county_fips
+      GROUP BY s.state_fips, s.county_fips, r.state_fips, r.county_fips, r.note, r.source_urls, r.model_version, r.requested_by_admin, r.created_at
       ORDER BY signal_count DESC, first_signal_at ASC`,
   );
   return rows.map((r) => ({
@@ -161,6 +294,15 @@ export async function adminJurisdictionDemandQueue(): Promise<JurisdictionDemand
     signalCount: r.signal_count,
     firstSignalAt: r.first_signal_at,
     looksProvisioned: r.looks_provisioned,
+    research: r.note
+      ? {
+          note: r.note as string,
+          sourceUrls: r.source_urls as { url: string; title: string | null }[],
+          modelVersion: r.model_version as string,
+          requestedByAdmin: r.requested_by_admin as string,
+          createdAt: r.research_created_at as string,
+        }
+      : null,
   }));
 }
 

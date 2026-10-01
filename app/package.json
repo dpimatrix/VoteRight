@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "geoip-lite": "^2.0.3",
     "next": "16.3.2",
     "pdf-parse": "^2.4.5",
