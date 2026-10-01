@@ -29,5 +29,10 @@ export async function POST(request: Request) {
   // slipping past a direct/malformed POST. The page's own ERROR_NOTE lookup
   // already handles every OTHER action's rejection reason; this was the one
   // action on the page that never wired into it.
-  return redirectTo(`/admin/priority-axes${res.ok ? "" : `?e=${res.reason}`}`, request);
+  //
+  // Redesign (2026-10-01): success lands on the review queue, where the new
+  // draft now actually appears -- more direct confirmation than reloading
+  // this same form would be. A validation error goes back to the form
+  // itself so it's visible in context.
+  return redirectTo(res.ok ? "/admin/priority-axes" : `/admin/priority-axes/new?e=${res.reason}`, request);
 }

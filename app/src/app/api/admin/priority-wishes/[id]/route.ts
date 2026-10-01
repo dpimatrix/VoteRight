@@ -22,5 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // page reload with no error, believing their note/decision was saved
   // when it wasn't.
   const res = await decidePriorityWish(id, admin.id, action === "approve" ? "approved" : "rejected", note);
-  return redirectTo(`/admin/priority-axes${res.ok ? "" : "?e=wish_already_decided"}`, request);
+  // Redesign (2026-10-01): wishes moved off the main priority-axes page
+  // onto their own route.
+  return redirectTo(`/admin/priority-axes/wishes${res.ok ? "" : "?e=wish_already_decided"}`, request);
 }

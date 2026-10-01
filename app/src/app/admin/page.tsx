@@ -52,26 +52,46 @@ function FreshnessCard({ f }: { f: IngestionFreshness }) {
 // individually below, hiding both the card AND the query behind it -- an
 // admin who can't see e.g. privacy requests shouldn't have this page even
 // running adminPrivacyQueue() on their behalf.
+//
+// Grouped into 4 sections (2026-10-01 redesign): this used to be all 15
+// screen cards in one flat, source-order stack with no section headers at
+// all -- a compliance queue (privacy/MODPA) sat at the same visual level as
+// a money screen (payments) and a pure content-coverage screen (race
+// coverage), in whatever order they happened to be written here. Grouping
+// is purely presentational -- every card below keeps its own exact query
+// and has() gate; a group header only renders when at least one of its
+// cards will (see `groupHas` below), so an admin without access to a whole
+// group never sees an empty heading.
 export default async function AdminHome() {
   const admin = await currentAdmin();
   if (!admin) return null;
   const has = (s: string) => admin.screens.has(s as never);
+  const groupHas = (screens: string[]) => screens.some(has);
 
   return (
     <>
       <div className="pagetitle">Queues</div>
-      {has("disputes") &&
+
+      {groupHas(["priority_axes", "coding", "positions", "mandates", "accountability", "race_coverage", "jurisdiction_demand"]) && (
+        <div className="grouph">Civic content &amp; coverage</div>
+      )}
+      {has("priority_axes") &&
         (await (async () => {
-          const flags = await adminFlags();
-          const open = flags.filter((f) => f.status === "open").length;
+          const axes = await listAxesForAdmin();
+          const wishes = await listPendingPriorityWishes();
+          // Two different queues on the same screen (drafts/reviews awaiting
+          // action vs. resident-submitted wishes awaiting a decision) --
+          // summed here so the dashboard card's one number means "anything
+          // on this screen needs your attention," not just half of it.
+          const needsAttention = axes.filter((a) => a.status === "in_review" || a.status === "draft").length + wishes.length;
           return (
-            <Link className="seat" href="/admin/disputes">
-              <span className="seat-ic">IF</span>
+            <Link className="seat" href="/admin/priority-axes">
+              <span className="seat-ic">PA</span>
               <span className="sname">
-                Integrity disputes
-                <span className="smeta">{open} open · {flags.length} total</span>
+                Priority topics &amp; axes
+                <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish, plus resident wishes</span>
               </span>
-              <span className={`chip band ${open > 0 ? "bm1" : "b0"}`}>{open} open</span>
+              <span className={`chip band ${needsAttention > 0 ? "b1" : "b0"}`}>{needsAttention} pending</span>
             </Link>
           );
         })())}
@@ -86,6 +106,99 @@ export default async function AdminHome() {
                 <span className="smeta">model suggestions awaiting human confirmation</span>
               </span>
               <span className={`chip band ${queue.length > 0 ? "b1" : "b0"}`}>{queue.length} pending</span>
+            </Link>
+          );
+        })())}
+      {has("positions") && (
+        <Link className="seat" href="/admin/positions">
+          <span className="seat-ic">VP</span>
+          <span className="sname">
+            Vote → position coding
+            <span className="smeta">turn roll calls into scored, cited positions — one deliberate judgment at a time</span>
+          </span>
+          <span className="chip band b0">code</span>
+        </Link>
+      )}
+      {has("mandates") &&
+        (await (async () => {
+          const pipeline = await adminMandatePipeline();
+          const mandateWork =
+            pipeline.ready.length +
+            pipeline.referenda.filter((r: { status: string; certified: boolean }) => r.status === "closed" && !r.certified).length +
+            pipeline.commitments.length;
+          return (
+            <Link className="seat" href="/admin/mandates">
+              <span className="seat-ic">RM</span>
+              <span className="sname">
+                Referenda &amp; mandates
+                <span className="smeta">schedule · certify · publish · commitments · outcomes · redaction</span>
+              </span>
+              <span className={`chip band ${mandateWork > 0 ? "b1" : "b0"}`}>{mandateWork} pending</span>
+            </Link>
+          );
+        })())}
+      {has("accountability") &&
+        (await (async () => {
+          const campaigns = await adminCampaigns();
+          return (
+            <Link className="seat" href="/admin/accountability">
+              <span className="seat-ic">AC</span>
+              <span className="sname">
+                Accountability campaigns
+                <span className="smeta">in-app status vs. real petition status — tracked separately</span>
+              </span>
+              <span className="chip band b0">{campaigns.length} total</span>
+            </Link>
+          );
+        })())}
+      {has("race_coverage") &&
+        (await (async () => {
+          const gaps = await pendingCoverageGaps();
+          const withViewers = gaps.filter((g) => g.viewerCount > 0).length;
+          return (
+            <Link className="seat" href="/admin/race-coverage">
+              <span className="seat-ic">RC</span>
+              <span className="sname">
+                Race coverage
+                <span className="smeta">elected offices with no races row this cycle — sourcing gaps, not code bugs</span>
+              </span>
+              <span className={`chip band ${withViewers > 0 ? "bm1" : gaps.length > 0 ? "b1" : "b0"}`}>
+                {gaps.length} gap{gaps.length === 1 ? "" : "s"}
+              </span>
+            </Link>
+          );
+        })())}
+      {has("jurisdiction_demand") &&
+        (await (async () => {
+          const queue = await adminJurisdictionDemandQueue();
+          const crossed = queue.filter((q) => q.signalCount >= DEMAND_THRESHOLD).length;
+          return (
+            <Link className="seat" href="/admin/jurisdiction-demand">
+              <span className="seat-ic">JD</span>
+              <span className="sname">
+                Jurisdiction demand
+                <span className="smeta">counties residents keep verifying in that VoteRight hasn&apos;t seeded local detail for yet</span>
+              </span>
+              <span className={`chip band ${crossed > 0 ? "b1" : queue.length > 0 ? "bm1" : "b0"}`}>
+                {crossed} at threshold · {queue.length} tracked
+              </span>
+            </Link>
+          );
+        })())}
+
+      {groupHas(["disputes", "moderation", "anomalies"]) && <div className="grouph">Trust &amp; safety</div>}
+      {has("disputes") &&
+        (await (async () => {
+          const flags = await adminFlags();
+          const open = flags.filter((f) => f.status === "open").length;
+          return (
+            <Link className="seat" href="/admin/disputes">
+              <span className="seat-ic">IF</span>
+              <span className="sname">
+                Integrity disputes
+                <span className="smeta">{open} open · {flags.length} total</span>
+              </span>
+              <span className={`chip band ${open > 0 ? "bm1" : "b0"}`}>{open} open</span>
             </Link>
           );
         })())}
@@ -126,6 +239,10 @@ export default async function AdminHome() {
             </Link>
           );
         })())}
+
+      {groupHas(["payments", "subscriptions", "transparency", "privacy"]) && (
+        <div className="grouph">Money &amp; compliance</div>
+      )}
       {has("payments") && (
         <Link className="seat" href="/admin/payments">
           <span className="seat-ic">$V</span>
@@ -152,38 +269,16 @@ export default async function AdminHome() {
             </Link>
           );
         })())}
-      {has("mandates") &&
-        (await (async () => {
-          const pipeline = await adminMandatePipeline();
-          const mandateWork =
-            pipeline.ready.length +
-            pipeline.referenda.filter((r: { status: string; certified: boolean }) => r.status === "closed" && !r.certified).length +
-            pipeline.commitments.length;
-          return (
-            <Link className="seat" href="/admin/mandates">
-              <span className="seat-ic">RM</span>
-              <span className="sname">
-                Referenda &amp; mandates
-                <span className="smeta">schedule · certify · publish · commitments · outcomes · redaction</span>
-              </span>
-              <span className={`chip band ${mandateWork > 0 ? "b1" : "b0"}`}>{mandateWork} pending</span>
-            </Link>
-          );
-        })())}
-      {has("accountability") &&
-        (await (async () => {
-          const campaigns = await adminCampaigns();
-          return (
-            <Link className="seat" href="/admin/accountability">
-              <span className="seat-ic">AC</span>
-              <span className="sname">
-                Accountability campaigns
-                <span className="smeta">in-app status vs. real petition status — tracked separately</span>
-              </span>
-              <span className="chip band b0">{campaigns.length} total</span>
-            </Link>
-          );
-        })())}
+      {has("transparency") && (
+        <Link className="seat" href="/admin/transparency">
+          <span className="seat-ic">$$</span>
+          <span className="sname">
+            Outside money &amp; endorsements
+            <span className="smeta">MDCRIS filings + org announcements — curated, citation-required (§8.1)</span>
+          </span>
+          <span className="chip band b0">curate</span>
+        </Link>
+      )}
       {has("privacy") &&
         (await (async () => {
           const privacy = await adminPrivacyQueue();
@@ -203,26 +298,7 @@ export default async function AdminHome() {
           );
         })())}
 
-      {has("positions") && (
-        <Link className="seat" href="/admin/positions">
-          <span className="seat-ic">VP</span>
-          <span className="sname">
-            Vote → position coding
-            <span className="smeta">turn roll calls into scored, cited positions — one deliberate judgment at a time</span>
-          </span>
-          <span className="chip band b0">code</span>
-        </Link>
-      )}
-      {has("transparency") && (
-        <Link className="seat" href="/admin/transparency">
-          <span className="seat-ic">$$</span>
-          <span className="sname">
-            Outside money &amp; endorsements
-            <span className="smeta">MDCRIS filings + org announcements — curated, citation-required (§8.1)</span>
-          </span>
-          <span className="chip band b0">curate</span>
-        </Link>
-      )}
+      {groupHas(["admin_accounts"]) && <div className="grouph">Admin</div>}
       {has("admin_accounts") && (
         <Link className="seat" href="/admin/admin-accounts">
           <span className="seat-ic">AA</span>
@@ -233,60 +309,6 @@ export default async function AdminHome() {
           <span className="chip band b0">manage</span>
         </Link>
       )}
-      {has("race_coverage") &&
-        (await (async () => {
-          const gaps = await pendingCoverageGaps();
-          const withViewers = gaps.filter((g) => g.viewerCount > 0).length;
-          return (
-            <Link className="seat" href="/admin/race-coverage">
-              <span className="seat-ic">RC</span>
-              <span className="sname">
-                Race coverage
-                <span className="smeta">elected offices with no races row this cycle — sourcing gaps, not code bugs</span>
-              </span>
-              <span className={`chip band ${withViewers > 0 ? "bm1" : gaps.length > 0 ? "b1" : "b0"}`}>
-                {gaps.length} gap{gaps.length === 1 ? "" : "s"}
-              </span>
-            </Link>
-          );
-        })())}
-      {has("priority_axes") &&
-        (await (async () => {
-          const axes = await listAxesForAdmin();
-          const wishes = await listPendingPriorityWishes();
-          // Two different queues on the same screen (drafts/reviews awaiting
-          // action vs. resident-submitted wishes awaiting a decision) --
-          // summed here so the dashboard card's one number means "anything
-          // on this screen needs your attention," not just half of it.
-          const needsAttention = axes.filter((a) => a.status === "in_review" || a.status === "draft").length + wishes.length;
-          return (
-            <Link className="seat" href="/admin/priority-axes">
-              <span className="seat-ic">PA</span>
-              <span className="sname">
-                Priority topics &amp; axes
-                <span className="smeta">the questions every candidate &amp; voter is measured against — draft → review → publish, plus resident wishes</span>
-              </span>
-              <span className={`chip band ${needsAttention > 0 ? "b1" : "b0"}`}>{needsAttention} pending</span>
-            </Link>
-          );
-        })())}
-      {has("jurisdiction_demand") &&
-        (await (async () => {
-          const queue = await adminJurisdictionDemandQueue();
-          const crossed = queue.filter((q) => q.signalCount >= DEMAND_THRESHOLD).length;
-          return (
-            <Link className="seat" href="/admin/jurisdiction-demand">
-              <span className="seat-ic">JD</span>
-              <span className="sname">
-                Jurisdiction demand
-                <span className="smeta">counties residents keep verifying in that VoteRight hasn&apos;t seeded local detail for yet</span>
-              </span>
-              <span className={`chip band ${crossed > 0 ? "b1" : queue.length > 0 ? "bm1" : "b0"}`}>
-                {crossed} at threshold · {queue.length} tracked
-              </span>
-            </Link>
-          );
-        })())}
 
       {await (async () => {
         // Read-only operational health, not a mutation screen -- shown to

@@ -61,7 +61,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     case "retire": {
       const supersededBy = String(form.get("superseded_by_axis_id") ?? "").trim();
       ok = (await retireAxis(id, supersededBy || undefined)).ok;
-      break;
+      // Redesign (2026-10-01): retire is the one action here that only ever
+      // acts on a PUBLISHED axis, which now lives on its own route -- every
+      // other action below acts on a draft/in_review axis, which lives on
+      // the review-queue route instead.
+      return redirectTo(`/admin/priority-axes/published${ok ? "" : "?e=race"}`, request);
     }
     default:
       return new Response("unknown action", { status: 400 });

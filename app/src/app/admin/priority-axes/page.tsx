@@ -1,163 +1,43 @@
 import { currentAdmin, hasAdminAccess } from "@/lib/adminAuth";
 import { AdminAccessDenied } from "@/components/AdminAccessDenied";
-import { listAxesForAdmin, topicsList, type AdminAxis } from "@/lib/priorityAxes";
-import { listApprovedUndraftedPriorityWishes, listPendingPriorityWishes } from "@/lib/priorityWishes";
+import { listAxesForAdmin, topicsList } from "@/lib/priorityAxes";
+import { AxisCard, groupAxesByTopic } from "@/components/admin/AxisCard";
+import { PriorityAxesNav } from "@/components/admin/PriorityAxesNav";
+import { ERROR_NOTE } from "@/components/admin/priorityAxesErrors";
 
 export const dynamic = "force-dynamic";
 
-const ERROR_NOTE: Record<string, string> = {
-  self_review: "Can't approve your own draft — a different admin has to review it.",
-  not_in_review: "That axis isn't awaiting review (someone may have already acted on it).",
-  not_found: "Axis not found.",
-  race: "Someone else already acted on this axis.",
-  // Real gap found live 2026-08-31: createDraftAxis() already returns one of
-  // these 4 reasons on failure, but api/admin/priority-axes/route.ts (the
-  // "draft a new axis" form's own action) discarded it outright, always
-  // redirecting back here as if the save succeeded -- unlike every action
-  // on THIS SAME PAGE below (approve/reject/retire/etc.), which already
-  // correctly wired into this exact ERROR_NOTE lookup.
-  topic: "Choose an existing topic or name a new one.",
-  fields: "Every field (key, question, both poles) is required.",
-  duplicate_key: "That axis key is already used within this topic — pick a different one.",
-  error: "That axis couldn't be saved.",
-  wish_already_decided: "Someone else already decided that wish — your note wasn't saved.",
-  wish_already_linked: "Someone already drafted an axis from that wish — this one wasn't saved to avoid a duplicate.",
-};
-
-function AxisCard({ axis, allAxes, meAdmin }: { axis: AdminAxis; allAxes: AdminAxis[]; meAdmin: string }) {
-  return (
-    <div className="card" style={{ padding: "0.7rem 0.9rem" }}>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap" }}>
-        <strong style={{ flex: 1, fontSize: "0.9rem" }}>{axis.topicName} — {axis.key}</strong>
-        <span
-          className={`chip band ${
-            axis.status === "published" ? "b2" : axis.status === "in_review" ? "b1" : axis.status === "retired" ? "bnull" : "b0"
-          }`}
-        >
-          {axis.status}
-        </span>
-      </div>
-      <p style={{ fontSize: "0.88rem", margin: "0.4rem 0 0" }}>{axis.question}</p>
-      <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.82rem", margin: "0.3rem 0 0", flexWrap: "wrap" }}>
-        <span className="chip cite">− {axis.negativePole}</span>
-        <span className="chip cite">+ {axis.positivePole}</span>
-        <span className="chip cite">{axis.jurisdictionId ? axis.jurisdictionName ?? axis.jurisdictionId : "Nationwide"}</span>
-      </div>
-      <p className="nopos" style={{ margin: "0.35rem 0 0" }}>
-        {axis.createdByAdmin ? `drafted by ${axis.createdByAdmin}` : "seeded, no admin attribution"}
-        {axis.reviewedByAdmin ? ` · reviewed by ${axis.reviewedByAdmin}` : ""}
-        {axis.publishedAt ? ` · published ${axis.publishedAt.slice(0, 10)}` : ""}
-        {axis.retiredAt ? ` · retired ${axis.retiredAt.slice(0, 10)}` : ""}
-        {axis.supersededByAxisId
-          ? ` · superseded by ${allAxes.find((a) => a.id === axis.supersededByAxisId)?.key ?? axis.supersededByAxisId}`
-          : ""}
-      </p>
-
-      {axis.status === "draft" && (
-        <>
-          <form method="post" action={`/api/admin/priority-axes/${axis.id}`} className="admform" style={{ marginTop: "0.5rem" }}>
-            <input type="hidden" name="action" value="update_draft" />
-            <label style={{ flex: 1, fontSize: "0.8rem", width: "100%" }}>
-              Question
-              <textarea name="question" defaultValue={axis.question} rows={2} required style={{ width: "100%" }} />
-            </label>
-            <label style={{ flex: 1, fontSize: "0.8rem" }}>
-              Negative pole (−2)
-              <input name="negative_pole" defaultValue={axis.negativePole} required style={{ width: "100%" }} />
-            </label>
-            <label style={{ flex: 1, fontSize: "0.8rem" }}>
-              Positive pole (+2)
-              <input name="positive_pole" defaultValue={axis.positivePole} required style={{ width: "100%" }} />
-            </label>
-            <button type="submit">Save changes</button>
-          </form>
-          <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.4rem" }}>
-            <form method="post" action={`/api/admin/priority-axes/${axis.id}`}>
-              <input type="hidden" name="action" value="submit_for_review" />
-              <button type="submit" className="btn secondary">Submit for review</button>
-            </form>
-            <form method="post" action={`/api/admin/priority-axes/${axis.id}`}>
-              <input type="hidden" name="action" value="delete_draft" />
-              <button type="submit" className="btn secondary">Delete draft</button>
-            </form>
-          </div>
-        </>
-      )}
-
-      {axis.status === "in_review" && (
-        <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-          {axis.createdByAdmin === meAdmin ? (
-            <p className="nopos" style={{ margin: 0 }}>
-              Awaiting a different admin's review — you drafted this one, you can't publish it.
-            </p>
-          ) : (
-            <form method="post" action={`/api/admin/priority-axes/${axis.id}`}>
-              <input type="hidden" name="action" value="approve_and_publish" />
-              <button type="submit">Approve &amp; publish</button>
-            </form>
-          )}
-          <form method="post" action={`/api/admin/priority-axes/${axis.id}`}>
-            <input type="hidden" name="action" value="send_back_to_draft" />
-            <button type="submit" className="btn secondary">Send back to draft</button>
-          </form>
-        </div>
-      )}
-
-      {axis.status === "published" && (
-        <form
-          method="post"
-          action={`/api/admin/priority-axes/${axis.id}`}
-          style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", alignItems: "center", flexWrap: "wrap" }}
-        >
-          <input type="hidden" name="action" value="retire" />
-          <label style={{ fontSize: "0.8rem" }}>
-            Superseded by (optional)
-            <select name="superseded_by_axis_id" defaultValue="" style={{ marginLeft: "0.4rem" }}>
-              <option value="">— none —</option>
-              {allAxes
-                .filter((a) => a.id !== axis.id && a.status !== "retired")
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.topicName} — {a.key} ({a.status})
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button type="submit" className="btn secondary">Retire</button>
-        </form>
-      )}
-    </div>
-  );
-}
-
+// Admin console redesign (2026-10-01): this used to be the one and only
+// priority-axes page -- resident wishes, hand-authoring a new axis, AND a
+// flat "All axes" list (draft/in_review/published/retired all interleaved,
+// grouped only by topic) all on one continuously-scrolling page. As axis
+// count grew (14 -> 21 -> 31 across migrations 106/108/109) the handful
+// that actually needed action got lost among dozens of already-published
+// ones. Split into 4 routes (see PriorityAxesNav); THIS page is now the
+// default landing page and shows ONLY what needs a human decision today --
+// exactly what the /admin dashboard card's "N pending" count already means,
+// so clicking that card now lands you on exactly what it counted. Wishes,
+// new-axis authoring, and the published/retired archive moved to their own
+// routes below.
 export default async function AdminPriorityAxesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ e?: string; topic?: string; draft_from_wish?: string; draft_text?: string }>;
+  searchParams: Promise<{ e?: string; topic?: string }>;
 }) {
   if (!(await hasAdminAccess("priority_axes"))) return <AdminAccessDenied screen="priority_axes" />;
   const admin = await currentAdmin();
   const sp = await searchParams;
-  // Unfiltered -- the "superseded by" dropdown on each published axis
-  // (inside AxisCard below) needs every axis regardless of the topic
-  // filter, so filtering happens here in memory rather than in the query.
+  // Unfiltered -- AxisCard's "superseded by" lookup (and the retire
+  // dropdown, on the published page) needs every axis regardless of this
+  // page's own topic/status filtering, same invariant the old single page
+  // relied on.
   const axes = await listAxesForAdmin();
   const topics = await topicsList();
-  const wishes = await listPendingPriorityWishes();
-  const approvedUndrafted = await listApprovedUndraftedPriorityWishes();
 
-  // Grouped by topic for the render below -- listAxesForAdmin() already
-  // orders topic-name-first specifically so consecutive rows share a
-  // topic; this just splits on that boundary rather than re-sorting.
-  // Filtered to the selected topic first, if any -- the grouping loop
-  // itself doesn't need to know about the filter.
-  const visibleAxes = sp.topic ? axes.filter((a) => a.topicId === sp.topic) : axes;
-  const axesByTopic: { topicName: string; axes: AdminAxis[] }[] = [];
-  for (const a of visibleAxes) {
-    const group = axesByTopic[axesByTopic.length - 1];
-    if (group?.topicName === a.topicName) group.axes.push(a);
-    else axesByTopic.push({ topicName: a.topicName, axes: [a] });
-  }
+  const needsAttention = axes.filter((a) => a.status === "draft" || a.status === "in_review");
+  const visible = sp.topic ? needsAttention.filter((a) => a.topicId === sp.topic) : needsAttention;
+  const inReview = groupAxesByTopic(visible.filter((a) => a.status === "in_review"));
+  const drafts = groupAxesByTopic(visible.filter((a) => a.status === "draft"));
 
   return (
     <>
@@ -168,121 +48,11 @@ export default async function AdminPriorityAxesPage({
         in the database, not just this screen) — a rewording is always a new axis plus retiring
         the old one, never a silent edit of what candidates have already been coded against.
       </p>
+      <PriorityAxesNav active="review" />
       {sp.e && <p className="nopos" style={{ color: "var(--adv, #b00)" }}>{ERROR_NOTE[sp.e] ?? sp.e}</p>}
 
-      <div className="grouph">Priority wishes ({wishes.length} pending)</div>
-      <p className="sub" style={{ marginTop: 0 }}>
-        Resident suggestions for a new priority axis. Approving here does NOT create a live axis
-        automatically — draft the actual, balanced axis wording below yourself, using the wish as
-        input. This just tells the submitter what happened to their suggestion.
-      </p>
-      {wishes.length === 0 && <p className="nopos">No pending wishes.</p>}
-      {wishes.map((w) => (
-        <div className="card" key={w.id} style={{ padding: "0.7rem 0.9rem" }}>
-          <p style={{ fontSize: "0.9rem", margin: 0 }}>{w.statement}</p>
-          <p className="nopos" style={{ margin: "0.3rem 0 0" }}>suggested {w.createdAt.slice(0, 10)}</p>
-          <form
-            method="post"
-            action={`/api/admin/priority-wishes/${w.id}`}
-            className="admform"
-            style={{ marginTop: "0.5rem", alignItems: "flex-end" }}
-          >
-            <label style={{ flex: 1, fontSize: "0.8rem", width: "100%" }}>
-              Note to submitter (optional — they'll see this either way)
-              <input name="note" style={{ width: "100%" }} />
-            </label>
-            <button type="submit" name="action" value="approve">Approve</button>
-            <button type="submit" name="action" value="reject" className="btn secondary">Reject</button>
-          </form>
-        </div>
-      ))}
-
-      {/* Real gap found live 2026-09-13: approving a wish above used to be
-          the last anyone ever saw of it -- listPendingPriorityWishes()
-          correctly drops it once decided, but nothing else picked it up,
-          so "approved" and "actually built" silently diverged with no
-          reminder. This is that reminder. */}
-      <div className="grouph">Approved, not yet drafted ({approvedUndrafted.length})</div>
-      <p className="sub" style={{ marginTop: 0 }}>
-        Approved suggestions waiting on the actual axis wording below. Stays here until a draft is
-        linked to it — tracked (migration 104), not just a note to remember.
-      </p>
-      {approvedUndrafted.length === 0 && <p className="nopos">Nothing outstanding.</p>}
-      {approvedUndrafted.map((w) => (
-        <div className="card" key={w.id} style={{ padding: "0.7rem 0.9rem" }}>
-          <p style={{ fontSize: "0.9rem", margin: 0 }}>{w.statement}</p>
-          <p className="nopos" style={{ margin: "0.3rem 0 0" }}>
-            approved {w.decidedAt?.slice(0, 10)}
-            {w.adminNote ? ` · noted: "${w.adminNote}"` : ""}
-          </p>
-          <a
-            className="btn secondary"
-            style={{ marginTop: "0.5rem", display: "inline-block" }}
-            href={`/admin/priority-axes?draft_from_wish=${w.id}&draft_text=${encodeURIComponent(w.statement)}#draft-axis`}
-          >
-            Draft axis from this ↓
-          </a>
-        </div>
-      ))}
-
-      <div id="draft-axis" className="grouph">Draft a new axis</div>
-      <div className="card">
-        <form method="post" action="/api/admin/priority-axes" className="admform">
-          {sp.draft_from_wish && (
-            <>
-              <input type="hidden" name="wish_id" value={sp.draft_from_wish} />
-              <p className="nopos" style={{ width: "100%", margin: 0 }}>
-                Drafting from an approved resident suggestion — linked automatically on save.
-              </p>
-            </>
-          )}
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Existing topic
-            <select name="topic_id" style={{ width: "100%" }}>
-              <option value="">— use new topic below instead —</option>
-              {topics.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            …or a new top-level topic
-            <input name="new_topic_name" placeholder="e.g. Economic development" style={{ width: "100%" }} />
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Axis key (short, unique within the topic — e.g. rent_stabilization)
-            <input name="key" required style={{ width: "100%" }} />
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Question, phrased neutrally
-            <textarea
-              name="question"
-              rows={2}
-              required
-              defaultValue={sp.draft_text ?? ""}
-              style={{ width: "100%" }}
-            />
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Negative pole (−2) — what the low end means, in words
-            <input name="negative_pole" required style={{ width: "100%" }} />
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Positive pole (+2) — what the high end means, in words
-            <input name="positive_pole" required style={{ width: "100%" }} />
-          </label>
-          <label style={{ flex: 1, fontSize: "0.8rem" }}>
-            Jurisdiction scope (migration 105) — leave blank for nationwide (shown to every resident); or a
-            jurisdiction&apos;s ocd_id (e.g. ocd-division/country:us/state:md/county:montgomery) to scope this
-            axis to residents whose own jurisdiction includes it
-            <input name="jurisdiction_id" placeholder="blank = nationwide" style={{ width: "100%" }} />
-          </label>
-          <button type="submit">Save as draft</button>
-        </form>
-      </div>
-
       <div className="grouph">
-        All axes
+        Awaiting a second admin&apos;s review ({inReview.reduce((n, g) => n + g.axes.length, 0)})
         {sp.topic && ` — ${topics.find((t) => t.id === sp.topic)?.name ?? sp.topic}`}
       </div>
       {/* Plain GET links, not a <select onChange>, to stay consistent with
@@ -297,8 +67,19 @@ export default async function AdminPriorityAxesPage({
           </a>
         ))}
       </p>
-      {visibleAxes.length === 0 && <p className="nopos">No axes{sp.topic ? " for this topic" : ""}.</p>}
-      {axesByTopic.map((group) => (
+      {inReview.length === 0 && <p className="nopos">Nothing awaiting review{sp.topic ? " for this topic" : ""}.</p>}
+      {inReview.map((group) => (
+        <div key={group.topicName}>
+          <p className="nopos" style={{ margin: "0.8rem 0 0.3rem", fontWeight: "bold" }}>{group.topicName}</p>
+          {group.axes.map((a) => (
+            <AxisCard key={a.id} axis={a} allAxes={axes} meAdmin={admin?.username ?? ""} />
+          ))}
+        </div>
+      ))}
+
+      <div className="grouph">Drafts ({drafts.reduce((n, g) => n + g.axes.length, 0)})</div>
+      {drafts.length === 0 && <p className="nopos">No drafts{sp.topic ? " for this topic" : ""}.</p>}
+      {drafts.map((group) => (
         <div key={group.topicName}>
           <p className="nopos" style={{ margin: "0.8rem 0 0.3rem", fontWeight: "bold" }}>{group.topicName}</p>
           {group.axes.map((a) => (
