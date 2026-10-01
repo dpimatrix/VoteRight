@@ -18,12 +18,26 @@
 //
 // SCOPE, DELIBERATELY NARROW: only office types this script recognizes
 // (federal delegation, MD General Assembly, Governor/Lt. Governor,
-// Attorney General, and Montgomery County's already-built county-row
-// offices) AND only rows whose resolved title matches an office ALREADY IN
-// VoteRight's `offices` table. A county VoteRight hasn't built out (e.g.
-// Allegany County Commissioner) simply finds no match and is silently
-// skipped -- this script never creates a new office or expands county
-// coverage; that remains a separate, larger, deliberate decision.
+// Comptroller, Attorney General, and Montgomery County's already-built
+// county-row offices) AND only rows whose resolved title matches an office
+// ALREADY IN VoteRight's `offices` table. A county VoteRight hasn't built
+// out (e.g. Allegany County Commissioner) simply finds no match and is
+// silently skipped -- this script never creates a new office or expands
+// county coverage; that remains a separate, larger, deliberate decision.
+//
+// Real bug found live 2026-10-01, via /admin/race-coverage: "Governor /
+// Lt. Governor" and "Comptroller" were claimed above as in-scope from the
+// start, and the combined-ticket Lt.-Governor-handling code below was
+// already written for it, but neither office name was ever actually added
+// to STATE_TITLE_RESOLVERS -- every real, active, already-filed 2026
+// Governor/Lt.Gov/Comptroller candidate (confirmed live against the real
+// CSV: Moore/Miller and Cox/Krop for Governor/Lt.Gov, 2 Comptroller
+// candidates) silently fell into unmatchedOffice every run, indistinguishable
+// from a county VoteRight genuinely hasn't built out. Fixed below -- note
+// Comptroller needs an explicit title MAP, not a pass-through: the real
+// ballot title is "Comptroller", but VoteRight's own office row is
+// deliberately normalized to "Controller" (migration 067, matching how
+// every other state's differently-named equivalent office is handled).
 // "Judge of the Circuit Court" rows are also skipped on purpose: Maryland's
 // judicial circuits span multiple counties (Montgomery shares its 6th
 // Circuit with Frederick County) with no clean per-seat subcircuit mapping
@@ -152,6 +166,14 @@ const STATE_TITLE_RESOLVERS = {
     return m ? `State Delegate — District ${m[1]}` : null;
   },
   "Attorney General": () => "Attorney General",
+  // The lead candidate on a combined Governor/Lt.-Governor ticket -- the
+  // running mate rides along in the SAME csv row (see the special-case
+  // block below, which was already written for this but unreachable until
+  // this resolver entry existed).
+  "Governor / Lt. Governor": () => "Governor",
+  // Real ballot title is "Comptroller" (confirmed live against the actual
+  // CSV); VoteRight's own office row is "Controller" (migration 067).
+  "Comptroller": () => "Controller",
 };
 
 // Only applied when the row's own residential jurisdiction is Montgomery
