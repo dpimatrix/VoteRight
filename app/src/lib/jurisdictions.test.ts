@@ -292,6 +292,15 @@ describe("filterToOwnDistricts (D6 gap #5 — narrows a resident's own federal/s
     expect(result.map((o) => o.title)).toEqual(["Board of Supervisors — Hunter Mill District", "Board of Supervisors — Chairman"]);
   });
 
+  it("narrows Santa Clara County's NUMBERED supervisor districts to the resident's own (migration 111, 2026-10-02) — same 'Board of Supervisors' seat kind as Fairfax, the standard CA numbered shape instead of Fairfax's named one; real gap found self-reviewing that migration — districtFieldFor already mapped this seat kind to countyCouncil, but OWN_DISTRICT_PATTERN's own prefix list never actually included it until this fix", () => {
+    const offices = [
+      office("Board of Supervisors — District 1", "county"),
+      office("Board of Supervisors — District 3", "county"),
+    ];
+    const result = filterToOwnDistricts(offices, districts({ countyCouncil: "3" }));
+    expect(result.map((o) => o.title)).toEqual(["Board of Supervisors — District 3"]);
+  });
+
   it("shows every seat in a tier when that tier's district wasn't resolved — never a guessed district hiding real seats", () => {
     const offices = [office("State Senator — District 17"), office("State Senator — District 3")];
     expect(filterToOwnDistricts(offices, districts({}))).toHaveLength(2);

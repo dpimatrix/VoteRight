@@ -553,8 +553,21 @@ export async function resolveJurisdiction(address: string): Promise<Resolution> 
 // the same day needed a real pattern change: a bare "Council" seat kind
 // (DC has no county layer of its own to prefix it with) and "Ward"
 // alongside "District" as the tier keyword.
+// "Board of Supervisors" added here 2026-10-02 (Santa Clara County,
+// migration 111) -- real gap found self-reviewing that migration before
+// calling it done: districtFieldFor() below already mapped "Board of
+// Supervisors" to the countyCouncil field (apparently added in
+// anticipation of exactly this), but this regex's own prefix alternation
+// never actually included it, so a numbered-district California county
+// (the standard CA convention -- "Board of Supervisors — District 1")
+// would have silently fallen through unmatched despite that mapping
+// existing. Fairfax's own "Board of Supervisors — Braddock District"
+// (OWN_NAMED_DISTRICT_PATTERN, below) is a structurally different,
+// NAMED-district shape and can't collide with this numbered one -- the
+// district token there precedes the word "District" instead of following
+// it, so the same prefix text matches at most one of the two patterns.
 const OWN_DISTRICT_PATTERN =
-  /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Council|Board of Education) — (?:District|Ward) (\S+)$/;
+  /^(U\.S\. Representative|State Senator|State (?:Representative|Delegate|Assemblymember|Assembly Member)|County Council|Council|Board of Education|Board of Supervisors) — (?:District|Ward) (\S+)$/;
 
 // Maryland Supreme Court circuit seats (migration 069, "Supreme Court 1st
 // Circuit" .. "7th Circuit") added 2026-08-14 -- a genuinely different
