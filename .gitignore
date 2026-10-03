@@ -5,3 +5,9 @@
 1.debug/
 /app/debate-media/
 /Adminstration/
+# app/.gitignore and mobile/.gitignore each cover their own node_modules
+# already, but only within their own subtree -- added here 2026-10-03 so
+# a repo-root-level tooling folder (docs/ops-docx-generator/, the first
+# one) doesn't need its own copy of the same rule, and neither does the
+# next one.
+**/node_modules

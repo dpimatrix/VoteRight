@@ -1,0 +1,8 @@
+{
+  "name": "voteright-admin-docx-generator",
+  "private": true,
+  "description": "Regenerates Operations Calendar.docx and Ops Tracking.docx from their markdown sources (docs/OPERATIONS-CALENDAR.md in this repo, and a Claude Code memory file local to the owner's machine) whenever either changes. Run: npm install (once, or whenever node_modules is missing) then node generate-docx.js from this directory. Output is NOT written here -- it lands in the owner's local, gitignored Adminstration/ folder (hardcoded absolute path in generate-docx.js) since that's personal/business content this public repo must never contain.",
+  "dependencies": {
+    "docx": "^9.0.0"
+  }
+}
