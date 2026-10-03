@@ -32,8 +32,19 @@
 -- term_start below is marked term_start_precise = FALSE, same posture
 -- as every date in migration 111.
 
+-- Real bug found live 2026-10-03, after this migration had already run on
+-- production: county_fips below was '005' (Armstrong County's real FIPS)
+-- instead of '007' (Beaver County's actual FIPS, confirmed directly
+-- against the Census geocoder) -- not a cosmetic error. Because
+-- jurisdictionForGeography matches on (state_fips, county_fips), not
+-- name, this silently made every real Armstrong County, PA address
+-- resolve to THIS row instead -- Armstrong residents were being served
+-- Beaver County's real offices/officeholders as if those were their own
+-- local government. Fixed here; production corrected via a direct
+-- UPDATE (this INSERT is idempotent-irrelevant for an already-migrated
+-- database, but must be right for any fresh one built from scratch).
 INSERT INTO jurisdictions (ocd_id, name, level, parent_ocd_id, state_fips, county_fips) VALUES
- ('ocd-division/country:us/state:pa/county:beaver', 'Beaver County', 'county', 'ocd-division/country:us/state:pa', '42', '005');
+ ('ocd-division/country:us/state:pa/county:beaver', 'Beaver County', 'county', 'ocd-division/country:us/state:pa', '42', '007');
 
 -- Board of Commissioners -- 3 seats, elected at-large per Pennsylvania's
 -- standard county-commissioner model (not by district); confirmed
