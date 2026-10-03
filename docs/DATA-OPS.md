@@ -149,6 +149,12 @@ Three rules that outrank frequency:
 
 ## 7. Standing cadences once live
 
+**Superseded by `docs/OPERATIONS-CALENDAR.md` (2026-10-03)** — that doc covers
+this table's own cadences plus every other recurring job/admin-review task
+this project now has (backups, moderation, disputes, privacy, etc.), verified
+directly against what's actually scheduled. This table stays here as the
+data-ops-specific detail it links back to; update both if either changes.
+
 | When | What |
 |---|---|
 | Per §6 schedule | Automated ingestion (GitHub Actions) |
